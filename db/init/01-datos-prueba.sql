@@ -1,0 +1,20 @@
+-- =============================================================================
+-- PiedraAzul — datos de prueba (PostgreSQL)
+-- =============================================================================
+-- Este archivo se ejecuta AUTOMÁTICAMENTE la primera vez que se crea el
+-- contenedor/volumen de Postgres (montado en /docker-entrypoint-initdb.d).
+--
+-- JPA (Hibernate) crea/actualiza las tablas con ddl-auto=update.
+-- Aquí solo debes poner INSERTs u otras sentencias de datos de prueba
+-- DESPUÉS de que existan las tablas (o usa nombres que coincidan con tus
+-- entidades @Entity).
+--
+-- Ejemplo (cuando tengas entidades):
+--   INSERT INTO pacientes (id, nombre) VALUES (1, 'Paciente Demo');
+--
+-- Nota: si el volumen postgres_data ya existe, este script NO se vuelve a
+-- ejecutar. Borra el volumen para reinicializar:
+--   docker compose down -v
+-- =============================================================================
+
+-- (vacío a propósito — añade aquí tus datos de prueba)

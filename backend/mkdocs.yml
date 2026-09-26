@@ -1,0 +1,53 @@
+site_name: PiedraAzul Backend
+site_description: Documentación del monolito modular PiedraAzul (Spring Boot)
+site_url: https://example.com/piedraazul/
+
+repo_name: piedra-azul-backend
+# repo_url: https://github.com/...
+
+theme:
+  name: material
+  language: es
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Modo oscuro
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Modo claro
+
+nav:
+  - Inicio: index.md
+  - Arquitectura: arquitectura.md
+  - Módulos: modulos.md
+  - Seguridad (JWT): seguridad.md
+  - API: api/index.md
+  - Diagramas: diagramas/index.md
+  - Referencia (mkdocstrings): referencia.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+            show_source: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - toc:
+      permalink: true
+
+docs_dir: docs
+site_dir: site

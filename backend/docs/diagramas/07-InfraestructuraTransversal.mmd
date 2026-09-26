@@ -1,0 +1,220 @@
+%% =====================================================================
+%% PIEDRAZUL - MONOLITO MODULAR 2026.2
+%% Infraestructura Transversal (seguridad, errores, eventos en proceso)
+%%
+%% Parte del diagrama de clases completo (DiagramaDeClasesMonolito2026-2.mmd),
+%% dividida para respetar el limite maxTextSize de Mermaid en Draw.io.
+%% Draw.io: Extras > Editar diagrama, o Insertar > Avanzado > Mermaid
+%%
+%% Clases incluidas: 23
+%% =====================================================================
+
+classDiagram
+    direction TB
+
+    namespace SharedKernel {
+        class DomainEvent {
+            <<interface>>
+            +eventId() UUID
+            +ocurridoEn() LocalDateTime
+            +tipoEvento() String
+        }
+        class DomainEventPublisher {
+            <<interface>>
+            +publicar(evento: DomainEvent) void
+            +publicarTodos(eventos: List~DomainEvent~) void
+        }
+        %% adaptado de PacienteId en citas-service
+        class PacienteId {
+            <<ValueObject adaptado de PacienteId>>
+            -value: Long
+            +of(value: Long) PacienteId
+            +getValue() Long
+        }
+        %% adaptado de UsuarioId en citas-service
+        class UsuarioId {
+            <<ValueObject adaptado de UsuarioId>>
+            -value: UUID
+            +of(value: UUID) UsuarioId
+            +getValue() UUID
+        }
+        class PersonaId {
+            <<ValueObject>>
+            -value: Long
+            +of(value: Long) PersonaId
+            +getValue() Long
+        }
+        class DomainException {
+            <<abstract>>
+            -codigo: String
+            -mensaje: String
+            +getCodigo() String
+            +getMessage() String
+        }
+        class ReglaDeNegocioException {
+            <<Exception adaptado de ReglaDeNegocioException>>
+            +ReglaDeNegocioException(mensaje: String)
+        }
+        class RecursoNoEncontradoException {
+            <<Exception>>
+            +RecursoNoEncontradoException(mensaje: String)
+        }
+    }
+
+    namespace ModuloIdentidadAcceso {
+        %% reemplaza la clase Rol eliminada en la migracion a Keycloak
+        class RolUsuario {
+            <<enumeration>>
+            ADMINISTRADOR
+            AGENDADOR
+            MEDICO_TERAPISTA
+            PACIENTE
+            +getAuthority() String
+            +desdeTexto(valor: String) RolUsuario
+        }
+    }
+
+    namespace ModuloConfiguracionDisponibilidad {
+        %% SERVICIO DE DOMINIO: extrae el bucle de ConsultarSlotsDisponiblesService
+        class CalculadorDeSlots {
+            <<DomainService extraido de ConsultarSlotsDisponiblesService>>
+            +calcular(agenda: AgendaMedico, configuracion: ConfiguracionSistema, desde: LocalDateTime) List~LocalDateTime~
+            +calcularParaFecha(agenda: AgendaMedico, configuracion: ConfiguracionSistema, fecha: LocalDate) List~LocalDateTime~
+            -generarSlotsDeFranja(franja: Disponibilidad, fecha: LocalDate) List~LocalDateTime~
+            -esFechaAgendable(fecha: LocalDate, configuracion: ConfiguracionSistema) boolean
+        }
+    }
+
+    namespace ModuloGestionCitas {
+        %% adaptado de CitaController en citas-service
+        class CitaController {
+            <<RestController adaptado de CitaController>>
+            -agendarCitaPacienteUseCase: AgendarCitaPacienteUseCase
+            -agendarCitaManualUseCase: AgendarCitaManualUseCase
+            -cancelarCitaUseCase: CancelarCitaUseCase
+            -reagendarCitaUseCase: ReagendarCitaUseCase
+            -marcarAsistenciaUseCase: MarcarAsistenciaUseCase
+            -mapper: CitaRestMapper
+            +agendarComoPaciente(request: AgendarCitaPacienteRequestDTO) ResponseEntity~CitaResponseDTO~
+            +agendarManual(request: AgendarCitaManualRequestDTO) ResponseEntity~CitaResponseDTO~
+            +cancelar(citaId: String, request: CancelarCitaRequestDTO) ResponseEntity~CitaResponseDTO~
+            +reagendar(citaId: String, request: ReagendarCitaRequestDTO) ResponseEntity~CitaResponseDTO~
+            +marcarAsistencia(citaId: String, request: MarcarAsistenciaRequestDTO) ResponseEntity~CitaResponseDTO~
+        }
+        %% RF2: controlador de franjas disponibles para el paciente
+        class SlotsDisponiblesController {
+            <<RestController adaptado de CitaController.obtenerSlots>>
+            -consultarSlotsDisponiblesUseCase: ConsultarSlotsDisponiblesUseCase
+            +consultarPorMedico(medicoId: Long, pacienteId: Long) ResponseEntity~SlotsDisponiblesResponseDTO~
+            +consultarPorMedicoYFecha(medicoId: Long, pacienteId: Long, fecha: LocalDate) ResponseEntity~SlotsDisponiblesResponseDTO~
+        }
+        %% adaptado de EstadoCitaStateFactory en citas-service
+        class EstadoCitaStateFactory {
+            <<Factory adaptado de EstadoCitaStateFactory>>
+            +of(estado: EstadoCita) EstadoCitaState
+        }
+        %% adaptado de CitaBuilderFactory (interface) en citas-service domain.factory
+        class CitaBuilderFactory {
+            <<interface>>
+            +crearBuilder() CitaBuilder
+            +tipoSoportado() TipoAgendamiento
+        }
+    }
+
+    namespace ModuloNotificaciones {
+        %% adaptado de NotificationController en notifications-service
+        class NotificacionController {
+            <<RestController adaptado de NotificationController>>
+            -consultarNotificacionesUseCase: ConsultarNotificacionesUseCase
+            -marcarNotificacionUseCase: MarcarNotificacionUseCase
+            +listarMias(personaId: Long, leida: Boolean) ResponseEntity~List~NotificacionResponseDTO~~
+            +contarNoLeidas(personaId: Long) ResponseEntity~ConteoNotificacionesDTO~
+            +marcarLeida(id: String, personaId: Long) ResponseEntity~Void~
+            +marcarTodasLeidas(personaId: Long) ResponseEntity~Void~
+        }
+    }
+
+    namespace InfraestructuraTransversal {
+        %% adaptado de SecurityConfig del api-gateway; la matriz de autorizacion
+        %% se traslada al monolito como filtro unico
+        class SeguridadWebConfig {
+            <<Configuration adaptado de SecurityConfig>>
+            -jwtAuthConverter: JwtRolesConverter
+            +securityFilterChain(http: HttpSecurity) SecurityFilterChain
+            +corsConfigurationSource() CorsConfigurationSource
+        }
+        %% adaptado de KeycloakRealmRolesConverter del api-gateway
+        class JwtRolesConverter {
+            <<Converter adaptado de KeycloakRealmRolesConverter>>
+            +convert(jwt: Jwt) AbstractAuthenticationToken
+            -extraerRoles(jwt: Jwt) Collection~GrantedAuthority~
+            -extraerPrincipal(jwt: Jwt) String
+        }
+        class UsuarioAutenticadoResolver {
+            <<Component>>
+            +usuarioActual() UsuarioId
+            +personaActual() PersonaId
+            +pacienteActual() PacienteId
+            +tieneRol(rol: RolUsuario) boolean
+        }
+        %% adaptado de los GlobalExceptionHandler de cada microservicio
+        class ManejadorGlobalExcepciones {
+            <<RestControllerAdvice adaptado de GlobalExceptionHandler>>
+            +manejarNoEncontrado(ex: RecursoNoEncontradoException) ResponseEntity~ErrorResponseDTO~
+            +manejarReglaDeNegocio(ex: ReglaDeNegocioException) ResponseEntity~ErrorResponseDTO~
+            +manejarDominio(ex: DomainException) ResponseEntity~ErrorResponseDTO~
+            +manejarValidacion(ex: MethodArgumentNotValidException) ResponseEntity~ErrorResponseDTO~
+            +manejarArgumentoIlegal(ex: IllegalArgumentException) ResponseEntity~ErrorResponseDTO~
+            +manejarInesperado(ex: RuntimeException) ResponseEntity~ErrorResponseDTO~
+        }
+        class ErrorResponseDTO {
+            <<DTO>>
+            +timestamp: LocalDateTime
+            +status: int
+            +codigo: String
+            +mensaje: String
+            +path: String
+            +erroresCampo: List~ErrorCampoDTO~
+        }
+        class ErrorCampoDTO {
+            <<DTO>>
+            +campo: String
+            +mensaje: String
+        }
+        %% reemplaza RabbitTemplate y RabbitMQConfig por eventos en proceso
+        class SpringDomainEventPublisher {
+            <<Component reemplaza CitaEventPublisherImpl>>
+            -applicationEventPublisher: ApplicationEventPublisher
+            +publicar(evento: DomainEvent) void
+            +publicarTodos(eventos: List~DomainEvent~) void
+        }
+        class ModuloConfig {
+            <<Configuration>>
+            +calculadorDeSlots() CalculadorDeSlots
+            +estadoCitaStateFactory() EstadoCitaStateFactory
+            +citaBuilderFactories() Map~TipoAgendamiento, CitaBuilderFactory~
+        }
+    }
+
+%% --------------------- RELACIONES ---------------------
+    DomainException <|-- ReglaDeNegocioException
+    DomainException <|-- RecursoNoEncontradoException
+    SeguridadWebConfig *-- JwtRolesConverter
+    JwtRolesConverter ..> RolUsuario : traduce a
+    UsuarioAutenticadoResolver ..> UsuarioId : resuelve
+    UsuarioAutenticadoResolver ..> PersonaId : resuelve
+    UsuarioAutenticadoResolver ..> PacienteId : resuelve
+    UsuarioAutenticadoResolver ..> RolUsuario : consulta
+    CitaController ..> UsuarioAutenticadoResolver : usa
+    SlotsDisponiblesController ..> UsuarioAutenticadoResolver : usa
+    NotificacionController ..> UsuarioAutenticadoResolver : usa
+    ManejadorGlobalExcepciones ..> ErrorResponseDTO : produce
+    ManejadorGlobalExcepciones ..> DomainException : maneja
+    ManejadorGlobalExcepciones ..> ReglaDeNegocioException : maneja
+    ManejadorGlobalExcepciones ..> RecursoNoEncontradoException : maneja
+    ErrorResponseDTO "1" o-- "0..*" ErrorCampoDTO : agrupa
+    SpringDomainEventPublisher ..|> DomainEventPublisher
+    SpringDomainEventPublisher ..> DomainEvent : publica
+    ModuloConfig ..> CalculadorDeSlots : provee
+    ModuloConfig ..> EstadoCitaStateFactory : provee
+    ModuloConfig ..> CitaBuilderFactory : provee

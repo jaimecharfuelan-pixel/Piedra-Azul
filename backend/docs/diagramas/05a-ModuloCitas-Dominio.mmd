@@ -1,0 +1,564 @@
+%% =====================================================================
+%% PIEDRAZUL - MONOLITO MODULAR 2026.2
+%% Modulo Gestion de Citas - Capa de Dominio (agregado Cita, State, Builder, Policies)
+%%
+%% Parte del diagrama de clases completo (DiagramaDeClasesMonolito2026-2.mmd),
+%% dividida para respetar el limite maxTextSize de Mermaid en Draw.io.
+%% Draw.io: Extras > Editar diagrama, o Insertar > Avanzado > Mermaid
+%%
+%% Clases incluidas: 48
+%% =====================================================================
+
+classDiagram
+    direction TB
+
+    namespace SharedKernel {
+        %% adaptado de AuditMetadata en citas-service (domain.model)
+        class AuditMetadata {
+            <<ValueObject adaptado de AuditMetadata>>
+            -createdAt: LocalDateTime
+            -updatedAt: LocalDateTime
+            -createdBy: String
+            +crear() AuditMetadata
+            +crearConUsuario(usuario: String) AuditMetadata
+            +reconstruir(createdAt: LocalDateTime, updatedAt: LocalDateTime, createdBy: String) AuditMetadata
+            +actualizar() void
+            +getCreatedAt() LocalDateTime
+            +getUpdatedAt() LocalDateTime
+            +getCreatedBy() String
+        }
+        %% adaptado de TimeRange en citas-service; campos start/end renombrados
+        class TimeRange {
+            <<ValueObject adaptado de TimeRange>>
+            -horaInicio: LocalTime
+            -horaFin: LocalTime
+            +de(horaInicio: LocalTime, horaFin: LocalTime) TimeRange
+            +contiene(hora: LocalTime) boolean
+            +solapaCon(otro: TimeRange) boolean
+            +duracionMinutos() long
+            +getHoraInicio() LocalTime
+            +getHoraFin() LocalTime
+        }
+        class RangoFechas {
+            <<ValueObject>>
+            -fechaInicio: LocalDate
+            -fechaFin: LocalDate
+            +deUnDia(fecha: LocalDate) RangoFechas
+            +de(fechaInicio: LocalDate, fechaFin: LocalDate) RangoFechas
+            +inicioDelRango() LocalDateTime
+            +finDelRango() LocalDateTime
+            +contiene(fecha: LocalDate) boolean
+            +getFechaInicio() LocalDate
+            +getFechaFin() LocalDate
+        }
+        %% adaptado de CitaId en citas-service (domain.valueobjects)
+        class CitaId {
+            <<ValueObject adaptado de CitaId>>
+            -value: UUID
+            +generate() CitaId
+            +fromString(value: String) CitaId
+            +of(value: UUID) CitaId
+            +getValue() UUID
+            +toString() String
+        }
+        %% adaptado de PacienteId en citas-service
+        class PacienteId {
+            <<ValueObject adaptado de PacienteId>>
+            -value: Long
+            +of(value: Long) PacienteId
+            +getValue() Long
+        }
+        %% adaptado de MedicoId en citas-service
+        class MedicoId {
+            <<ValueObject adaptado de MedicoId>>
+            -value: Long
+            +of(value: Long) MedicoId
+            +getValue() Long
+        }
+        %% adaptado de UsuarioId en citas-service
+        class UsuarioId {
+            <<ValueObject adaptado de UsuarioId>>
+            -value: UUID
+            +of(value: UUID) UsuarioId
+            +getValue() UUID
+        }
+        %% unifica String diaSemana (personas-service) con DayOfWeek (citas-service)
+        %% y reemplaza el enum vacio DiaSemanaLaboral y la clase DiaSemanaMapper
+        class DiaSemana {
+            <<enumeration>>
+            LUNES
+            MARTES
+            MIERCOLES
+            JUEVES
+            VIERNES
+            SABADO
+            DOMINGO
+            +desdeDayOfWeek(dia: DayOfWeek) DiaSemana
+            +aDayOfWeek() DayOfWeek
+            +desdeTexto(valor: String) DiaSemana
+            +getEtiqueta() String
+        }
+        %% adaptado de EspecialidadMedica (existia duplicado en citas y personas)
+        class EspecialidadMedica {
+            <<enumeration>>
+            GENERAL
+            TERAPEUTA_NEURAL
+            QUIROPRACTICO
+            FISIOTERAPEUTA
+            +getEtiqueta() String
+            +esConsultaGeneral() boolean
+            +desdeTexto(valor: String) EspecialidadMedica
+        }
+        class ReglaDeNegocioException {
+            <<Exception adaptado de ReglaDeNegocioException>>
+            +ReglaDeNegocioException(mensaje: String)
+        }
+        class RecursoNoEncontradoException {
+            <<Exception>>
+            +RecursoNoEncontradoException(mensaje: String)
+        }
+    }
+
+    namespace ModuloGestionPersonas {
+        %% READ MODEL que reemplaza MedicoSnapshot de citas-service
+        class MedicoReadModel {
+            <<ReadModel reemplaza MedicoSnapshot>>
+            +medicoId: Long
+            +nombreCompleto: String
+            +correo: String
+            +especialidades: Set~EspecialidadMedica~
+            +estado: EstadoMedico
+            +estaActivo() boolean
+            +tieneEspecialidad(especialidad: EspecialidadMedica) boolean
+        }
+        %% READ MODEL que reemplaza PacienteSnapshot de citas-service
+        class PacienteReadModel {
+            <<ReadModel reemplaza PacienteSnapshot>>
+            +pacienteId: Long
+            +nombreCompleto: String
+            +correo: String
+            +telefono: String
+            +activo: boolean
+            +estaActivo() boolean
+        }
+    }
+
+    namespace ModuloConfiguracionDisponibilidad {
+        %% adaptado de ConfiguracionSistema en citas-service (domain.model)
+        class ConfiguracionSistema {
+            <<AggregateRoot adaptado de ConfiguracionSistema>>
+            -semanasDisponibles: Integer
+            -festivos: Set~LocalDate~
+            +porDefecto() ConfiguracionSistema
+            +de(semanasDisponibles: Integer, festivos: Set~LocalDate~) ConfiguracionSistema
+            +conSemanas(semanas: Integer) ConfiguracionSistema
+            +conFestivos(nuevosFestivos: Set~LocalDate~) ConfiguracionSistema
+            +esFestivo(fecha: LocalDate) boolean
+            +ventanaAgendamiento(desde: LocalDate) RangoFechas
+            +fechaLimiteAgendamiento(desde: LocalDateTime) LocalDateTime
+            +estaDentroDeVentana(fechaHora: LocalDateTime) boolean
+            +getSemanasDisponibles() Integer
+            +getFestivos() Set~LocalDate~
+        }
+        %% AGREGADO que reemplaza DisponibilidadSnapshot de citas-service
+        class AgendaMedico {
+            <<AggregateRoot reemplaza DisponibilidadSnapshot>>
+            -medicoId: MedicoId
+            -disponibilidades: List~Disponibilidad~
+            -bloqueos: Set~LocalDateTime~
+            -actualizadoEn: LocalDateTime
+            +de(medicoId: MedicoId, disponibilidades: List~Disponibilidad~, bloqueos: Set~LocalDateTime~) AgendaMedico
+            +franjasDelDia(dia: DiaSemana) List~Disponibilidad~
+            +atiendeElDia(dia: DiaSemana) boolean
+            +diasAtendidos() Set~DiaSemana~
+            +agregarBloqueo(fechaHora: LocalDateTime) void
+            +removerBloqueo(fechaHora: LocalDateTime) void
+            +estaBloqueado(fechaHora: LocalDateTime) boolean
+            +estaDisponible(fechaHora: LocalDateTime) boolean
+            +esSlotValido(fechaHora: LocalDateTime) boolean
+            +intervaloParaDia(dia: DiaSemana) Integer
+            +tieneDisponibilidad() boolean
+            +getMedicoId() MedicoId
+            +getDisponibilidades() List~Disponibilidad~
+            +getBloqueos() Set~LocalDateTime~
+            +getActualizadoEn() LocalDateTime
+        }
+    }
+
+    namespace ModuloGestionCitas {
+        %% adaptado de Cita en citas-service (Agregado raiz con patron State)
+        class Cita {
+            <<AggregateRoot adaptado de Cita>>
+            -id: CitaId
+            -pacienteId: PacienteId
+            -medicoId: MedicoId
+            -especialidad: EspecialidadMedica
+            -creadoPor: UsuarioId
+            -tipoAgendamiento: TipoAgendamiento
+            -fechaHora: LocalDateTime
+            -estado: EstadoCita
+            -comportamiento: EstadoCitaState
+            -motivoAgendamiento: String
+            -motivoCancelacion: String
+            -fechaAsistencia: LocalDateTime
+            -audit: AuditMetadata
+            +Cita(id: CitaId, pacienteId: PacienteId, medicoId: MedicoId, especialidad: EspecialidadMedica, creadoPor: UsuarioId, tipoAgendamiento: TipoAgendamiento, fechaHora: LocalDateTime, motivoAgendamiento: String)
+            +reconstruir(id: CitaId, pacienteId: PacienteId, medicoId: MedicoId, especialidad: EspecialidadMedica, creadoPor: UsuarioId, tipoAgendamiento: TipoAgendamiento, fechaHora: LocalDateTime, estado: EstadoCita, motivoAgendamiento: String, motivoCancelacion: String, fechaAsistencia: LocalDateTime, createdAt: LocalDateTime, updatedAt: LocalDateTime, createdBy: String) Cita
+            +aplicarEstado(nuevoEstado: EstadoCita) void
+            +establecerFechaHora(fechaHora: LocalDateTime) void
+            +establecerMotivoCancelacion(motivo: String) void
+            +establecerFechaAsistencia(fechaAsistencia: LocalDateTime) void
+            +cancelar(motivo: String) void
+            +reagendar(nuevaFechaHora: LocalDateTime, agenda: AgendaMedico) void
+            +reagendamientoCreaNuevaCita() boolean
+            +marcarComoAtendida() void
+            +marcarComoNoAsistida() void
+            +estaActiva() boolean
+            +ocurreEn(fecha: LocalDate) boolean
+            +getId() CitaId
+            +getPacienteId() PacienteId
+            +getMedicoId() MedicoId
+            +getEspecialidad() EspecialidadMedica
+            +getCreadoPor() UsuarioId
+            +getTipoAgendamiento() TipoAgendamiento
+            +getFechaHora() LocalDateTime
+            +getEstado() EstadoCita
+            +getMotivoAgendamiento() String
+            +getMotivoCancelacion() String
+            +getFechaAsistencia() LocalDateTime
+            +getAudit() AuditMetadata
+        }
+        %% adaptado de EstadoCita en citas-service
+        class EstadoCita {
+            <<enumeration>>
+            PROGRAMADA
+            ATENDIDA
+            CANCELADA
+            NO_ASISTIDA
+            REAGENDADA
+            +getDescripcion() String
+            +comportamiento() EstadoCitaState
+            +esFinal() boolean
+            +puedeCancelarse() boolean
+            +puedeReagendarseEnMismaCita() boolean
+            +puedeReagendarseCreandoNuevaCita() boolean
+            +puedeMarcarseComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarseComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cuentaComoActiva() boolean
+            +fromPersisted(valor: String) EstadoCita
+        }
+        %% adaptado de TipoAgendamiento en citas-service
+        class TipoAgendamiento {
+            <<enumeration>>
+            MANUAL
+            AUTONOMO
+            REAGENDAMIENTO
+            +getEtiqueta() String
+        }
+        %% adaptado de EstadoCitaContext en citas-service (patron State)
+        class EstadoCitaContext {
+            <<interface>>
+            +getEstado() EstadoCita
+            +aplicarEstado(nuevoEstado: EstadoCita) void
+            +establecerFechaHora(fechaHora: LocalDateTime) void
+            +establecerMotivoCancelacion(motivo: String) void
+            +establecerFechaAsistencia(fechaAsistencia: LocalDateTime) void
+            +getMedicoId() MedicoId
+            +getFechaHora() LocalDateTime
+        }
+        %% adaptado de EstadoCitaState en citas-service
+        class EstadoCitaState {
+            <<interface>>
+            +getTipo() EstadoCita
+            +esFinal() boolean
+            +puedeCancelar() boolean
+            +puedeReagendarEnMismaCita() boolean
+            +puedeReagendarCreandoNuevaCita() boolean
+            +puedeMarcarComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cancelar(contexto: EstadoCitaContext, motivo: String) void
+            +reagendarEnMismaCita(contexto: EstadoCitaContext, nuevaFechaHora: LocalDateTime, agenda: AgendaMedico) void
+            +marcarComoAtendida(contexto: EstadoCitaContext) void
+            +marcarComoNoAsistida(contexto: EstadoCitaContext) void
+        }
+        %% adaptado de AbstractEstadoCitaState en citas-service
+        class AbstractEstadoCitaState {
+            <<abstract adaptado de AbstractEstadoCitaState>>
+            -tipo: EstadoCita
+            +getTipo() EstadoCita
+            +esFinal() boolean
+            +puedeCancelar() boolean
+            +puedeReagendarEnMismaCita() boolean
+            +puedeReagendarCreandoNuevaCita() boolean
+            +puedeMarcarComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cancelar(contexto: EstadoCitaContext, motivo: String) void
+            +reagendarEnMismaCita(contexto: EstadoCitaContext, nuevaFechaHora: LocalDateTime, agenda: AgendaMedico) void
+            +marcarComoAtendida(contexto: EstadoCitaContext) void
+            +marcarComoNoAsistida(contexto: EstadoCitaContext) void
+            #fechaHoraYaPaso(fechaCita: LocalDateTime) boolean
+        }
+        %% adaptado de ProgramadaState en citas-service
+        class ProgramadaState {
+            <<Singleton adaptado de ProgramadaState>>
+            +INSTANCE: ProgramadaState
+            +puedeCancelar() boolean
+            +puedeReagendarEnMismaCita() boolean
+            +puedeMarcarComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cancelar(contexto: EstadoCitaContext, motivo: String) void
+            +reagendarEnMismaCita(contexto: EstadoCitaContext, nuevaFechaHora: LocalDateTime, agenda: AgendaMedico) void
+            +marcarComoAtendida(contexto: EstadoCitaContext) void
+            +marcarComoNoAsistida(contexto: EstadoCitaContext) void
+        }
+        %% adaptado de ReagendadaState en citas-service
+        class ReagendadaState {
+            <<Singleton adaptado de ReagendadaState>>
+            +INSTANCE: ReagendadaState
+            +puedeCancelar() boolean
+            +puedeMarcarComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cancelar(contexto: EstadoCitaContext, motivo: String) void
+            +marcarComoAtendida(contexto: EstadoCitaContext) void
+            +marcarComoNoAsistida(contexto: EstadoCitaContext) void
+        }
+        %% adaptado de AtendidaState en citas-service
+        class AtendidaState {
+            <<Singleton adaptado de AtendidaState>>
+            +INSTANCE: AtendidaState
+            +esFinal() boolean
+            +puedeReagendarCreandoNuevaCita() boolean
+        }
+        %% adaptado de CanceladaState en citas-service
+        class CanceladaState {
+            <<Singleton adaptado de CanceladaState>>
+            +INSTANCE: CanceladaState
+            +esFinal() boolean
+        }
+        %% adaptado de NoAsistidaState en citas-service
+        class NoAsistidaState {
+            <<Singleton adaptado de NoAsistidaState>>
+            +INSTANCE: NoAsistidaState
+            +esFinal() boolean
+        }
+        %% adaptado de EstadoCitaStateFactory en citas-service
+        class EstadoCitaStateFactory {
+            <<Factory adaptado de EstadoCitaStateFactory>>
+            +of(estado: EstadoCita) EstadoCitaState
+        }
+        %% adaptado de CitaBuilder en citas-service (patron Builder)
+        class CitaBuilder {
+            <<abstract adaptado de CitaBuilder>>
+            #pacienteId: PacienteId
+            #medicoId: MedicoId
+            #creadoPor: UsuarioId
+            #fechaHora: LocalDateTime
+            #paciente: PacienteReadModel
+            #medico: MedicoReadModel
+            #agenda: AgendaMedico
+            #especialidad: EspecialidadMedica
+            #motivoAgendamiento: String
+            +conPaciente(pacienteId: PacienteId, paciente: PacienteReadModel) CitaBuilder
+            +conMedico(medicoId: MedicoId, medico: MedicoReadModel) CitaBuilder
+            +creadaPor(usuarioId: UsuarioId) CitaBuilder
+            +paraFecha(fechaHora: LocalDateTime) CitaBuilder
+            +conAgenda(agenda: AgendaMedico) CitaBuilder
+            +conEspecialidad(especialidad: EspecialidadMedica) CitaBuilder
+            +conMotivoAgendamiento(motivoAgendamiento: String) CitaBuilder
+            +build() Cita
+            #validarPacienteActivo() void
+            #validarMedicoActivo() void
+            #validarEspecialidad() void
+            #validarMedicoAtiendeEspecialidad() void
+            #validarDisponibilidad() void
+            #construir(tipo: TipoAgendamiento) Cita
+        }
+        %% adaptado de CitaManualBuilder en citas-service
+        class CitaManualBuilder {
+            <<Builder adaptado de CitaManualBuilder>>
+            +build() Cita
+        }
+        %% adaptado de CitaAutonomaBuilder en citas-service
+        class CitaAutonomaBuilder {
+            <<Builder adaptado de CitaAutonomaBuilder>>
+            +build() Cita
+        }
+        %% adaptado de CitaReagendadaBuilder en citas-service (era un stub vacio)
+        class CitaReagendadaBuilder {
+            <<Builder adaptado de CitaReagendadaBuilder>>
+            -citaOriginal: Cita
+            +desdeCitaOriginal(citaOriginal: Cita) CitaReagendadaBuilder
+            +build() Cita
+        }
+        %% adaptado de CitaBuilderFactory (interface) en citas-service domain.factory
+        class CitaBuilderFactory {
+            <<interface>>
+            +crearBuilder() CitaBuilder
+            +tipoSoportado() TipoAgendamiento
+        }
+        %% adaptado de CitaManualFactory en citas-service
+        class CitaManualFactory {
+            <<Factory adaptado de CitaManualFactory>>
+            +crearBuilder() CitaBuilder
+            +tipoSoportado() TipoAgendamiento
+        }
+        %% adaptado de CitaAutonomaFactory en citas-service
+        class CitaAutonomaFactory {
+            <<Factory adaptado de CitaAutonomaFactory>>
+            +crearBuilder() CitaBuilder
+            +tipoSoportado() TipoAgendamiento
+        }
+        %% adaptado de DatosCreacionCita en citas-service
+        class DatosCreacionCita {
+            <<ValueObject adaptado de DatosCreacionCita>>
+            +pacienteId: PacienteId
+            +medicoId: MedicoId
+            +creadoPor: UsuarioId
+            +paciente: PacienteReadModel
+            +medico: MedicoReadModel
+            +agenda: AgendaMedico
+            +configuracion: ConfiguracionSistema
+        }
+        %% RF1 - criterios de busqueda del Agendador
+        class FiltroBusquedaCitas {
+            <<ValueObject>>
+            -medicoId: MedicoId
+            -pacienteId: PacienteId
+            -rangoFechas: RangoFechas
+            -estado: EstadoCita
+            -especialidad: EspecialidadMedica
+            +deMedicoEnFecha(medicoId: MedicoId, fecha: LocalDate) FiltroBusquedaCitas
+            +de(medicoId: MedicoId, pacienteId: PacienteId, rangoFechas: RangoFechas, estado: EstadoCita, especialidad: EspecialidadMedica) FiltroBusquedaCitas
+            +tieneMedico() boolean
+            +tienePaciente() boolean
+            +getMedicoId() MedicoId
+            +getPacienteId() PacienteId
+            +getRangoFechas() RangoFechas
+            +getEstado() EstadoCita
+            +getEspecialidad() EspecialidadMedica
+        }
+        %% adaptado de ConsultaGeneralPolicy en citas-service
+        class ConsultaGeneralPolicy {
+            <<Policy adaptado de ConsultaGeneralPolicy>>
+            +validarAgendamiento(especialidad: EspecialidadMedica, tieneConsultaGeneralAtendida: boolean) void
+        }
+        %% adaptado de CitaProgramadaUnicaPolicy en citas-service
+        class CitaProgramadaUnicaPolicy {
+            <<Policy adaptado de CitaProgramadaUnicaPolicy>>
+            +validar(tieneCitaPendiente: boolean) void
+        }
+        class VentanaAgendamientoPolicy {
+            <<Policy>>
+            +validar(fechaHora: LocalDateTime, configuracion: ConfiguracionSistema) void
+        }
+        %% adaptado de CitaNoEncontradaException en citas-service
+        class CitaNoEncontradaException {
+            <<Exception adaptado de CitaNoEncontradaException>>
+            +CitaNoEncontradaException(mensaje: String)
+        }
+        %% adaptado de CitaNoCancelableException en citas-service
+        class CitaNoCancelableException {
+            <<Exception adaptado de CitaNoCancelableException>>
+            +CitaNoCancelableException(mensaje: String)
+        }
+        %% adaptado de CitaNoReagendableException en citas-service
+        class CitaNoReagendableException {
+            <<Exception adaptado de CitaNoReagendableException>>
+            +CitaNoReagendableException(mensaje: String)
+        }
+        %% adaptado de CitaNoMarcableException en citas-service
+        class CitaNoMarcableException {
+            <<Exception adaptado de CitaNoMarcableException>>
+            +CitaNoMarcableException(mensaje: String)
+        }
+        %% adaptado de MedicoNoDisponibleException en citas-service
+        class MedicoNoDisponibleException {
+            <<Exception adaptado de MedicoNoDisponibleException>>
+            +MedicoNoDisponibleException(mensaje: String)
+        }
+        %% adaptado de PacienteNoDisponibleException en citas-service
+        class PacienteNoDisponibleException {
+            <<Exception adaptado de PacienteNoDisponibleException>>
+            +PacienteNoDisponibleException(mensaje: String)
+        }
+        %% adaptado de SlotNoDisponibleException y DisponibilidadNoDisponibleException
+        class SlotNoDisponibleException {
+            <<Exception adaptado de DisponibilidadNoDisponibleException>>
+            +SlotNoDisponibleException(mensaje: String)
+        }
+        %% adaptado de ConsultaGeneralRequeridaException en citas-service
+        class ConsultaGeneralRequeridaException {
+            <<Exception adaptado de ConsultaGeneralRequeridaException>>
+            +ConsultaGeneralRequeridaException(mensaje: String)
+        }
+        %% adaptado de RestriccionAutoservicioException en citas-service
+        class RestriccionAutoservicioException {
+            <<Exception adaptado de RestriccionAutoservicioException>>
+            +RestriccionAutoservicioException(mensaje: String)
+        }
+    }
+
+%% --------------------- RELACIONES ---------------------
+    TimeRange ..> DiaSemana : coopera
+    RangoFechas ..> DiaSemana : coopera
+    MedicoReadModel ..> EspecialidadMedica : referencia
+    AgendaMedico "1" --> "1" MedicoId : pertenece a
+    ConfiguracionSistema ..> RangoFechas : produce
+    Cita ..|> EstadoCitaContext
+    Cita "1" --> "1" EstadoCita : tiene
+    Cita "1" o-- "1" EstadoCitaState : delega comportamiento
+    Cita "1" *-- "1" AuditMetadata : compone
+    Cita "1" --> "1" CitaId : identificada por
+    Cita "1" --> "1" PacienteId : referencia
+    Cita "1" --> "1" MedicoId : referencia
+    Cita "1" --> "1" UsuarioId : creada por
+    Cita "1" --> "1" EspecialidadMedica : de especialidad
+    Cita "1" --> "1" TipoAgendamiento : clasificada como
+    Cita ..> AgendaMedico : valida contra
+    EstadoCitaState <|.. AbstractEstadoCitaState
+    AbstractEstadoCitaState <|-- ProgramadaState
+    AbstractEstadoCitaState <|-- ReagendadaState
+    AbstractEstadoCitaState <|-- AtendidaState
+    AbstractEstadoCitaState <|-- CanceladaState
+    AbstractEstadoCitaState <|-- NoAsistidaState
+    EstadoCitaStateFactory ..> EstadoCitaState : crea
+    EstadoCitaStateFactory ..> EstadoCita : resuelve desde
+    EstadoCita ..> EstadoCitaStateFactory : consulta
+    AbstractEstadoCitaState ..> EstadoCitaContext : muta
+    ProgramadaState ..> CitaNoCancelableException : lanza
+    AbstractEstadoCitaState ..> CitaNoReagendableException : lanza
+    AbstractEstadoCitaState ..> CitaNoMarcableException : lanza
+    CitaBuilder <|-- CitaManualBuilder
+    CitaBuilder <|-- CitaAutonomaBuilder
+    CitaBuilder <|-- CitaReagendadaBuilder
+    CitaBuilder ..> Cita : construye
+    CitaBuilder ..> MedicoReadModel : valida
+    CitaBuilder ..> PacienteReadModel : valida
+    CitaBuilder ..> AgendaMedico : valida
+    CitaBuilder ..> MedicoNoDisponibleException : lanza
+    CitaBuilder ..> PacienteNoDisponibleException : lanza
+    CitaBuilder ..> SlotNoDisponibleException : lanza
+    CitaManualFactory ..|> CitaBuilderFactory
+    CitaAutonomaFactory ..|> CitaBuilderFactory
+    CitaManualFactory ..> CitaManualBuilder : crea
+    CitaAutonomaFactory ..> CitaAutonomaBuilder : crea
+    DatosCreacionCita o-- MedicoReadModel
+    DatosCreacionCita o-- PacienteReadModel
+    DatosCreacionCita o-- AgendaMedico
+    DatosCreacionCita o-- ConfiguracionSistema
+    FiltroBusquedaCitas *-- RangoFechas
+    FiltroBusquedaCitas ..> EstadoCita : filtra por
+    FiltroBusquedaCitas ..> EspecialidadMedica : filtra por
+    ConsultaGeneralPolicy ..> ConsultaGeneralRequeridaException : lanza
+    CitaProgramadaUnicaPolicy ..> RestriccionAutoservicioException : lanza
+    VentanaAgendamientoPolicy ..> ConfiguracionSistema : consulta
+    VentanaAgendamientoPolicy ..> SlotNoDisponibleException : lanza
+    CitaNoEncontradaException --|> RecursoNoEncontradoException
+    CitaNoCancelableException --|> ReglaDeNegocioException
+    CitaNoReagendableException --|> ReglaDeNegocioException
+    CitaNoMarcableException --|> ReglaDeNegocioException
+    MedicoNoDisponibleException --|> ReglaDeNegocioException
+    PacienteNoDisponibleException --|> ReglaDeNegocioException
+    SlotNoDisponibleException --|> ReglaDeNegocioException
+    ConsultaGeneralRequeridaException --|> ReglaDeNegocioException
+    RestriccionAutoservicioException --|> ReglaDeNegocioException

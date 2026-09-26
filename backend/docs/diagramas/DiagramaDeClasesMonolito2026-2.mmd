@@ -1,0 +1,3284 @@
+%% =====================================================================
+%% PIEDRAZUL - MONOLITO MODULAR 2026.2
+%% Diagrama de Clases UML (Mermaid classDiagram) - ARCHIVO MAESTRO COMPLETO
+%%
+%% 275 clases / 406 relaciones. Sintaxis verificada con el parser oficial de
+%% Mermaid 10.9 y 11.17 (mermaid.parse -> OK).
+%%
+%% IMPORTANTE - LIMITE DE TAMANO DE MERMAID
+%% Este archivo mide ~146 KB y Mermaid aborta el dibujado con el mensaje
+%% "Maximum text size in diagram exceeded" porque su limite por defecto es de
+%% 50.000 caracteres. Ese limite es una clave protegida ("secure") del motor,
+%% por lo que NO se puede subir con una directiva %%{init: ...}%%.
+%% Para insertar en Draw.io usa los archivos de la carpeta:
+%%     diagramas-por-modulo/
+%% Cada uno esta por debajo del limite y fue verificado renderizando de verdad.
+%% Este archivo maestro es la fuente de verdad unica para implementar despues
+%% cada modulo sin inventar firmas.
+%%
+%% Compatible con Draw.io: Extras > Editar diagrama / Insertar > Avanzado > Mermaid
+%%
+%% Requisitos funcionales cubiertos (EntregablesPrimerCorte2026.2):
+%%   RF1 (Agendador)     : listar citas de un medico/terapista en una fecha
+%%                         determinada, con listado y CANTIDAD.
+%%   RF2 (Paciente)      : agendar cita via web, con registro de usuario y
+%%                         visualizacion de franjas disponibles por medico.
+%%   RF3 (Administrador) : configurar ventana de semanas habilitadas, dias de
+%%                         atencion por medico, franja horaria e intervalo
+%%                         entre cita y cita.
+%%
+%% Arquitectura: Monolito Modular + Arquitectura Hexagonal por modulo.
+%%   Capa 1 Interfaces  : *Controller  (adaptadores de entrada REST)
+%%   Capa 2 Aplicacion  : *UseCase (puertos de entrada) + *Service (casos de uso)
+%%   Capa 3 Dominio     : Entidades, Agregados, Value Objects, Policies, Services
+%%   Capa 4 Puertos sal.: *Repository / *Port (interfaces de salida)
+%%   Capa 5 Infra       : *Adapter, *Entity (JPA), *PersistenceMapper, SpringData*
+%%
+%% MIGRACION DESDE MICROSERVICIOS (decisiones clave):
+%%   - Se ELIMINAN MedicoSnapshot / PacienteSnapshot / DisponibilidadSnapshot y
+%%     sus consumidores RabbitMQ. Se reemplazan por puertos de modulo
+%%     (CatalogoPersonasPort, DisponibilidadConsultaPort, ConfiguracionConsultaPort)
+%%     y read-models de solo lectura. Consistencia inmediata en una sola BD.
+%%   - Se ELIMINA la llamada HTTP CitasServiceClient de personas hacia citas.
+%%     Se invierte con VerificadorCitasActivasPort (declarado en Configuracion,
+%%     implementado por CitasActivasAdapter en Citas) => DIP.
+%%   - Se ELIMINA RabbitMQ. Los eventos de dominio se publican en proceso por
+%%     DomainEventPublisher (Spring ApplicationEventPublisher).
+%%   - Se unifica el String diaSemana (personas-service) y el DayOfWeek
+%%     (citas-service) en un unico enum DiaSemana del Shared Kernel.
+%% =====================================================================
+
+classDiagram
+    direction TB
+
+%% =====================================================================
+%% SHARED KERNEL - Value Objects y contratos compartidos entre modulos
+%% =====================================================================
+    namespace SharedKernel {
+
+        class DomainEvent {
+            <<interface>>
+            +eventId() UUID
+            +ocurridoEn() LocalDateTime
+            +tipoEvento() String
+        }
+
+        class DomainEventPublisher {
+            <<interface>>
+            +publicar(evento: DomainEvent) void
+            +publicarTodos(eventos: List~DomainEvent~) void
+        }
+
+        %% adaptado de AuditMetadata en citas-service (domain.model)
+        class AuditMetadata {
+            <<ValueObject adaptado de AuditMetadata>>
+            -createdAt: LocalDateTime
+            -updatedAt: LocalDateTime
+            -createdBy: String
+            +crear() AuditMetadata
+            +crearConUsuario(usuario: String) AuditMetadata
+            +reconstruir(createdAt: LocalDateTime, updatedAt: LocalDateTime, createdBy: String) AuditMetadata
+            +actualizar() void
+            +getCreatedAt() LocalDateTime
+            +getUpdatedAt() LocalDateTime
+            +getCreatedBy() String
+        }
+
+        %% adaptado de TimeRange en citas-service; campos start/end renombrados
+        class TimeRange {
+            <<ValueObject adaptado de TimeRange>>
+            -horaInicio: LocalTime
+            -horaFin: LocalTime
+            +de(horaInicio: LocalTime, horaFin: LocalTime) TimeRange
+            +contiene(hora: LocalTime) boolean
+            +solapaCon(otro: TimeRange) boolean
+            +duracionMinutos() long
+            +getHoraInicio() LocalTime
+            +getHoraFin() LocalTime
+        }
+
+        class RangoFechas {
+            <<ValueObject>>
+            -fechaInicio: LocalDate
+            -fechaFin: LocalDate
+            +deUnDia(fecha: LocalDate) RangoFechas
+            +de(fechaInicio: LocalDate, fechaFin: LocalDate) RangoFechas
+            +inicioDelRango() LocalDateTime
+            +finDelRango() LocalDateTime
+            +contiene(fecha: LocalDate) boolean
+            +getFechaInicio() LocalDate
+            +getFechaFin() LocalDate
+        }
+
+        %% adaptado de CitaId en citas-service (domain.valueobjects)
+        class CitaId {
+            <<ValueObject adaptado de CitaId>>
+            -value: UUID
+            +generate() CitaId
+            +fromString(value: String) CitaId
+            +of(value: UUID) CitaId
+            +getValue() UUID
+            +toString() String
+        }
+
+        %% adaptado de PacienteId en citas-service
+        class PacienteId {
+            <<ValueObject adaptado de PacienteId>>
+            -value: Long
+            +of(value: Long) PacienteId
+            +getValue() Long
+        }
+
+        %% adaptado de MedicoId en citas-service
+        class MedicoId {
+            <<ValueObject adaptado de MedicoId>>
+            -value: Long
+            +of(value: Long) MedicoId
+            +getValue() Long
+        }
+
+        %% adaptado de UsuarioId en citas-service
+        class UsuarioId {
+            <<ValueObject adaptado de UsuarioId>>
+            -value: UUID
+            +of(value: UUID) UsuarioId
+            +getValue() UUID
+        }
+
+        class PersonaId {
+            <<ValueObject>>
+            -value: Long
+            +of(value: Long) PersonaId
+            +getValue() Long
+        }
+
+        class DisponibilidadId {
+            <<ValueObject>>
+            -value: Long
+            +of(value: Long) DisponibilidadId
+            +getValue() Long
+        }
+
+        class NotificacionId {
+            <<ValueObject>>
+            -value: UUID
+            +generate() NotificacionId
+            +of(value: UUID) NotificacionId
+            +getValue() UUID
+        }
+
+        %% unifica String diaSemana (personas-service) con DayOfWeek (citas-service)
+        %% y reemplaza el enum vacio DiaSemanaLaboral y la clase DiaSemanaMapper
+        class DiaSemana {
+            <<enumeration>>
+            LUNES
+            MARTES
+            MIERCOLES
+            JUEVES
+            VIERNES
+            SABADO
+            DOMINGO
+            +desdeDayOfWeek(dia: DayOfWeek) DiaSemana
+            +aDayOfWeek() DayOfWeek
+            +desdeTexto(valor: String) DiaSemana
+            +getEtiqueta() String
+        }
+
+        %% adaptado de EspecialidadMedica (existia duplicado en citas y personas)
+        class EspecialidadMedica {
+            <<enumeration>>
+            GENERAL
+            TERAPEUTA_NEURAL
+            QUIROPRACTICO
+            FISIOTERAPEUTA
+            +getEtiqueta() String
+            +esConsultaGeneral() boolean
+            +desdeTexto(valor: String) EspecialidadMedica
+        }
+
+        class DomainException {
+            <<abstract>>
+            -codigo: String
+            -mensaje: String
+            +getCodigo() String
+            +getMessage() String
+        }
+
+        class ReglaDeNegocioException {
+            <<Exception adaptado de ReglaDeNegocioException>>
+            +ReglaDeNegocioException(mensaje: String)
+        }
+
+        class RecursoNoEncontradoException {
+            <<Exception>>
+            +RecursoNoEncontradoException(mensaje: String)
+        }
+    }
+
+%% =====================================================================
+%% MODULO 1 - IDENTIDAD Y ACCESO  (origen: usuarios-service + api-gateway)
+%% Soporta RF2: "El paciente debe tener un registro de usuario"
+%% =====================================================================
+    namespace ModuloIdentidadAcceso {
+
+        %% adaptado de UsuarioController en usuarios-service
+        class UsuarioController {
+            <<RestController adaptado de UsuarioController>>
+            -registrarUsuarioUseCase: RegistrarUsuarioUseCase
+            -consultarUsuarioUseCase: ConsultarUsuarioUseCase
+            +registrar(request: RegistrarUsuarioRequestDTO) ResponseEntity~UsuarioResponseDTO~
+            +obtenerPorId(id: UUID) ResponseEntity~UsuarioResponseDTO~
+            +obtenerPorUsername(username: String) ResponseEntity~UsuarioResponseDTO~
+            +listar() ResponseEntity~List~UsuarioResponseDTO~~
+        }
+
+        class AutenticacionController {
+            <<RestController>>
+            -autenticarUsuarioUseCase: AutenticarUsuarioUseCase
+            +login(request: LoginRequestDTO) ResponseEntity~TokenResponseDTO~
+            +perfilActual(authentication: Authentication) ResponseEntity~UsuarioResponseDTO~
+        }
+
+        class RegistrarUsuarioUseCase {
+            <<interface>>
+            +ejecutar(comando: RegistrarUsuarioCommand) UsuarioResponseDTO
+        }
+
+        class AutenticarUsuarioUseCase {
+            <<interface>>
+            +ejecutar(username: String, password: String) TokenResponseDTO
+        }
+
+        class ConsultarUsuarioUseCase {
+            <<interface>>
+            +porId(id: UsuarioId) UsuarioResponseDTO
+            +porUsername(username: String) UsuarioResponseDTO
+            +porPersonaId(personaId: PersonaId) UsuarioResponseDTO
+            +listarTodos() List~UsuarioResponseDTO~
+        }
+
+        %% adaptado de RegistrarUsuarioService en usuarios-service
+        class RegistrarUsuarioService {
+            <<Service adaptado de RegistrarUsuarioService>>
+            -usuarioRepository: UsuarioRepository
+            -proveedorIdentidad: ProveedorIdentidadPort
+            -registroPacientePort: RegistroPacientePort
+            -usuarioMapper: UsuarioApplicationMapper
+            +ejecutar(comando: RegistrarUsuarioCommand) UsuarioResponseDTO
+            -validarUsernameDisponible(username: String) void
+            -validarEmail(email: String) void
+        }
+
+        class AutenticarUsuarioService {
+            <<Service adaptado de AutenticarUsuarioServiceTest>>
+            -usuarioRepository: UsuarioRepository
+            -proveedorIdentidad: ProveedorIdentidadPort
+            +ejecutar(username: String, password: String) TokenResponseDTO
+        }
+
+        %% adaptado de ConsultarUsuarioService en usuarios-service
+        class ConsultarUsuarioService {
+            <<Service adaptado de ConsultarUsuarioService>>
+            -usuarioRepository: UsuarioRepository
+            -usuarioMapper: UsuarioApplicationMapper
+            +porId(id: UsuarioId) UsuarioResponseDTO
+            +porUsername(username: String) UsuarioResponseDTO
+            +porPersonaId(personaId: PersonaId) UsuarioResponseDTO
+            +listarTodos() List~UsuarioResponseDTO~
+        }
+
+        %% adaptado de Usuario en usuarios-service (domain.model)
+        class Usuario {
+            <<Entity adaptado de Usuario>>
+            -id: UsuarioId
+            -identidadExternaId: UUID
+            -username: String
+            -personaId: PersonaId
+            -roles: Set~RolUsuario~
+            -activo: boolean
+            -fechaCreacion: Instant
+            -fechaActualizacion: Instant
+            +crear(username: String, personaId: PersonaId, roles: Set~RolUsuario~) Usuario
+            +reconstruir(id: UsuarioId, identidadExternaId: UUID, username: String, personaId: PersonaId, roles: Set~RolUsuario~, activo: boolean, fechaCreacion: Instant, fechaActualizacion: Instant) Usuario
+            +vincularIdentidadExterna(identidadExternaId: UUID) void
+            +asignarRol(rol: RolUsuario) void
+            +revocarRol(rol: RolUsuario) void
+            +tieneRol(rol: RolUsuario) boolean
+            +esPaciente() boolean
+            +desactivar() void
+            +activar() void
+            +estaActivo() boolean
+            +getId() UsuarioId
+            +getIdentidadExternaId() UUID
+            +getUsername() String
+            +getPersonaId() PersonaId
+            +getRoles() Set~RolUsuario~
+        }
+
+        %% reemplaza la clase Rol eliminada en la migracion a Keycloak
+        class RolUsuario {
+            <<enumeration>>
+            ADMINISTRADOR
+            AGENDADOR
+            MEDICO_TERAPISTA
+            PACIENTE
+            +getAuthority() String
+            +desdeTexto(valor: String) RolUsuario
+        }
+
+        %% adaptado de IUsuarioRepository en usuarios-service
+        class UsuarioRepository {
+            <<interface>>
+            +guardar(usuario: Usuario) Usuario
+            +buscarPorId(id: UsuarioId) Optional~Usuario~
+            +buscarPorIdentidadExternaId(identidadExternaId: UUID) Optional~Usuario~
+            +buscarPorUsername(username: String) Optional~Usuario~
+            +buscarPorPersonaId(personaId: PersonaId) Optional~Usuario~
+            +existePorUsername(username: String) boolean
+            +existePorPersonaId(personaId: PersonaId) boolean
+            +listarTodos() List~Usuario~
+            +eliminarPorId(id: UsuarioId) void
+        }
+
+        class ProveedorIdentidadPort {
+            <<interface>>
+            +crearIdentidad(username: String, email: String, nombre: String, apellido: String, password: String, roles: Set~RolUsuario~) UUID
+            +autenticar(username: String, password: String) TokenResponseDTO
+            +asignarRoles(identidadExternaId: UUID, roles: Set~RolUsuario~) void
+            +eliminarIdentidad(identidadExternaId: UUID) void
+        }
+
+        class RegistroPacientePort {
+            <<interface>>
+            +registrarPacienteDeAutoServicio(datos: DatosPacienteAutoRegistroDTO) PersonaId
+        }
+
+        %% adaptado de KeycloakAdminClient en usuarios-service (infrastructure.keycloak)
+        class KeycloakIdentidadAdapter {
+            <<Adapter adaptado de KeycloakAdminClient>>
+            -restTemplate: RestTemplate
+            -propiedades: KeycloakAdminProperties
+            -cachedAccessToken: String
+            -cachedTokenExpiresAt: Instant
+            +crearIdentidad(username: String, email: String, nombre: String, apellido: String, password: String, roles: Set~RolUsuario~) UUID
+            +autenticar(username: String, password: String) TokenResponseDTO
+            +asignarRoles(identidadExternaId: UUID, roles: Set~RolUsuario~) void
+            +eliminarIdentidad(identidadExternaId: UUID) void
+            -obtenerTokenAdmin() String
+            -setPasswordPermanente(identidadExternaId: UUID, password: String) void
+        }
+
+        class IdentidadLocalAdapter {
+            <<Adapter>>
+            -credencialRepository: CredencialRepository
+            -passwordHasher: PasswordHasherPort
+            -tokenProvider: TokenProviderPort
+            +crearIdentidad(username: String, email: String, nombre: String, apellido: String, password: String, roles: Set~RolUsuario~) UUID
+            +autenticar(username: String, password: String) TokenResponseDTO
+            +asignarRoles(identidadExternaId: UUID, roles: Set~RolUsuario~) void
+            +eliminarIdentidad(identidadExternaId: UUID) void
+        }
+
+        class PasswordHasherPort {
+            <<interface>>
+            +hashear(passwordPlano: String) String
+            +coincide(passwordPlano: String, hash: String) boolean
+        }
+
+        class BCryptPasswordHasherAdapter {
+            <<Adapter>>
+            -encoder: PasswordEncoder
+            +hashear(passwordPlano: String) String
+            +coincide(passwordPlano: String, hash: String) boolean
+        }
+
+        class TokenProviderPort {
+            <<interface>>
+            +generar(usuario: Usuario) TokenResponseDTO
+            +validar(token: String) boolean
+            +extraerUsuarioId(token: String) UsuarioId
+        }
+
+        class JwtTokenProviderAdapter {
+            <<Adapter>>
+            -secreto: String
+            -expiracionSegundos: long
+            +generar(usuario: Usuario) TokenResponseDTO
+            +validar(token: String) boolean
+            +extraerUsuarioId(token: String) UsuarioId
+        }
+
+        class CredencialRepository {
+            <<interface>>
+            +guardar(identidadExternaId: UUID, username: String, passwordHash: String, roles: Set~RolUsuario~) void
+            +buscarHashPorUsername(username: String) Optional~String~
+            +eliminar(identidadExternaId: UUID) void
+        }
+
+        %% adaptado de KeycloakAdminProperties en usuarios-service
+        class KeycloakAdminProperties {
+            <<ConfigurationProperties adaptado de KeycloakAdminProperties>>
+            -url: String
+            -realm: String
+            -clientId: String
+            -clientSecret: String
+            +tokenEndpoint() String
+            +adminUsersEndpoint() String
+            +adminRolesEndpoint() String
+        }
+
+        %% adaptado de UsuarioEntity en usuarios-service
+        class UsuarioJpaEntity {
+            <<Entity adaptado de UsuarioEntity>>
+            -id: UUID
+            -identidadExternaId: UUID
+            -username: String
+            -personaId: Long
+            -roles: Set~RolUsuario~
+            -activo: boolean
+            -fechaCreacion: Instant
+            -fechaActualizacion: Instant
+            #onCreate() void
+            #onUpdate() void
+        }
+
+        %% adaptado de UsuarioMapper en usuarios-service
+        class UsuarioPersistenceMapper {
+            <<Mapper adaptado de UsuarioMapper>>
+            +toDomain(entity: UsuarioJpaEntity) Usuario
+            +toEntity(usuario: Usuario) UsuarioJpaEntity
+        }
+
+        %% adaptado de UsuarioRestMapper en usuarios-service
+        class UsuarioApplicationMapper {
+            <<Mapper adaptado de UsuarioRestMapper>>
+            +toResponse(usuario: Usuario) UsuarioResponseDTO
+        }
+
+        %% adaptado de SpringDataUsuarioRepository en usuarios-service
+        class SpringDataUsuarioRepository {
+            <<interface>>
+            +findByUsername(username: String) Optional~UsuarioJpaEntity~
+            +findByIdentidadExternaId(identidadExternaId: UUID) Optional~UsuarioJpaEntity~
+            +findByPersonaId(personaId: Long) Optional~UsuarioJpaEntity~
+            +existsByUsername(username: String) boolean
+            +existsByPersonaId(personaId: Long) boolean
+        }
+
+        %% adaptado de UsuarioRepositoryImpl en usuarios-service
+        class UsuarioRepositoryAdapter {
+            <<Repository adaptado de UsuarioRepositoryImpl>>
+            -springDataRepository: SpringDataUsuarioRepository
+            -mapper: UsuarioPersistenceMapper
+            +guardar(usuario: Usuario) Usuario
+            +buscarPorId(id: UsuarioId) Optional~Usuario~
+            +buscarPorIdentidadExternaId(identidadExternaId: UUID) Optional~Usuario~
+            +buscarPorUsername(username: String) Optional~Usuario~
+            +buscarPorPersonaId(personaId: PersonaId) Optional~Usuario~
+            +existePorUsername(username: String) boolean
+            +existePorPersonaId(personaId: PersonaId) boolean
+            +listarTodos() List~Usuario~
+            +eliminarPorId(id: UsuarioId) void
+        }
+
+        %% adaptado de CrearUsuarioRequest en usuarios-service
+        class RegistrarUsuarioRequestDTO {
+            <<DTO adaptado de CrearUsuarioRequest>>
+            +personaId: Long
+            +username: String
+            +password: String
+            +email: String
+            +firstName: String
+            +lastName: String
+            +roles: Set~RolUsuario~
+        }
+
+        class RegistrarUsuarioCommand {
+            <<DTO>>
+            +personaId: Long
+            +username: String
+            +password: String
+            +email: String
+            +firstName: String
+            +lastName: String
+            +roles: Set~RolUsuario~
+            +datosAutoRegistro: DatosPacienteAutoRegistroDTO
+        }
+
+        class DatosPacienteAutoRegistroDTO {
+            <<DTO>>
+            +primerNombre: String
+            +segundoNombre: String
+            +primerApellido: String
+            +segundoApellido: String
+            +genero: Genero
+            +fechaNacimiento: LocalDate
+            +telefono: String
+            +dni: String
+            +correo: String
+        }
+
+        class LoginRequestDTO {
+            <<DTO>>
+            +username: String
+            +password: String
+        }
+
+        class TokenResponseDTO {
+            <<DTO>>
+            +accessToken: String
+            +tokenType: String
+            +expiresIn: long
+            +refreshToken: String
+            +roles: Set~RolUsuario~
+        }
+
+        %% adaptado de UsuarioResponse en usuarios-service
+        class UsuarioResponseDTO {
+            <<DTO adaptado de UsuarioResponse>>
+            +id: UUID
+            +identidadExternaId: UUID
+            +username: String
+            +personaId: Long
+            +roles: Set~RolUsuario~
+            +activo: boolean
+            +fechaCreacion: Instant
+            +fechaActualizacion: Instant
+        }
+    }
+
+%% =====================================================================
+%% MODULO 2 - GESTION DE PERSONAS  (origen: personas-service)
+%% =====================================================================
+    namespace ModuloGestionPersonas {
+
+        %% adaptado de PersonaController en personas-service
+        class PersonaController {
+            <<RestController adaptado de PersonaController>>
+            -crearPersonaUseCase: CrearPersonaUseCase
+            -actualizarPersonaUseCase: ActualizarPersonaUseCase
+            -consultarPersonaUseCase: ConsultarPersonaUseCase
+            -mapper: PersonaRestMapper
+            +crear(request: CrearPersonaRequestDTO) ResponseEntity~PersonaResponseDTO~
+            +actualizar(id: Long, request: ActualizarPersonaRequestDTO) ResponseEntity~PersonaResponseDTO~
+            +buscarPorId(id: Long) ResponseEntity~PersonaResponseDTO~
+            +buscarPorDni(dni: String) ResponseEntity~PersonaResponseDTO~
+            +listar() ResponseEntity~List~PersonaResponseDTO~~
+        }
+
+        %% adaptado de MedicoController en personas-service
+        class MedicoController {
+            <<RestController adaptado de MedicoController>>
+            -registrarMedicoUseCase: RegistrarMedicoUseCase
+            -consultarMedicoUseCase: ConsultarMedicoUseCase
+            -cambiarEstadoMedicoUseCase: CambiarEstadoMedicoUseCase
+            -asignarEspecialidadesUseCase: AsignarEspecialidadesMedicoUseCase
+            -mapper: MedicoRestMapper
+            +registrar(request: RegistrarMedicoRequestDTO) ResponseEntity~MedicoResponseDTO~
+            +buscarPorPersonaId(personaId: Long) ResponseEntity~MedicoResponseDTO~
+            +listar() ResponseEntity~List~MedicoResponseDTO~~
+            +listarActivos() ResponseEntity~List~MedicoResponseDTO~~
+            +cambiarEstado(personaId: Long, request: CambiarEstadoMedicoRequestDTO) ResponseEntity~MedicoResponseDTO~
+            +asignarEspecialidades(personaId: Long, request: AsignarEspecialidadesRequestDTO) ResponseEntity~MedicoResponseDTO~
+        }
+
+        %% adaptado de PacienteController en personas-service
+        class PacienteController {
+            <<RestController adaptado de PacienteController>>
+            -registrarPacienteUseCase: RegistrarPacienteUseCase
+            -consultarPacienteUseCase: ConsultarPacienteUseCase
+            -mapper: PacienteRestMapper
+            +registrar(request: RegistrarPacienteRequestDTO) ResponseEntity~PacienteResponseDTO~
+            +buscarPorPersonaId(personaId: Long) ResponseEntity~PacienteResponseDTO~
+            +listar() ResponseEntity~List~PacienteResponseDTO~~
+        }
+
+        %% adaptado de EspecialidadController en personas-service
+        class EspecialidadController {
+            <<RestController adaptado de EspecialidadController>>
+            +listarCatalogo() ResponseEntity~List~EspecialidadMedica~~
+        }
+
+        class CrearPersonaUseCase {
+            <<interface>>
+            +ejecutar(comando: CrearPersonaCommand) PersonaResponseDTO
+        }
+
+        class ActualizarPersonaUseCase {
+            <<interface>>
+            +ejecutar(personaId: PersonaId, comando: ActualizarPersonaCommand) PersonaResponseDTO
+        }
+
+        class ConsultarPersonaUseCase {
+            <<interface>>
+            +porId(personaId: PersonaId) PersonaResponseDTO
+            +porDni(dni: String) PersonaResponseDTO
+            +listarTodas() List~PersonaResponseDTO~
+        }
+
+        class RegistrarPacienteUseCase {
+            <<interface>>
+            +ejecutar(personaId: PersonaId) PacienteResponseDTO
+        }
+
+        class ConsultarPacienteUseCase {
+            <<interface>>
+            +porPersonaId(personaId: PersonaId) PacienteResponseDTO
+            +listarTodos() List~PacienteResponseDTO~
+        }
+
+        class RegistrarMedicoUseCase {
+            <<interface>>
+            +ejecutar(comando: RegistrarMedicoCommand) MedicoResponseDTO
+        }
+
+        class ConsultarMedicoUseCase {
+            <<interface>>
+            +porPersonaId(personaId: PersonaId) MedicoResponseDTO
+            +listarTodos() List~MedicoResponseDTO~
+            +listarActivos() List~MedicoResponseDTO~
+            +listarPorEspecialidad(especialidad: EspecialidadMedica) List~MedicoResponseDTO~
+        }
+
+        class CambiarEstadoMedicoUseCase {
+            <<interface>>
+            +ejecutar(personaId: PersonaId, nuevoEstado: EstadoMedico) MedicoResponseDTO
+        }
+
+        class AsignarEspecialidadesMedicoUseCase {
+            <<interface>>
+            +ejecutar(personaId: PersonaId, especialidades: Set~EspecialidadMedica~) MedicoResponseDTO
+        }
+
+        %% adaptado de CrearPersonaService en personas-service
+        class CrearPersonaService {
+            <<Service adaptado de CrearPersonaService>>
+            -personaRepository: PersonaRepository
+            -mapper: PersonaApplicationMapper
+            +ejecutar(comando: CrearPersonaCommand) PersonaResponseDTO
+            -validarDniUnico(dni: String) void
+        }
+
+        %% adaptado de ActualizarPersonaService en personas-service
+        class ActualizarPersonaService {
+            <<Service adaptado de ActualizarPersonaService>>
+            -personaRepository: PersonaRepository
+            -eventPublisher: DomainEventPublisher
+            -mapper: PersonaApplicationMapper
+            +ejecutar(personaId: PersonaId, comando: ActualizarPersonaCommand) PersonaResponseDTO
+        }
+
+        %% adaptado de ConsultarPersonaService en personas-service
+        class ConsultarPersonaService {
+            <<Service adaptado de ConsultarPersonaService>>
+            -personaRepository: PersonaRepository
+            -mapper: PersonaApplicationMapper
+            +porId(personaId: PersonaId) PersonaResponseDTO
+            +porDni(dni: String) PersonaResponseDTO
+            +listarTodas() List~PersonaResponseDTO~
+        }
+
+        %% adaptado de RegistrarPacienteService en personas-service
+        class RegistrarPacienteService {
+            <<Service adaptado de RegistrarPacienteService>>
+            -personaRepository: PersonaRepository
+            -pacienteRepository: PacienteRepository
+            -eventPublisher: DomainEventPublisher
+            -mapper: PacienteApplicationMapper
+            +ejecutar(personaId: PersonaId) PacienteResponseDTO
+        }
+
+        %% adaptado de ConsultarPacienteService en personas-service
+        class ConsultarPacienteService {
+            <<Service adaptado de ConsultarPacienteService>>
+            -pacienteRepository: PacienteRepository
+            -mapper: PacienteApplicationMapper
+            +porPersonaId(personaId: PersonaId) PacienteResponseDTO
+            +listarTodos() List~PacienteResponseDTO~
+        }
+
+        %% adaptado de RegistrarMedicoService en personas-service
+        class RegistrarMedicoService {
+            <<Service adaptado de RegistrarMedicoService>>
+            -personaRepository: PersonaRepository
+            -medicoRepository: MedicoRepository
+            -medicoEspecialidadRepository: MedicoEspecialidadRepository
+            -eventPublisher: DomainEventPublisher
+            -mapper: MedicoApplicationMapper
+            +ejecutar(comando: RegistrarMedicoCommand) MedicoResponseDTO
+        }
+
+        %% adaptado de ConsultarMedicoService en personas-service
+        class ConsultarMedicoService {
+            <<Service adaptado de ConsultarMedicoService>>
+            -medicoRepository: MedicoRepository
+            -personaRepository: PersonaRepository
+            -mapper: MedicoApplicationMapper
+            +porPersonaId(personaId: PersonaId) MedicoResponseDTO
+            +listarTodos() List~MedicoResponseDTO~
+            +listarActivos() List~MedicoResponseDTO~
+            +listarPorEspecialidad(especialidad: EspecialidadMedica) List~MedicoResponseDTO~
+        }
+
+        %% adaptado de CambiarEstadoMedicoService en personas-service
+        class CambiarEstadoMedicoService {
+            <<Service adaptado de CambiarEstadoMedicoService>>
+            -medicoRepository: MedicoRepository
+            -eventPublisher: DomainEventPublisher
+            -mapper: MedicoApplicationMapper
+            +ejecutar(personaId: PersonaId, nuevoEstado: EstadoMedico) MedicoResponseDTO
+        }
+
+        %% adaptado de AsignarEspecialidadesMedicoService en personas-service
+        class AsignarEspecialidadesMedicoService {
+            <<Service adaptado de AsignarEspecialidadesMedicoService>>
+            -medicoRepository: MedicoRepository
+            -medicoEspecialidadRepository: MedicoEspecialidadRepository
+            -eventPublisher: DomainEventPublisher
+            -mapper: MedicoApplicationMapper
+            +ejecutar(personaId: PersonaId, especialidades: Set~EspecialidadMedica~) MedicoResponseDTO
+        }
+
+        %% adaptado de Persona en personas-service (domain.model)
+        class Persona {
+            <<Entity adaptado de Persona>>
+            -id: PersonaId
+            -primerNombre: String
+            -segundoNombre: String
+            -primerApellido: String
+            -segundoApellido: String
+            -genero: Genero
+            -fechaNacimiento: LocalDate
+            -telefono: String
+            -dni: String
+            -correo: String
+            +crear(primerNombre: String, segundoNombre: String, primerApellido: String, segundoApellido: String, genero: Genero, fechaNacimiento: LocalDate, telefono: String, dni: String, correo: String) Persona
+            +reconstruir(id: PersonaId, primerNombre: String, segundoNombre: String, primerApellido: String, segundoApellido: String, genero: Genero, fechaNacimiento: LocalDate, telefono: String, dni: String, correo: String) Persona
+            +actualizarDatosAdministrables(primerNombre: String, segundoNombre: String, primerApellido: String, segundoApellido: String, genero: Genero, fechaNacimiento: LocalDate, telefono: String) void
+            +actualizarDatosBasicos(primerNombre: String, segundoNombre: String, primerApellido: String, segundoApellido: String, genero: Genero, fechaNacimiento: LocalDate, telefono: String, correo: String) void
+            +getNombreCompleto() String
+            +getId() PersonaId
+            +getGenero() Genero
+            +getFechaNacimiento() LocalDate
+            +getTelefono() String
+            +getDni() String
+            +getCorreo() String
+        }
+
+        %% adaptado de Paciente en personas-service; conserva composicion por personaId
+        class Paciente {
+            <<AggregateRoot adaptado de Paciente>>
+            -personaId: PersonaId
+            -persona: Persona
+            -activo: boolean
+            -fechaRegistro: LocalDateTime
+            +crear(persona: Persona) Paciente
+            +reconstruir(personaId: PersonaId, persona: Persona, activo: boolean, fechaRegistro: LocalDateTime) Paciente
+            +desactivar() void
+            +activar() void
+            +estaActivo() boolean
+            +getPersonaId() PersonaId
+            +getPersona() Persona
+            +getNombreCompleto() String
+            +getCorreo() String
+            +getTelefono() String
+        }
+
+        %% adaptado de Medico en personas-service
+        class Medico {
+            <<AggregateRoot adaptado de Medico>>
+            -personaId: PersonaId
+            -persona: Persona
+            -tipoProfesional: TipoProfesional
+            -estado: EstadoMedico
+            -especialidades: Set~EspecialidadMedica~
+            +crear(persona: Persona, tipoProfesional: TipoProfesional, especialidades: Set~EspecialidadMedica~) Medico
+            +reconstruir(personaId: PersonaId, persona: Persona, tipoProfesional: TipoProfesional, estado: EstadoMedico, especialidades: Set~EspecialidadMedica~) Medico
+            +asignarEspecialidades(nuevasEspecialidades: Set~EspecialidadMedica~) void
+            +cambiarEstado(nuevoEstado: EstadoMedico) void
+            +tieneEspecialidad(especialidad: EspecialidadMedica) boolean
+            +estaActivo() boolean
+            +getEspecialidadResumen() String
+            +getPersonaId() PersonaId
+            +getPersona() Persona
+            +getTipoProfesional() TipoProfesional
+            +getEstado() EstadoMedico
+            +getEspecialidades() Set~EspecialidadMedica~
+            +getNombreCompleto() String
+            +getCorreo() String
+        }
+
+        %% adaptado de Genero en personas-service
+        class Genero {
+            <<enumeration>>
+            HOMBRE
+            MUJER
+            OTRO
+            +getEtiqueta() String
+        }
+
+        %% adaptado de TipoProfesional en personas-service
+        class TipoProfesional {
+            <<enumeration>>
+            MEDICO
+            TERAPISTA
+            +getEtiqueta() String
+        }
+
+        %% adaptado de EstadoMedico; fusiona los valores de citas y personas
+        class EstadoMedico {
+            <<enumeration>>
+            ACTIVO
+            INACTIVO
+            VACACIONES
+            CAPACITACION
+            +getDescripcion() String
+            +permiteAgendamiento() boolean
+        }
+
+        %% adaptado de IPersonaRepository en personas-service
+        class PersonaRepository {
+            <<interface>>
+            +guardar(persona: Persona) Persona
+            +buscarPorId(id: PersonaId) Optional~Persona~
+            +buscarPorDni(dni: String) Optional~Persona~
+            +existePorDni(dni: String) boolean
+            +listarTodas() List~Persona~
+        }
+
+        %% adaptado de IPacienteRepository en personas-service
+        class PacienteRepository {
+            <<interface>>
+            +guardar(paciente: Paciente) Paciente
+            +buscarPorPersonaId(personaId: PersonaId) Optional~Paciente~
+            +existePorPersonaId(personaId: PersonaId) boolean
+            +listarTodos() List~Paciente~
+        }
+
+        %% adaptado de IMedicoRepository en personas-service
+        class MedicoRepository {
+            <<interface>>
+            +guardar(medico: Medico) Medico
+            +buscarPorPersonaId(personaId: PersonaId) Optional~Medico~
+            +existePorPersonaId(personaId: PersonaId) boolean
+            +listarTodos() List~Medico~
+            +listarActivos() List~Medico~
+            +listarPorEspecialidad(especialidad: EspecialidadMedica) List~Medico~
+        }
+
+        %% adaptado de IMedicoEspecialidadRepository en personas-service
+        class MedicoEspecialidadRepository {
+            <<interface>>
+            +reemplazarEspecialidades(medicoId: PersonaId, especialidades: Set~EspecialidadMedica~) void
+            +buscarPorMedicoId(medicoId: PersonaId) Set~EspecialidadMedica~
+        }
+
+        %% FACHADA DE MODULO: sustituye los eventos RabbitMQ y los snapshots
+        %% MedicoSnapshot / PacienteSnapshot de citas-service
+        class PersonasModuleFacade {
+            <<Facade reemplaza MedicoSnapshot y PacienteSnapshot>>
+            -medicoRepository: MedicoRepository
+            -pacienteRepository: PacienteRepository
+            +obtenerMedico(medicoId: MedicoId) Optional~MedicoReadModel~
+            +obtenerPaciente(pacienteId: PacienteId) Optional~PacienteReadModel~
+            +listarMedicosActivos() List~MedicoReadModel~
+            +listarMedicosPorEspecialidad(especialidad: EspecialidadMedica) List~MedicoReadModel~
+            +existePaciente(pacienteId: PacienteId) boolean
+            +registrarPacienteDeAutoServicio(datos: DatosPacienteAutoRegistroDTO) PersonaId
+        }
+
+        %% adaptado de PersonaEntity en personas-service
+        class PersonaJpaEntity {
+            <<Entity adaptado de PersonaEntity>>
+            -id: Long
+            -primerNombre: String
+            -segundoNombre: String
+            -primerApellido: String
+            -segundoApellido: String
+            -genero: Genero
+            -fechaNacimiento: LocalDate
+            -telefono: String
+            -dni: String
+            -correo: String
+        }
+
+        %% adaptado de PacienteEntity en personas-service
+        class PacienteJpaEntity {
+            <<Entity adaptado de PacienteEntity>>
+            -personaId: Long
+            -persona: PersonaJpaEntity
+            -activo: boolean
+            -fechaRegistro: LocalDateTime
+        }
+
+        %% adaptado de MedicoEntity en personas-service
+        class MedicoJpaEntity {
+            <<Entity adaptado de MedicoEntity>>
+            -personaId: Long
+            -persona: PersonaJpaEntity
+            -tipoProfesional: TipoProfesional
+            -estado: EstadoMedico
+            -especialidades: Set~EspecialidadMedica~
+        }
+
+        %% adaptado de PersonaMapper en personas-service
+        class PersonaPersistenceMapper {
+            <<Mapper adaptado de PersonaMapper>>
+            +toEntity(persona: Persona) PersonaJpaEntity
+            +toDomain(entity: PersonaJpaEntity) Persona
+        }
+
+        %% adaptado de PacienteMapper en personas-service
+        class PacientePersistenceMapper {
+            <<Mapper adaptado de PacienteMapper>>
+            +toEntity(paciente: Paciente) PacienteJpaEntity
+            +toDomain(entity: PacienteJpaEntity) Paciente
+        }
+
+        %% adaptado de MedicoMapper en personas-service; ahora si mapea especialidades
+        class MedicoPersistenceMapper {
+            <<Mapper adaptado de MedicoMapper>>
+            +toEntity(medico: Medico) MedicoJpaEntity
+            +toDomain(entity: MedicoJpaEntity) Medico
+        }
+
+        %% adaptado de PersonaRepositoryImpl en personas-service
+        class PersonaRepositoryAdapter {
+            <<Repository adaptado de PersonaRepositoryImpl>>
+            -springDataRepository: SpringDataPersonaRepository
+            -mapper: PersonaPersistenceMapper
+            +guardar(persona: Persona) Persona
+            +buscarPorId(id: PersonaId) Optional~Persona~
+            +buscarPorDni(dni: String) Optional~Persona~
+            +existePorDni(dni: String) boolean
+            +listarTodas() List~Persona~
+        }
+
+        %% adaptado de PacienteRepositoryImpl en personas-service
+        class PacienteRepositoryAdapter {
+            <<Repository adaptado de PacienteRepositoryImpl>>
+            -springDataRepository: SpringDataPacienteRepository
+            -mapper: PacientePersistenceMapper
+            +guardar(paciente: Paciente) Paciente
+            +buscarPorPersonaId(personaId: PersonaId) Optional~Paciente~
+            +existePorPersonaId(personaId: PersonaId) boolean
+            +listarTodos() List~Paciente~
+        }
+
+        %% adaptado de MedicoRepositoryImpl en personas-service
+        class MedicoRepositoryAdapter {
+            <<Repository adaptado de MedicoRepositoryImpl>>
+            -springDataRepository: SpringDataMedicoRepository
+            -mapper: MedicoPersistenceMapper
+            +guardar(medico: Medico) Medico
+            +buscarPorPersonaId(personaId: PersonaId) Optional~Medico~
+            +existePorPersonaId(personaId: PersonaId) boolean
+            +listarTodos() List~Medico~
+            +listarActivos() List~Medico~
+            +listarPorEspecialidad(especialidad: EspecialidadMedica) List~Medico~
+        }
+
+        %% adaptado de SpringDataPersonaRepository en personas-service
+        class SpringDataPersonaRepository {
+            <<interface>>
+            +findByDni(dni: String) Optional~PersonaJpaEntity~
+            +existsByDni(dni: String) boolean
+        }
+
+        %% adaptado de SpringDataPacienteRepository en personas-service
+        class SpringDataPacienteRepository {
+            <<interface>>
+            +existsByPersonaId(personaId: Long) boolean
+        }
+
+        %% adaptado de SpringDataMedicoRepository en personas-service
+        class SpringDataMedicoRepository {
+            <<interface>>
+            +existsByPersonaId(personaId: Long) boolean
+            +findByEstado(estado: EstadoMedico) List~MedicoJpaEntity~
+            +findByEspecialidadesContains(especialidad: EspecialidadMedica) List~MedicoJpaEntity~
+        }
+
+        %% adaptado de PersonaRestMapper en personas-service
+        class PersonaRestMapper {
+            <<Mapper adaptado de PersonaRestMapper>>
+            +toCommand(request: CrearPersonaRequestDTO) CrearPersonaCommand
+            +toCommand(request: ActualizarPersonaRequestDTO) ActualizarPersonaCommand
+        }
+
+        %% adaptado de MedicoRestMapper en personas-service
+        class MedicoRestMapper {
+            <<Mapper adaptado de MedicoRestMapper>>
+            +toCommand(request: RegistrarMedicoRequestDTO) RegistrarMedicoCommand
+        }
+
+        %% adaptado de PacienteRestMapper en personas-service
+        class PacienteRestMapper {
+            <<Mapper adaptado de PacienteRestMapper>>
+            +toResponse(paciente: Paciente) PacienteResponseDTO
+        }
+
+        class PersonaApplicationMapper {
+            <<Mapper>>
+            +toResponse(persona: Persona) PersonaResponseDTO
+        }
+
+        class PacienteApplicationMapper {
+            <<Mapper>>
+            +toResponse(paciente: Paciente) PacienteResponseDTO
+            +toReadModel(paciente: Paciente) PacienteReadModel
+        }
+
+        class MedicoApplicationMapper {
+            <<Mapper>>
+            +toResponse(medico: Medico) MedicoResponseDTO
+            +toReadModel(medico: Medico) MedicoReadModel
+        }
+
+        %% adaptado de CrearPersonaRequest en personas-service
+        class CrearPersonaRequestDTO {
+            <<DTO adaptado de CrearPersonaRequest>>
+            +primerNombre: String
+            +segundoNombre: String
+            +primerApellido: String
+            +segundoApellido: String
+            +genero: Genero
+            +fechaNacimiento: LocalDate
+            +telefono: String
+            +dni: String
+            +correo: String
+        }
+
+        %% adaptado de ActualizarPersonaRequest en personas-service
+        class ActualizarPersonaRequestDTO {
+            <<DTO adaptado de ActualizarPersonaRequest>>
+            +primerNombre: String
+            +segundoNombre: String
+            +primerApellido: String
+            +segundoApellido: String
+            +genero: Genero
+            +fechaNacimiento: LocalDate
+            +telefono: String
+        }
+
+        class CrearPersonaCommand {
+            <<DTO>>
+            +primerNombre: String
+            +segundoNombre: String
+            +primerApellido: String
+            +segundoApellido: String
+            +genero: Genero
+            +fechaNacimiento: LocalDate
+            +telefono: String
+            +dni: String
+            +correo: String
+        }
+
+        class ActualizarPersonaCommand {
+            <<DTO>>
+            +primerNombre: String
+            +segundoNombre: String
+            +primerApellido: String
+            +segundoApellido: String
+            +genero: Genero
+            +fechaNacimiento: LocalDate
+            +telefono: String
+        }
+
+        %% adaptado de RegistrarMedicoRequest en personas-service
+        class RegistrarMedicoRequestDTO {
+            <<DTO adaptado de RegistrarMedicoRequest>>
+            +personaId: Long
+            +tipoProfesional: TipoProfesional
+            +especialidades: Set~EspecialidadMedica~
+        }
+
+        class RegistrarMedicoCommand {
+            <<DTO>>
+            +personaId: Long
+            +tipoProfesional: TipoProfesional
+            +especialidades: Set~EspecialidadMedica~
+        }
+
+        %% adaptado de RegistrarPacienteRequest en personas-service
+        class RegistrarPacienteRequestDTO {
+            <<DTO adaptado de RegistrarPacienteRequest>>
+            +personaId: Long
+        }
+
+        %% adaptado de CambiarEstadoMedicoRequest en personas-service
+        class CambiarEstadoMedicoRequestDTO {
+            <<DTO adaptado de CambiarEstadoMedicoRequest>>
+            +estado: EstadoMedico
+        }
+
+        %% adaptado de AsignarEspecialidadesMedicoRequest en personas-service
+        class AsignarEspecialidadesRequestDTO {
+            <<DTO adaptado de AsignarEspecialidadesMedicoRequest>>
+            +especialidades: Set~EspecialidadMedica~
+        }
+
+        %% adaptado de PersonaResponse en personas-service
+        class PersonaResponseDTO {
+            <<DTO adaptado de PersonaResponse>>
+            +id: Long
+            +primerNombre: String
+            +segundoNombre: String
+            +primerApellido: String
+            +segundoApellido: String
+            +nombreCompleto: String
+            +genero: Genero
+            +fechaNacimiento: LocalDate
+            +telefono: String
+            +dni: String
+            +correo: String
+        }
+
+        %% adaptado de MedicoResponse en personas-service
+        class MedicoResponseDTO {
+            <<DTO adaptado de MedicoResponse>>
+            +personaId: Long
+            +nombreCompleto: String
+            +correo: String
+            +telefono: String
+            +tipoProfesional: TipoProfesional
+            +estado: EstadoMedico
+            +especialidades: Set~EspecialidadMedica~
+        }
+
+        %% adaptado de PacienteResponse en personas-service
+        class PacienteResponseDTO {
+            <<DTO adaptado de PacienteResponse>>
+            +personaId: Long
+            +nombreCompleto: String
+            +correo: String
+            +telefono: String
+            +activo: boolean
+        }
+
+        %% READ MODEL que reemplaza MedicoSnapshot de citas-service
+        class MedicoReadModel {
+            <<ReadModel reemplaza MedicoSnapshot>>
+            +medicoId: Long
+            +nombreCompleto: String
+            +correo: String
+            +especialidades: Set~EspecialidadMedica~
+            +estado: EstadoMedico
+            +estaActivo() boolean
+            +tieneEspecialidad(especialidad: EspecialidadMedica) boolean
+        }
+
+        %% READ MODEL que reemplaza PacienteSnapshot de citas-service
+        class PacienteReadModel {
+            <<ReadModel reemplaza PacienteSnapshot>>
+            +pacienteId: Long
+            +nombreCompleto: String
+            +correo: String
+            +telefono: String
+            +activo: boolean
+            +estaActivo() boolean
+        }
+
+        %% adaptado de MedicoCreadoEvent y MedicoActualizadoEvent
+        class MedicoActualizadoEvent {
+            <<DomainEvent adaptado de MedicoActualizadoEvent>>
+            +medicoId: Long
+            +nombreCompleto: String
+            +correo: String
+            +especialidades: Set~EspecialidadMedica~
+            +estado: EstadoMedico
+            +ocurridoEn: LocalDateTime
+        }
+
+        %% adaptado de PacienteCreadoEvent en personas-service
+        class PacienteRegistradoEvent {
+            <<DomainEvent adaptado de PacienteCreadoEvent>>
+            +pacienteId: Long
+            +nombreCompleto: String
+            +correo: String
+            +telefono: String
+            +ocurridoEn: LocalDateTime
+        }
+    }
+
+%% =====================================================================
+%% MODULO 3 - CONFIGURACION Y DISPONIBILIDAD  (RF3)
+%% Origen: ConfiguracionSistema de citas-service + Disponibilidad de personas-service
+%% =====================================================================
+    namespace ModuloConfiguracionDisponibilidad {
+
+        %% adaptado de ConfiguracionController en citas-service
+        class ConfiguracionController {
+            <<RestController adaptado de ConfiguracionController>>
+            -consultarConfiguracionUseCase: ConsultarConfiguracionUseCase
+            -actualizarConfiguracionUseCase: ActualizarConfiguracionUseCase
+            -gestionarFestivosUseCase: GestionarFestivosUseCase
+            +obtener() ResponseEntity~ConfiguracionResponseDTO~
+            +actualizar(request: ActualizarConfiguracionRequestDTO) ResponseEntity~ConfiguracionResponseDTO~
+            +listarFestivos() ResponseEntity~FestivosResponseDTO~
+            +actualizarFestivos(request: ActualizarFestivosRequestDTO) ResponseEntity~FestivosResponseDTO~
+        }
+
+        %% adaptado de DisponibilidadController en personas-service
+        class DisponibilidadController {
+            <<RestController adaptado de DisponibilidadController>>
+            -crearDisponibilidadUseCase: CrearDisponibilidadUseCase
+            -actualizarDisponibilidadUseCase: ActualizarDisponibilidadUseCase
+            -eliminarDisponibilidadUseCase: EliminarDisponibilidadUseCase
+            -consultarDisponibilidadUseCase: ConsultarDisponibilidadUseCase
+            +crear(request: CrearDisponibilidadRequestDTO) ResponseEntity~DisponibilidadResponseDTO~
+            +actualizar(id: Long, request: ActualizarDisponibilidadRequestDTO) ResponseEntity~DisponibilidadResponseDTO~
+            +eliminar(id: Long) ResponseEntity~Void~
+            +listar() ResponseEntity~List~DisponibilidadResponseDTO~~
+            +listarPorMedico(medicoId: Long) ResponseEntity~List~DisponibilidadResponseDTO~~
+            +obtenerAgenda(medicoId: Long) ResponseEntity~AgendaMedicoResponseDTO~
+        }
+
+        %% adaptado de ConsultarConfiguracionUseCase en citas-service
+        class ConsultarConfiguracionUseCase {
+            <<interface>>
+            +ejecutar() ConfiguracionResponseDTO
+        }
+
+        %% adaptado de ActualizarConfiguracionUseCase en citas-service
+        class ActualizarConfiguracionUseCase {
+            <<interface>>
+            +ejecutar(semanasDisponibles: Integer) ConfiguracionResponseDTO
+        }
+
+        %% adaptado de GestionarFestivosUseCase en citas-service
+        class GestionarFestivosUseCase {
+            <<interface>>
+            +listarFestivos() Set~LocalDate~
+            +actualizarFestivos(festivos: Set~LocalDate~) Set~LocalDate~
+        }
+
+        class CrearDisponibilidadUseCase {
+            <<interface>>
+            +ejecutar(comando: CrearDisponibilidadCommand) DisponibilidadResponseDTO
+        }
+
+        class ActualizarDisponibilidadUseCase {
+            <<interface>>
+            +ejecutar(id: DisponibilidadId, comando: ActualizarDisponibilidadCommand) DisponibilidadResponseDTO
+        }
+
+        class EliminarDisponibilidadUseCase {
+            <<interface>>
+            +ejecutar(id: DisponibilidadId) void
+        }
+
+        class ConsultarDisponibilidadUseCase {
+            <<interface>>
+            +porId(id: DisponibilidadId) DisponibilidadResponseDTO
+            +porMedico(medicoId: MedicoId) List~DisponibilidadResponseDTO~
+            +listarTodas() List~DisponibilidadResponseDTO~
+            +obtenerAgenda(medicoId: MedicoId) AgendaMedicoResponseDTO
+        }
+
+        %% adaptado de ConfiguracionService en citas-service
+        class ConfiguracionService {
+            <<Service adaptado de ConfiguracionService>>
+            -configuracionManager: ConfiguracionManager
+            -mapper: ConfiguracionApplicationMapper
+            +ejecutar() ConfiguracionResponseDTO
+            +ejecutar(semanasDisponibles: Integer) ConfiguracionResponseDTO
+            +listarFestivos() Set~LocalDate~
+            +actualizarFestivos(festivos: Set~LocalDate~) Set~LocalDate~
+        }
+
+        %% adaptado de ConfiguracionManager en citas-service (patron Singleton con cache)
+        class ConfiguracionManager {
+            <<Component adaptado de ConfiguracionManager>>
+            -configuracionRepository: ConfiguracionRepository
+            -configuracionCache: ConfiguracionSistema
+            +inicializar() void
+            +obtenerConfiguracion() ConfiguracionSistema
+            +actualizarConfiguracion(semanasDisponibles: Integer) ConfiguracionSistema
+            +actualizarFestivos(festivos: Set~LocalDate~) ConfiguracionSistema
+            +invalidarCache() void
+        }
+
+        %% adaptado de CrearDisponibilidadService en personas-service
+        class CrearDisponibilidadService {
+            <<Service adaptado de CrearDisponibilidadService>>
+            -disponibilidadRepository: DisponibilidadRepository
+            -catalogoPersonas: CatalogoMedicosPort
+            -validadorSolapamiento: ValidadorSolapamientoDisponibilidad
+            -eventPublisher: DomainEventPublisher
+            -mapper: DisponibilidadApplicationMapper
+            +ejecutar(comando: CrearDisponibilidadCommand) DisponibilidadResponseDTO
+        }
+
+        %% adaptado de ActualizarDisponibilidadService en personas-service
+        class ActualizarDisponibilidadService {
+            <<Service adaptado de ActualizarDisponibilidadService>>
+            -disponibilidadRepository: DisponibilidadRepository
+            -verificadorCitasActivas: VerificadorCitasActivasPort
+            -validadorSolapamiento: ValidadorSolapamientoDisponibilidad
+            -eventPublisher: DomainEventPublisher
+            -mapper: DisponibilidadApplicationMapper
+            +ejecutar(id: DisponibilidadId, comando: ActualizarDisponibilidadCommand) DisponibilidadResponseDTO
+        }
+
+        %% adaptado de EliminarDisponibilidadService en personas-service
+        class EliminarDisponibilidadService {
+            <<Service adaptado de EliminarDisponibilidadService>>
+            -disponibilidadRepository: DisponibilidadRepository
+            -verificadorCitasActivas: VerificadorCitasActivasPort
+            -eventPublisher: DomainEventPublisher
+            +ejecutar(id: DisponibilidadId) void
+        }
+
+        %% adaptado de ConsultarDisponibilidadesService en personas-service
+        class ConsultarDisponibilidadService {
+            <<Service adaptado de ConsultarDisponibilidadesService>>
+            -disponibilidadRepository: DisponibilidadRepository
+            -configuracionManager: ConfiguracionManager
+            -mapper: DisponibilidadApplicationMapper
+            +porId(id: DisponibilidadId) DisponibilidadResponseDTO
+            +porMedico(medicoId: MedicoId) List~DisponibilidadResponseDTO~
+            +listarTodas() List~DisponibilidadResponseDTO~
+            +obtenerAgenda(medicoId: MedicoId) AgendaMedicoResponseDTO
+        }
+
+        %% adaptado de ConfiguracionSistema en citas-service (domain.model)
+        class ConfiguracionSistema {
+            <<AggregateRoot adaptado de ConfiguracionSistema>>
+            -semanasDisponibles: Integer
+            -festivos: Set~LocalDate~
+            +porDefecto() ConfiguracionSistema
+            +de(semanasDisponibles: Integer, festivos: Set~LocalDate~) ConfiguracionSistema
+            +conSemanas(semanas: Integer) ConfiguracionSistema
+            +conFestivos(nuevosFestivos: Set~LocalDate~) ConfiguracionSistema
+            +esFestivo(fecha: LocalDate) boolean
+            +ventanaAgendamiento(desde: LocalDate) RangoFechas
+            +fechaLimiteAgendamiento(desde: LocalDateTime) LocalDateTime
+            +estaDentroDeVentana(fechaHora: LocalDateTime) boolean
+            +getSemanasDisponibles() Integer
+            +getFestivos() Set~LocalDate~
+        }
+
+        %% adaptado de Disponibilidad en personas-service; String diaSemana pasa a DiaSemana
+        class Disponibilidad {
+            <<Entity adaptado de Disponibilidad>>
+            -id: DisponibilidadId
+            -medicoId: MedicoId
+            -diaSemana: DiaSemana
+            -horario: TimeRange
+            -intervaloMinutos: Integer
+            -activa: boolean
+            +crear(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange, intervaloMinutos: Integer) Disponibilidad
+            +reconstruir(id: DisponibilidadId, medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange, intervaloMinutos: Integer, activa: boolean) Disponibilidad
+            +modificar(diaSemana: DiaSemana, horario: TimeRange, intervaloMinutos: Integer) void
+            +desactivar() void
+            +cubre(hora: LocalTime) boolean
+            +solapaCon(otra: Disponibilidad) boolean
+            +generarHorasDelDia() List~LocalTime~
+            +cantidadSlots() int
+            +getId() DisponibilidadId
+            +getMedicoId() MedicoId
+            +getDiaSemana() DiaSemana
+            +getHorario() TimeRange
+            +getIntervaloMinutos() Integer
+            +isActiva() boolean
+        }
+
+        %% AGREGADO que reemplaza DisponibilidadSnapshot de citas-service
+        class AgendaMedico {
+            <<AggregateRoot reemplaza DisponibilidadSnapshot>>
+            -medicoId: MedicoId
+            -disponibilidades: List~Disponibilidad~
+            -bloqueos: Set~LocalDateTime~
+            -actualizadoEn: LocalDateTime
+            +de(medicoId: MedicoId, disponibilidades: List~Disponibilidad~, bloqueos: Set~LocalDateTime~) AgendaMedico
+            +franjasDelDia(dia: DiaSemana) List~Disponibilidad~
+            +atiendeElDia(dia: DiaSemana) boolean
+            +diasAtendidos() Set~DiaSemana~
+            +agregarBloqueo(fechaHora: LocalDateTime) void
+            +removerBloqueo(fechaHora: LocalDateTime) void
+            +estaBloqueado(fechaHora: LocalDateTime) boolean
+            +estaDisponible(fechaHora: LocalDateTime) boolean
+            +esSlotValido(fechaHora: LocalDateTime) boolean
+            +intervaloParaDia(dia: DiaSemana) Integer
+            +tieneDisponibilidad() boolean
+            +getMedicoId() MedicoId
+            +getDisponibilidades() List~Disponibilidad~
+            +getBloqueos() Set~LocalDateTime~
+            +getActualizadoEn() LocalDateTime
+        }
+
+        %% SERVICIO DE DOMINIO: extrae el bucle de ConsultarSlotsDisponiblesService
+        class CalculadorDeSlots {
+            <<DomainService extraido de ConsultarSlotsDisponiblesService>>
+            +calcular(agenda: AgendaMedico, configuracion: ConfiguracionSistema, desde: LocalDateTime) List~LocalDateTime~
+            +calcularParaFecha(agenda: AgendaMedico, configuracion: ConfiguracionSistema, fecha: LocalDate) List~LocalDateTime~
+            -generarSlotsDeFranja(franja: Disponibilidad, fecha: LocalDate) List~LocalDateTime~
+            -esFechaAgendable(fecha: LocalDate, configuracion: ConfiguracionSistema) boolean
+        }
+
+        class ValidadorSolapamientoDisponibilidad {
+            <<DomainService>>
+            +validarNuevaFranja(existentes: List~Disponibilidad~, nueva: Disponibilidad) void
+            +validarModificacion(existentes: List~Disponibilidad~, modificada: Disponibilidad) void
+        }
+
+        %% adaptado de ConfiguracionRepositoryPort en citas-service
+        class ConfiguracionRepository {
+            <<interface>>
+            +obtener() ConfiguracionSistema
+            +guardar(configuracion: ConfiguracionSistema) ConfiguracionSistema
+        }
+
+        %% adaptado de IDisponibilidadRepository en personas-service
+        class DisponibilidadRepository {
+            <<interface>>
+            +guardar(disponibilidad: Disponibilidad) Disponibilidad
+            +buscarPorId(id: DisponibilidadId) Optional~Disponibilidad~
+            +buscarPorMedicoId(medicoId: MedicoId) List~Disponibilidad~
+            +buscarPorMedicoIdYDia(medicoId: MedicoId, diaSemana: DiaSemana) List~Disponibilidad~
+            +existePorMedicoIdYDia(medicoId: MedicoId, diaSemana: DiaSemana) boolean
+            +existePorMedicoIdYDiaExcluyendoId(medicoId: MedicoId, diaSemana: DiaSemana, id: DisponibilidadId) boolean
+            +eliminar(id: DisponibilidadId) void
+            +listarTodas() List~Disponibilidad~
+        }
+
+        class BloqueoAgendaRepository {
+            <<interface>>
+            +guardar(medicoId: MedicoId, fechaHora: LocalDateTime) void
+            +eliminar(medicoId: MedicoId, fechaHora: LocalDateTime) void
+            +buscarPorMedicoId(medicoId: MedicoId) Set~LocalDateTime~
+        }
+
+        %% PUERTO INVERTIDO: reemplaza la llamada HTTP CitasServiceClient de
+        %% personas-service hacia citas-service. Lo implementa el Modulo de Citas.
+        class VerificadorCitasActivasPort {
+            <<interface>>
+            +existenCitasActivas(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) boolean
+            +validarEliminacion(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) void
+            +validarModificacion(actual: Disponibilidad, nueva: Disponibilidad) void
+        }
+
+        class CatalogoMedicosPort {
+            <<interface>>
+            +existeMedicoActivo(medicoId: MedicoId) boolean
+        }
+
+        %% FACHADA DE MODULO consumida por el Modulo de Citas
+        class DisponibilidadModuleFacade {
+            <<Facade reemplaza DisponibilidadSnapshotRepositoryPort>>
+            -disponibilidadRepository: DisponibilidadRepository
+            -bloqueoAgendaRepository: BloqueoAgendaRepository
+            -configuracionManager: ConfiguracionManager
+            -calculadorDeSlots: CalculadorDeSlots
+            +obtenerAgenda(medicoId: MedicoId) Optional~AgendaMedico~
+            +obtenerConfiguracion() ConfiguracionSistema
+            +calcularSlotsCandidatos(medicoId: MedicoId, desde: LocalDateTime) List~LocalDateTime~
+            +calcularSlotsCandidatosPorFecha(medicoId: MedicoId, fecha: LocalDate) List~LocalDateTime~
+            +esSlotValido(medicoId: MedicoId, fechaHora: LocalDateTime) boolean
+        }
+
+        %% adaptado de ConfiguracionSistemaEntity en citas-service
+        class ConfiguracionSistemaJpaEntity {
+            <<Entity adaptado de ConfiguracionSistemaEntity>>
+            -id: Long
+            -semanasDisponibles: Integer
+            -festivos: String
+        }
+
+        %% adaptado de DisponibilidadEntity en personas-service
+        class DisponibilidadJpaEntity {
+            <<Entity adaptado de DisponibilidadEntity>>
+            -id: Long
+            -medicoId: Long
+            -diaSemana: DiaSemana
+            -horaInicio: LocalTime
+            -horaFin: LocalTime
+            -intervaloMinutos: Integer
+            -activa: boolean
+        }
+
+        class BloqueoAgendaJpaEntity {
+            <<Entity>>
+            -id: Long
+            -medicoId: Long
+            -fechaHora: LocalDateTime
+            -motivo: String
+        }
+
+        %% adaptado de DisponibilidadMapper en personas-service
+        class DisponibilidadPersistenceMapper {
+            <<Mapper adaptado de DisponibilidadMapper>>
+            +toEntity(disponibilidad: Disponibilidad) DisponibilidadJpaEntity
+            +toDomain(entity: DisponibilidadJpaEntity) Disponibilidad
+        }
+
+        %% adaptado de ConfiguracionRepositoryImpl en citas-service
+        class ConfiguracionRepositoryAdapter {
+            <<Repository adaptado de ConfiguracionRepositoryImpl>>
+            -springDataRepository: SpringDataConfiguracionRepository
+            -objectMapper: ObjectMapper
+            +obtener() ConfiguracionSistema
+            +guardar(configuracion: ConfiguracionSistema) ConfiguracionSistema
+        }
+
+        %% adaptado de DisponibilidadRepositoryImpl en personas-service
+        class DisponibilidadRepositoryAdapter {
+            <<Repository adaptado de DisponibilidadRepositoryImpl>>
+            -springDataRepository: SpringDataDisponibilidadRepository
+            -mapper: DisponibilidadPersistenceMapper
+            +guardar(disponibilidad: Disponibilidad) Disponibilidad
+            +buscarPorId(id: DisponibilidadId) Optional~Disponibilidad~
+            +buscarPorMedicoId(medicoId: MedicoId) List~Disponibilidad~
+            +buscarPorMedicoIdYDia(medicoId: MedicoId, diaSemana: DiaSemana) List~Disponibilidad~
+            +existePorMedicoIdYDia(medicoId: MedicoId, diaSemana: DiaSemana) boolean
+            +existePorMedicoIdYDiaExcluyendoId(medicoId: MedicoId, diaSemana: DiaSemana, id: DisponibilidadId) boolean
+            +eliminar(id: DisponibilidadId) void
+            +listarTodas() List~Disponibilidad~
+        }
+
+        %% adaptado de SpringDataConfiguracionRepository en citas-service
+        class SpringDataConfiguracionRepository {
+            <<interface>>
+            +findById(id: Long) Optional~ConfiguracionSistemaJpaEntity~
+        }
+
+        %% adaptado de SpringDataDisponibilidadRepository en personas-service
+        class SpringDataDisponibilidadRepository {
+            <<interface>>
+            +findByMedicoId(medicoId: Long) List~DisponibilidadJpaEntity~
+            +findByMedicoIdAndDiaSemana(medicoId: Long, diaSemana: DiaSemana) List~DisponibilidadJpaEntity~
+            +existsByMedicoIdAndDiaSemana(medicoId: Long, diaSemana: DiaSemana) boolean
+            +existsByMedicoIdAndDiaSemanaAndIdNot(medicoId: Long, diaSemana: DiaSemana, id: Long) boolean
+        }
+
+        class ConfiguracionApplicationMapper {
+            <<Mapper>>
+            +toResponse(configuracion: ConfiguracionSistema) ConfiguracionResponseDTO
+            +toFestivosResponse(festivos: Set~LocalDate~) FestivosResponseDTO
+        }
+
+        class DisponibilidadApplicationMapper {
+            <<Mapper>>
+            +toResponse(disponibilidad: Disponibilidad) DisponibilidadResponseDTO
+            +toAgendaResponse(agenda: AgendaMedico, configuracion: ConfiguracionSistema) AgendaMedicoResponseDTO
+        }
+
+        %% adaptado de ActualizarConfiguracionRequest en citas-service
+        class ActualizarConfiguracionRequestDTO {
+            <<DTO adaptado de ActualizarConfiguracionRequest>>
+            +semanasDisponibles: Integer
+        }
+
+        %% adaptado de ActualizarFestivosRequest en citas-service
+        class ActualizarFestivosRequestDTO {
+            <<DTO adaptado de ActualizarFestivosRequest>>
+            +festivos: Set~LocalDate~
+        }
+
+        %% adaptado de CrearDisponibilidadRequest en personas-service
+        class CrearDisponibilidadRequestDTO {
+            <<DTO adaptado de CrearDisponibilidadRequest>>
+            +medicoId: Long
+            +diaSemana: DiaSemana
+            +horaInicio: LocalTime
+            +horaFin: LocalTime
+            +intervaloMinutos: Integer
+        }
+
+        %% adaptado de ActualizarDisponibilidadRequest en personas-service
+        class ActualizarDisponibilidadRequestDTO {
+            <<DTO adaptado de ActualizarDisponibilidadRequest>>
+            +medicoId: Long
+            +diaSemana: DiaSemana
+            +horaInicio: LocalTime
+            +horaFin: LocalTime
+            +intervaloMinutos: Integer
+        }
+
+        class CrearDisponibilidadCommand {
+            <<DTO>>
+            +medicoId: Long
+            +diaSemana: DiaSemana
+            +horaInicio: LocalTime
+            +horaFin: LocalTime
+            +intervaloMinutos: Integer
+        }
+
+        class ActualizarDisponibilidadCommand {
+            <<DTO>>
+            +medicoId: Long
+            +diaSemana: DiaSemana
+            +horaInicio: LocalTime
+            +horaFin: LocalTime
+            +intervaloMinutos: Integer
+        }
+
+        %% adaptado de ConfiguracionResponse en citas-service
+        class ConfiguracionResponseDTO {
+            <<DTO adaptado de ConfiguracionResponse>>
+            +semanasDisponibles: Integer
+            +festivos: Set~LocalDate~
+        }
+
+        %% adaptado de FestivosResponse en citas-service
+        class FestivosResponseDTO {
+            <<DTO adaptado de FestivosResponse>>
+            +festivos: Set~LocalDate~
+        }
+
+        %% adaptado de DisponibilidadResponse en personas-service
+        class DisponibilidadResponseDTO {
+            <<DTO adaptado de DisponibilidadResponse>>
+            +id: Long
+            +medicoId: Long
+            +diaSemana: DiaSemana
+            +horaInicio: LocalTime
+            +horaFin: LocalTime
+            +intervaloMinutos: Integer
+            +activa: boolean
+            +cantidadSlots: int
+        }
+
+        class AgendaMedicoResponseDTO {
+            <<DTO>>
+            +medicoId: Long
+            +semanasDisponibles: Integer
+            +diasAtendidos: Set~DiaSemana~
+            +franjas: List~DisponibilidadResponseDTO~
+            +bloqueos: Set~LocalDateTime~
+        }
+
+        %% adaptado de DisponibilidadActualizadaEvent y DisponibilidadModificadaEvent
+        class DisponibilidadModificadaEvent {
+            <<DomainEvent adaptado de DisponibilidadModificadaEvent>>
+            +disponibilidadId: Long
+            +medicoId: Long
+            +diaSemanaAnterior: DiaSemana
+            +horarioAnterior: TimeRange
+            +diaSemanaNuevo: DiaSemana
+            +horarioNuevo: TimeRange
+            +intervaloMinutos: Integer
+            +ocurridoEn: LocalDateTime
+        }
+
+        %% adaptado de DisponibilidadEliminadaEvent en personas-service
+        class DisponibilidadEliminadaEvent {
+            <<DomainEvent adaptado de DisponibilidadEliminadaEvent>>
+            +disponibilidadId: Long
+            +medicoId: Long
+            +diaSemana: DiaSemana
+            +horario: TimeRange
+            +ocurridoEn: LocalDateTime
+        }
+
+        %% adaptado de DisponibilidadNoEncontradaException en personas-service
+        class DisponibilidadNoEncontradaException {
+            <<Exception adaptado de DisponibilidadNoEncontradaException>>
+            +DisponibilidadNoEncontradaException(mensaje: String)
+        }
+
+        %% adaptado de DisponibilidadConCitasActivasException en citas-service
+        class DisponibilidadConCitasActivasException {
+            <<Exception adaptado de DisponibilidadConCitasActivasException>>
+            +DisponibilidadConCitasActivasException(mensaje: String)
+        }
+
+        class FranjaSolapadaException {
+            <<Exception>>
+            +FranjaSolapadaException(mensaje: String)
+        }
+    }
+
+%% =====================================================================
+%% MODULO 4 - GESTION DE CITAS  (RF1 + RF2)  Origen: citas-service
+%% =====================================================================
+    namespace ModuloGestionCitas {
+
+        %% adaptado de CitaController en citas-service
+        class CitaController {
+            <<RestController adaptado de CitaController>>
+            -agendarCitaPacienteUseCase: AgendarCitaPacienteUseCase
+            -agendarCitaManualUseCase: AgendarCitaManualUseCase
+            -cancelarCitaUseCase: CancelarCitaUseCase
+            -reagendarCitaUseCase: ReagendarCitaUseCase
+            -marcarAsistenciaUseCase: MarcarAsistenciaUseCase
+            -mapper: CitaRestMapper
+            +agendarComoPaciente(request: AgendarCitaPacienteRequestDTO) ResponseEntity~CitaResponseDTO~
+            +agendarManual(request: AgendarCitaManualRequestDTO) ResponseEntity~CitaResponseDTO~
+            +cancelar(citaId: String, request: CancelarCitaRequestDTO) ResponseEntity~CitaResponseDTO~
+            +reagendar(citaId: String, request: ReagendarCitaRequestDTO) ResponseEntity~CitaResponseDTO~
+            +marcarAsistencia(citaId: String, request: MarcarAsistenciaRequestDTO) ResponseEntity~CitaResponseDTO~
+        }
+
+        %% RF1: controlador de busqueda del Agendador
+        class AgendaCitasController {
+            <<RestController adaptado de CitaController.listar>>
+            -listarCitasPorMedicoYFechaUseCase: ListarCitasPorMedicoYFechaUseCase
+            -mapper: CitaRestMapper
+            +buscarPorMedicoYFecha(medicoId: Long, fecha: LocalDate) ResponseEntity~ListadoCitasResponseDTO~
+            +buscarConFiltros(filtro: FiltroBusquedaCitasRequestDTO) ResponseEntity~ListadoCitasResponseDTO~
+            +historialPaciente(pacienteId: Long, fechaInicio: LocalDate, fechaFin: LocalDate) ResponseEntity~ListadoCitasResponseDTO~
+        }
+
+        %% RF2: controlador de franjas disponibles para el paciente
+        class SlotsDisponiblesController {
+            <<RestController adaptado de CitaController.obtenerSlots>>
+            -consultarSlotsDisponiblesUseCase: ConsultarSlotsDisponiblesUseCase
+            +consultarPorMedico(medicoId: Long, pacienteId: Long) ResponseEntity~SlotsDisponiblesResponseDTO~
+            +consultarPorMedicoYFecha(medicoId: Long, pacienteId: Long, fecha: LocalDate) ResponseEntity~SlotsDisponiblesResponseDTO~
+        }
+
+        %% adaptado de EspecialidadController en citas-service
+        class CatalogoAgendamientoController {
+            <<RestController adaptado de EspecialidadController>>
+            -personasFacade: CatalogoPersonasPort
+            +listarEspecialidades() ResponseEntity~List~EspecialidadMedica~~
+            +listarMedicosPorEspecialidad(especialidad: EspecialidadMedica) ResponseEntity~List~MedicoReadModel~~
+        }
+
+        %% RF2 - adaptado de CrearCitaAutonomaUseCase en citas-service
+        class AgendarCitaPacienteUseCase {
+            <<interface>>
+            +ejecutar(comando: AgendarCitaCommand) CitaResponseDTO
+        }
+
+        %% adaptado de CrearCitaManualUseCase en citas-service
+        class AgendarCitaManualUseCase {
+            <<interface>>
+            +ejecutar(comando: AgendarCitaCommand) CitaResponseDTO
+        }
+
+        %% RF1 - adaptado de ListarCitasUseCase en citas-service
+        class ListarCitasPorMedicoYFechaUseCase {
+            <<interface>>
+            +porMedicoYFecha(medicoId: MedicoId, fecha: LocalDate) ListadoCitasResponseDTO
+            +porFiltro(filtro: FiltroBusquedaCitas) ListadoCitasResponseDTO
+        }
+
+        %% RF2 - adaptado de ConsultarSlotsDisponiblesUseCase en citas-service
+        class ConsultarSlotsDisponiblesUseCase {
+            <<interface>>
+            +ejecutar(medicoId: MedicoId, pacienteId: PacienteId) SlotsDisponiblesResponseDTO
+            +ejecutarParaFecha(medicoId: MedicoId, pacienteId: PacienteId, fecha: LocalDate) SlotsDisponiblesResponseDTO
+        }
+
+        %% adaptado de CancelarCitaUseCase en citas-service
+        class CancelarCitaUseCase {
+            <<interface>>
+            +ejecutar(citaId: CitaId, motivo: String) CitaResponseDTO
+        }
+
+        %% adaptado de ReagendarCitaUseCase en citas-service
+        class ReagendarCitaUseCase {
+            <<interface>>
+            +ejecutar(citaId: CitaId, nuevaFechaHora: LocalDateTime) CitaResponseDTO
+        }
+
+        %% adaptado de MarcarAsistenciaUseCase en citas-service
+        class MarcarAsistenciaUseCase {
+            <<interface>>
+            +ejecutar(citaId: CitaId, asistio: boolean) CitaResponseDTO
+        }
+
+        %% adaptado de AbstractAgendamientoService en citas-service (Template Method)
+        class AbstractAgendamientoService {
+            <<abstract adaptado de AbstractAgendamientoService>>
+            #citaRepository: CitaRepository
+            #catalogoPersonas: CatalogoPersonasPort
+            #disponibilidadConsulta: DisponibilidadConsultaPort
+            #notificador: NotificadorCitasPort
+            #eventPublisher: DomainEventPublisher
+            #mapper: CitaApplicationMapper
+            #builderFactory: CitaBuilderFactory
+            +crearCita(comando: AgendarCitaCommand) CitaResponseDTO
+            #cargarContexto(comando: AgendarCitaCommand) DatosCreacionCita
+            #validarSlotDisponible(datos: DatosCreacionCita, fechaHora: LocalDateTime) void
+            #validarVentanaDeTiempo(fechaHora: LocalDateTime) void
+            #validarNoSolapamiento(datos: DatosCreacionCita, fechaHora: LocalDateTime) void
+            #validarTipoAgendamiento(comando: AgendarCitaCommand, datos: DatosCreacionCita) void
+            #publicarEventoAgendada(cita: Cita, datos: DatosCreacionCita) void
+        }
+
+        %% adaptado de CrearCitaAutonomaService en citas-service
+        class AgendarCitaPacienteService {
+            <<Service adaptado de CrearCitaAutonomaService>>
+            -consultaGeneralPolicy: ConsultaGeneralPolicy
+            -citaProgramadaUnicaPolicy: CitaProgramadaUnicaPolicy
+            +ejecutar(comando: AgendarCitaCommand) CitaResponseDTO
+            #validarTipoAgendamiento(comando: AgendarCitaCommand, datos: DatosCreacionCita) void
+        }
+
+        %% adaptado de CrearCitaManualService en citas-service
+        class AgendarCitaManualService {
+            <<Service adaptado de CrearCitaManualService>>
+            +ejecutar(comando: AgendarCitaCommand) CitaResponseDTO
+            #validarTipoAgendamiento(comando: AgendarCitaCommand, datos: DatosCreacionCita) void
+        }
+
+        %% RF1 - adaptado de CitaService.listar en citas-service
+        class ListarCitasService {
+            <<Service adaptado de CitaService>>
+            -citaRepository: CitaRepository
+            -catalogoPersonas: CatalogoPersonasPort
+            -mapper: CitaApplicationMapper
+            +porMedicoYFecha(medicoId: MedicoId, fecha: LocalDate) ListadoCitasResponseDTO
+            +porFiltro(filtro: FiltroBusquedaCitas) ListadoCitasResponseDTO
+            -enriquecerConPersonas(citas: List~Cita~) List~CitaResponseDTO~
+        }
+
+        %% RF2 - adaptado de ConsultarSlotsDisponiblesService en citas-service
+        class ConsultarSlotsDisponiblesService {
+            <<Service adaptado de ConsultarSlotsDisponiblesService>>
+            -citaRepository: CitaRepository
+            -disponibilidadConsulta: DisponibilidadConsultaPort
+            -catalogoPersonas: CatalogoPersonasPort
+            +ejecutar(medicoId: MedicoId, pacienteId: PacienteId) SlotsDisponiblesResponseDTO
+            +ejecutarParaFecha(medicoId: MedicoId, pacienteId: PacienteId, fecha: LocalDate) SlotsDisponiblesResponseDTO
+            -filtrarOcupados(candidatos: List~LocalDateTime~, medicoId: MedicoId, pacienteId: PacienteId, rango: RangoFechas) List~LocalDateTime~
+        }
+
+        %% adaptado de CitaService en citas-service (cancelar, reagendar, asistencia)
+        class GestionCitaService {
+            <<Service adaptado de CitaService>>
+            -citaRepository: CitaRepository
+            -catalogoPersonas: CatalogoPersonasPort
+            -disponibilidadConsulta: DisponibilidadConsultaPort
+            -notificador: NotificadorCitasPort
+            -eventPublisher: DomainEventPublisher
+            -mapper: CitaApplicationMapper
+            +ejecutar(citaId: CitaId, motivo: String) CitaResponseDTO
+            +ejecutar(citaId: CitaId, nuevaFechaHora: LocalDateTime) CitaResponseDTO
+            +ejecutar(citaId: CitaId, asistio: boolean) CitaResponseDTO
+            -obtenerCitaOFallar(citaId: CitaId) Cita
+        }
+
+        %% adaptado de ValidarCambioDisponibilidadService en citas-service
+        class VerificarCitasActivasService {
+            <<Service adaptado de ValidarCambioDisponibilidadService>>
+            -citaRepository: CitaRepository
+            +existenCitasActivas(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) boolean
+            +validarEliminacion(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) void
+            +validarModificacion(actual: Disponibilidad, nueva: Disponibilidad) void
+        }
+
+        %% adaptado de Cita en citas-service (Agregado raiz con patron State)
+        class Cita {
+            <<AggregateRoot adaptado de Cita>>
+            -id: CitaId
+            -pacienteId: PacienteId
+            -medicoId: MedicoId
+            -especialidad: EspecialidadMedica
+            -creadoPor: UsuarioId
+            -tipoAgendamiento: TipoAgendamiento
+            -fechaHora: LocalDateTime
+            -estado: EstadoCita
+            -comportamiento: EstadoCitaState
+            -motivoAgendamiento: String
+            -motivoCancelacion: String
+            -fechaAsistencia: LocalDateTime
+            -audit: AuditMetadata
+            +Cita(id: CitaId, pacienteId: PacienteId, medicoId: MedicoId, especialidad: EspecialidadMedica, creadoPor: UsuarioId, tipoAgendamiento: TipoAgendamiento, fechaHora: LocalDateTime, motivoAgendamiento: String)
+            +reconstruir(id: CitaId, pacienteId: PacienteId, medicoId: MedicoId, especialidad: EspecialidadMedica, creadoPor: UsuarioId, tipoAgendamiento: TipoAgendamiento, fechaHora: LocalDateTime, estado: EstadoCita, motivoAgendamiento: String, motivoCancelacion: String, fechaAsistencia: LocalDateTime, createdAt: LocalDateTime, updatedAt: LocalDateTime, createdBy: String) Cita
+            +aplicarEstado(nuevoEstado: EstadoCita) void
+            +establecerFechaHora(fechaHora: LocalDateTime) void
+            +establecerMotivoCancelacion(motivo: String) void
+            +establecerFechaAsistencia(fechaAsistencia: LocalDateTime) void
+            +cancelar(motivo: String) void
+            +reagendar(nuevaFechaHora: LocalDateTime, agenda: AgendaMedico) void
+            +reagendamientoCreaNuevaCita() boolean
+            +marcarComoAtendida() void
+            +marcarComoNoAsistida() void
+            +estaActiva() boolean
+            +ocurreEn(fecha: LocalDate) boolean
+            +getId() CitaId
+            +getPacienteId() PacienteId
+            +getMedicoId() MedicoId
+            +getEspecialidad() EspecialidadMedica
+            +getCreadoPor() UsuarioId
+            +getTipoAgendamiento() TipoAgendamiento
+            +getFechaHora() LocalDateTime
+            +getEstado() EstadoCita
+            +getMotivoAgendamiento() String
+            +getMotivoCancelacion() String
+            +getFechaAsistencia() LocalDateTime
+            +getAudit() AuditMetadata
+        }
+
+        %% adaptado de EstadoCita en citas-service
+        class EstadoCita {
+            <<enumeration>>
+            PROGRAMADA
+            ATENDIDA
+            CANCELADA
+            NO_ASISTIDA
+            REAGENDADA
+            +getDescripcion() String
+            +comportamiento() EstadoCitaState
+            +esFinal() boolean
+            +puedeCancelarse() boolean
+            +puedeReagendarseEnMismaCita() boolean
+            +puedeReagendarseCreandoNuevaCita() boolean
+            +puedeMarcarseComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarseComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cuentaComoActiva() boolean
+            +fromPersisted(valor: String) EstadoCita
+        }
+
+        %% adaptado de TipoAgendamiento en citas-service
+        class TipoAgendamiento {
+            <<enumeration>>
+            MANUAL
+            AUTONOMO
+            REAGENDAMIENTO
+            +getEtiqueta() String
+        }
+
+        %% adaptado de EstadoCitaContext en citas-service (patron State)
+        class EstadoCitaContext {
+            <<interface>>
+            +getEstado() EstadoCita
+            +aplicarEstado(nuevoEstado: EstadoCita) void
+            +establecerFechaHora(fechaHora: LocalDateTime) void
+            +establecerMotivoCancelacion(motivo: String) void
+            +establecerFechaAsistencia(fechaAsistencia: LocalDateTime) void
+            +getMedicoId() MedicoId
+            +getFechaHora() LocalDateTime
+        }
+
+        %% adaptado de EstadoCitaState en citas-service
+        class EstadoCitaState {
+            <<interface>>
+            +getTipo() EstadoCita
+            +esFinal() boolean
+            +puedeCancelar() boolean
+            +puedeReagendarEnMismaCita() boolean
+            +puedeReagendarCreandoNuevaCita() boolean
+            +puedeMarcarComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cancelar(contexto: EstadoCitaContext, motivo: String) void
+            +reagendarEnMismaCita(contexto: EstadoCitaContext, nuevaFechaHora: LocalDateTime, agenda: AgendaMedico) void
+            +marcarComoAtendida(contexto: EstadoCitaContext) void
+            +marcarComoNoAsistida(contexto: EstadoCitaContext) void
+        }
+
+        %% adaptado de AbstractEstadoCitaState en citas-service
+        class AbstractEstadoCitaState {
+            <<abstract adaptado de AbstractEstadoCitaState>>
+            -tipo: EstadoCita
+            +getTipo() EstadoCita
+            +esFinal() boolean
+            +puedeCancelar() boolean
+            +puedeReagendarEnMismaCita() boolean
+            +puedeReagendarCreandoNuevaCita() boolean
+            +puedeMarcarComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cancelar(contexto: EstadoCitaContext, motivo: String) void
+            +reagendarEnMismaCita(contexto: EstadoCitaContext, nuevaFechaHora: LocalDateTime, agenda: AgendaMedico) void
+            +marcarComoAtendida(contexto: EstadoCitaContext) void
+            +marcarComoNoAsistida(contexto: EstadoCitaContext) void
+            #fechaHoraYaPaso(fechaCita: LocalDateTime) boolean
+        }
+
+        %% adaptado de ProgramadaState en citas-service
+        class ProgramadaState {
+            <<Singleton adaptado de ProgramadaState>>
+            +INSTANCE: ProgramadaState
+            +puedeCancelar() boolean
+            +puedeReagendarEnMismaCita() boolean
+            +puedeMarcarComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cancelar(contexto: EstadoCitaContext, motivo: String) void
+            +reagendarEnMismaCita(contexto: EstadoCitaContext, nuevaFechaHora: LocalDateTime, agenda: AgendaMedico) void
+            +marcarComoAtendida(contexto: EstadoCitaContext) void
+            +marcarComoNoAsistida(contexto: EstadoCitaContext) void
+        }
+
+        %% adaptado de ReagendadaState en citas-service
+        class ReagendadaState {
+            <<Singleton adaptado de ReagendadaState>>
+            +INSTANCE: ReagendadaState
+            +puedeCancelar() boolean
+            +puedeMarcarComoAtendida(fechaCita: LocalDateTime) boolean
+            +puedeMarcarComoNoAsistida(fechaCita: LocalDateTime) boolean
+            +cancelar(contexto: EstadoCitaContext, motivo: String) void
+            +marcarComoAtendida(contexto: EstadoCitaContext) void
+            +marcarComoNoAsistida(contexto: EstadoCitaContext) void
+        }
+
+        %% adaptado de AtendidaState en citas-service
+        class AtendidaState {
+            <<Singleton adaptado de AtendidaState>>
+            +INSTANCE: AtendidaState
+            +esFinal() boolean
+            +puedeReagendarCreandoNuevaCita() boolean
+        }
+
+        %% adaptado de CanceladaState en citas-service
+        class CanceladaState {
+            <<Singleton adaptado de CanceladaState>>
+            +INSTANCE: CanceladaState
+            +esFinal() boolean
+        }
+
+        %% adaptado de NoAsistidaState en citas-service
+        class NoAsistidaState {
+            <<Singleton adaptado de NoAsistidaState>>
+            +INSTANCE: NoAsistidaState
+            +esFinal() boolean
+        }
+
+        %% adaptado de EstadoCitaStateFactory en citas-service
+        class EstadoCitaStateFactory {
+            <<Factory adaptado de EstadoCitaStateFactory>>
+            +of(estado: EstadoCita) EstadoCitaState
+        }
+
+        %% adaptado de CitaBuilder en citas-service (patron Builder)
+        class CitaBuilder {
+            <<abstract adaptado de CitaBuilder>>
+            #pacienteId: PacienteId
+            #medicoId: MedicoId
+            #creadoPor: UsuarioId
+            #fechaHora: LocalDateTime
+            #paciente: PacienteReadModel
+            #medico: MedicoReadModel
+            #agenda: AgendaMedico
+            #especialidad: EspecialidadMedica
+            #motivoAgendamiento: String
+            +conPaciente(pacienteId: PacienteId, paciente: PacienteReadModel) CitaBuilder
+            +conMedico(medicoId: MedicoId, medico: MedicoReadModel) CitaBuilder
+            +creadaPor(usuarioId: UsuarioId) CitaBuilder
+            +paraFecha(fechaHora: LocalDateTime) CitaBuilder
+            +conAgenda(agenda: AgendaMedico) CitaBuilder
+            +conEspecialidad(especialidad: EspecialidadMedica) CitaBuilder
+            +conMotivoAgendamiento(motivoAgendamiento: String) CitaBuilder
+            +build() Cita
+            #validarPacienteActivo() void
+            #validarMedicoActivo() void
+            #validarEspecialidad() void
+            #validarMedicoAtiendeEspecialidad() void
+            #validarDisponibilidad() void
+            #construir(tipo: TipoAgendamiento) Cita
+        }
+
+        %% adaptado de CitaManualBuilder en citas-service
+        class CitaManualBuilder {
+            <<Builder adaptado de CitaManualBuilder>>
+            +build() Cita
+        }
+
+        %% adaptado de CitaAutonomaBuilder en citas-service
+        class CitaAutonomaBuilder {
+            <<Builder adaptado de CitaAutonomaBuilder>>
+            +build() Cita
+        }
+
+        %% adaptado de CitaReagendadaBuilder en citas-service (era un stub vacio)
+        class CitaReagendadaBuilder {
+            <<Builder adaptado de CitaReagendadaBuilder>>
+            -citaOriginal: Cita
+            +desdeCitaOriginal(citaOriginal: Cita) CitaReagendadaBuilder
+            +build() Cita
+        }
+
+        %% adaptado de CitaBuilderFactory (interface) en citas-service domain.factory
+        class CitaBuilderFactory {
+            <<interface>>
+            +crearBuilder() CitaBuilder
+            +tipoSoportado() TipoAgendamiento
+        }
+
+        %% adaptado de CitaManualFactory en citas-service
+        class CitaManualFactory {
+            <<Factory adaptado de CitaManualFactory>>
+            +crearBuilder() CitaBuilder
+            +tipoSoportado() TipoAgendamiento
+        }
+
+        %% adaptado de CitaAutonomaFactory en citas-service
+        class CitaAutonomaFactory {
+            <<Factory adaptado de CitaAutonomaFactory>>
+            +crearBuilder() CitaBuilder
+            +tipoSoportado() TipoAgendamiento
+        }
+
+        %% adaptado de DatosCreacionCita en citas-service
+        class DatosCreacionCita {
+            <<ValueObject adaptado de DatosCreacionCita>>
+            +pacienteId: PacienteId
+            +medicoId: MedicoId
+            +creadoPor: UsuarioId
+            +paciente: PacienteReadModel
+            +medico: MedicoReadModel
+            +agenda: AgendaMedico
+            +configuracion: ConfiguracionSistema
+        }
+
+        %% RF1 - criterios de busqueda del Agendador
+        class FiltroBusquedaCitas {
+            <<ValueObject>>
+            -medicoId: MedicoId
+            -pacienteId: PacienteId
+            -rangoFechas: RangoFechas
+            -estado: EstadoCita
+            -especialidad: EspecialidadMedica
+            +deMedicoEnFecha(medicoId: MedicoId, fecha: LocalDate) FiltroBusquedaCitas
+            +de(medicoId: MedicoId, pacienteId: PacienteId, rangoFechas: RangoFechas, estado: EstadoCita, especialidad: EspecialidadMedica) FiltroBusquedaCitas
+            +tieneMedico() boolean
+            +tienePaciente() boolean
+            +getMedicoId() MedicoId
+            +getPacienteId() PacienteId
+            +getRangoFechas() RangoFechas
+            +getEstado() EstadoCita
+            +getEspecialidad() EspecialidadMedica
+        }
+
+        %% adaptado de ConsultaGeneralPolicy en citas-service
+        class ConsultaGeneralPolicy {
+            <<Policy adaptado de ConsultaGeneralPolicy>>
+            +validarAgendamiento(especialidad: EspecialidadMedica, tieneConsultaGeneralAtendida: boolean) void
+        }
+
+        %% adaptado de CitaProgramadaUnicaPolicy en citas-service
+        class CitaProgramadaUnicaPolicy {
+            <<Policy adaptado de CitaProgramadaUnicaPolicy>>
+            +validar(tieneCitaPendiente: boolean) void
+        }
+
+        class VentanaAgendamientoPolicy {
+            <<Policy>>
+            +validar(fechaHora: LocalDateTime, configuracion: ConfiguracionSistema) void
+        }
+
+        %% adaptado de CitaRepositoryPort en citas-service
+        class CitaRepository {
+            <<interface>>
+            +guardar(cita: Cita) Cita
+            +buscarPorId(id: CitaId) Optional~Cita~
+            +buscarPorFiltro(filtro: FiltroBusquedaCitas) List~Cita~
+            +contarPorFiltro(filtro: FiltroBusquedaCitas) long
+            +buscarPorMedicoYRango(medicoId: MedicoId, desde: LocalDateTime, hasta: LocalDateTime) List~Cita~
+            +buscarPorPacienteYRango(pacienteId: PacienteId, desde: LocalDateTime, hasta: LocalDateTime) List~Cita~
+            +existeCitaActivaDeMedicoEn(medicoId: MedicoId, fechaHora: LocalDateTime) boolean
+            +existeCitaActivaDeMedicoEnExcluyendo(medicoId: MedicoId, fechaHora: LocalDateTime, citaId: CitaId) boolean
+            +existeCitaActivaDePacienteEn(pacienteId: PacienteId, fechaHora: LocalDateTime) boolean
+            +existeCitaActivaDePacienteEnExcluyendo(pacienteId: PacienteId, fechaHora: LocalDateTime, citaId: CitaId) boolean
+            +buscarFechasOcupadasPorMedico(medicoId: MedicoId, desde: LocalDateTime, hasta: LocalDateTime) List~LocalDateTime~
+            +buscarFechasOcupadasPorPaciente(pacienteId: PacienteId, desde: LocalDateTime, hasta: LocalDateTime) List~LocalDateTime~
+            +existeConsultaGeneralAtendida(pacienteId: PacienteId) boolean
+            +existeCitaProgramada(pacienteId: PacienteId) boolean
+            +contarActivasPorMedicoDiaYHorario(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) long
+        }
+
+        %% PUERTO: reemplaza PacienteSnapshotRepositoryPort y MedicoSnapshotRepositoryPort
+        class CatalogoPersonasPort {
+            <<interface>>
+            +obtenerMedico(medicoId: MedicoId) Optional~MedicoReadModel~
+            +obtenerPaciente(pacienteId: PacienteId) Optional~PacienteReadModel~
+            +listarMedicosActivos() List~MedicoReadModel~
+            +listarMedicosPorEspecialidad(especialidad: EspecialidadMedica) List~MedicoReadModel~
+            +existePaciente(pacienteId: PacienteId) boolean
+        }
+
+        %% PUERTO: reemplaza DisponibilidadSnapshotRepositoryPort
+        class DisponibilidadConsultaPort {
+            <<interface>>
+            +obtenerAgenda(medicoId: MedicoId) Optional~AgendaMedico~
+            +obtenerConfiguracion() ConfiguracionSistema
+            +calcularSlotsCandidatos(medicoId: MedicoId, desde: LocalDateTime) List~LocalDateTime~
+            +calcularSlotsCandidatosPorFecha(medicoId: MedicoId, fecha: LocalDate) List~LocalDateTime~
+            +esSlotValido(medicoId: MedicoId, fechaHora: LocalDateTime) boolean
+        }
+
+        %% PUERTO: reemplaza CitaEventPublisherPort sobre RabbitMQ
+        class NotificadorCitasPort {
+            <<interface>>
+            +notificarCitaAgendada(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) void
+            +notificarCitaCancelada(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) void
+            +notificarCitaReagendada(cita: Cita, fechaHoraOriginal: LocalDateTime, paciente: PacienteReadModel, medico: MedicoReadModel) void
+        }
+
+        %% adaptado de CitaEntity en citas-service
+        class CitaJpaEntity {
+            <<Entity adaptado de CitaEntity>>
+            -id: UUID
+            -pacienteId: Long
+            -medicoId: Long
+            -especialidad: EspecialidadMedica
+            -creadoPor: UUID
+            -tipoAgendamiento: TipoAgendamiento
+            -fechaHora: LocalDateTime
+            -estado: String
+            -motivoAgendamiento: String
+            -motivoCancelacion: String
+            -fechaAsistencia: LocalDateTime
+            -createdAt: LocalDateTime
+            -updatedAt: LocalDateTime
+            -createdBy: String
+            #onCreate() void
+            #onUpdate() void
+        }
+
+        %% adaptado de CitaPersistenceMapper en citas-service
+        class CitaPersistenceMapper {
+            <<Mapper adaptado de CitaPersistenceMapper>>
+            +toEntity(cita: Cita) CitaJpaEntity
+            +toDomain(entity: CitaJpaEntity) Cita
+        }
+
+        %% adaptado de CitaRepositoryImpl en citas-service
+        class CitaRepositoryAdapter {
+            <<Repository adaptado de CitaRepositoryImpl>>
+            -springDataRepository: SpringDataCitaRepository
+            -mapper: CitaPersistenceMapper
+            -especificacionBuilder: CitaSpecificationBuilder
+            +guardar(cita: Cita) Cita
+            +buscarPorId(id: CitaId) Optional~Cita~
+            +buscarPorFiltro(filtro: FiltroBusquedaCitas) List~Cita~
+            +contarPorFiltro(filtro: FiltroBusquedaCitas) long
+            +buscarPorMedicoYRango(medicoId: MedicoId, desde: LocalDateTime, hasta: LocalDateTime) List~Cita~
+            +buscarPorPacienteYRango(pacienteId: PacienteId, desde: LocalDateTime, hasta: LocalDateTime) List~Cita~
+            +existeCitaActivaDeMedicoEn(medicoId: MedicoId, fechaHora: LocalDateTime) boolean
+            +existeCitaActivaDeMedicoEnExcluyendo(medicoId: MedicoId, fechaHora: LocalDateTime, citaId: CitaId) boolean
+            +existeCitaActivaDePacienteEn(pacienteId: PacienteId, fechaHora: LocalDateTime) boolean
+            +existeCitaActivaDePacienteEnExcluyendo(pacienteId: PacienteId, fechaHora: LocalDateTime, citaId: CitaId) boolean
+            +buscarFechasOcupadasPorMedico(medicoId: MedicoId, desde: LocalDateTime, hasta: LocalDateTime) List~LocalDateTime~
+            +buscarFechasOcupadasPorPaciente(pacienteId: PacienteId, desde: LocalDateTime, hasta: LocalDateTime) List~LocalDateTime~
+            +existeConsultaGeneralAtendida(pacienteId: PacienteId) boolean
+            +existeCitaProgramada(pacienteId: PacienteId) boolean
+            +contarActivasPorMedicoDiaYHorario(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) long
+        }
+
+        %% adaptado de SpringDataCitaRepository en citas-service
+        class SpringDataCitaRepository {
+            <<interface>>
+            +findByMedicoIdAndFechaHoraBetween(medicoId: Long, inicio: LocalDateTime, fin: LocalDateTime) List~CitaJpaEntity~
+            +findByPacienteIdAndFechaHoraBetween(pacienteId: Long, inicio: LocalDateTime, fin: LocalDateTime) List~CitaJpaEntity~
+            +findFechasOcupadasPorMedico(medicoId: Long, desde: LocalDateTime, hasta: LocalDateTime) List~LocalDateTime~
+            +findFechasOcupadasPorPaciente(pacienteId: Long, desde: LocalDateTime, hasta: LocalDateTime) List~LocalDateTime~
+            +existsCitaActivaByMedicoIdAndFechaHora(medicoId: Long, fechaHora: LocalDateTime) boolean
+            +existsCitaActivaByMedicoIdAndFechaHoraExcluding(medicoId: Long, fechaHora: LocalDateTime, citaId: UUID) boolean
+            +existsCitaActivaByPacienteIdAndFechaHora(pacienteId: Long, fechaHora: LocalDateTime) boolean
+            +existsCitaActivaByPacienteIdAndFechaHoraExcluding(pacienteId: Long, fechaHora: LocalDateTime, citaId: UUID) boolean
+            +existeConsultaGeneralAtendidaByPacienteId(pacienteId: Long) boolean
+            +existeCitaProgramadaByPacienteId(pacienteId: Long) boolean
+        }
+
+        class CitaSpecificationBuilder {
+            <<Builder>>
+            +desdeFiltro(filtro: FiltroBusquedaCitas) Specification~CitaJpaEntity~
+        }
+
+        %% implementa el puerto invertido declarado por el Modulo de Configuracion
+        class CitasActivasAdapter {
+            <<Adapter reemplaza CitasServiceClient>>
+            -verificarCitasActivasService: VerificarCitasActivasService
+            +existenCitasActivas(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) boolean
+            +validarEliminacion(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) void
+            +validarModificacion(actual: Disponibilidad, nueva: Disponibilidad) void
+        }
+
+        %% adaptado de CitaApplicationMapper en citas-service
+        class CitaApplicationMapper {
+            <<Mapper adaptado de CitaApplicationMapper>>
+            +toResponse(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) CitaResponseDTO
+            +toListado(citas: List~CitaResponseDTO~, filtro: FiltroBusquedaCitas, medico: MedicoReadModel) ListadoCitasResponseDTO
+            +toSlotsResponse(medicoId: MedicoId, slots: List~LocalDateTime~, configuracion: ConfiguracionSistema) SlotsDisponiblesResponseDTO
+        }
+
+        %% adaptado de CitaRestMapper en citas-service
+        class CitaRestMapper {
+            <<Mapper adaptado de CitaRestMapper>>
+            +toCommand(request: AgendarCitaPacienteRequestDTO, pacienteId: Long, usuarioId: UUID) AgendarCitaCommand
+            +toCommand(request: AgendarCitaManualRequestDTO, usuarioId: UUID) AgendarCitaCommand
+            +toFiltro(request: FiltroBusquedaCitasRequestDTO) FiltroBusquedaCitas
+        }
+
+        %% adaptado de CrearCitaRestRequest en citas-service
+        class AgendarCitaPacienteRequestDTO {
+            <<DTO adaptado de CrearCitaRestRequest>>
+            +medicoId: Long
+            +especialidad: EspecialidadMedica
+            +fechaHora: LocalDateTime
+            +motivoAgendamiento: String
+        }
+
+        %% adaptado de CrearCitaRestRequest en citas-service
+        class AgendarCitaManualRequestDTO {
+            <<DTO adaptado de CrearCitaRestRequest>>
+            +pacienteId: Long
+            +medicoId: Long
+            +especialidad: EspecialidadMedica
+            +fechaHora: LocalDateTime
+            +motivoAgendamiento: String
+        }
+
+        %% adaptado de CrearCitaRequest en citas-service
+        class AgendarCitaCommand {
+            <<DTO adaptado de CrearCitaRequest>>
+            +pacienteId: Long
+            +medicoId: Long
+            +usuarioCreadorId: UUID
+            +especialidad: EspecialidadMedica
+            +fechaHora: LocalDateTime
+            +motivoAgendamiento: String
+            +tipoAgendamiento: TipoAgendamiento
+        }
+
+        %% adaptado de CancelarCitaRestRequest en citas-service
+        class CancelarCitaRequestDTO {
+            <<DTO adaptado de CancelarCitaRestRequest>>
+            +motivo: String
+        }
+
+        %% adaptado de ReagendarCitaRestRequest en citas-service
+        class ReagendarCitaRequestDTO {
+            <<DTO adaptado de ReagendarCitaRestRequest>>
+            +nuevaFechaHora: LocalDateTime
+        }
+
+        %% adaptado de MarcarAsistenciaRestRequest en citas-service
+        class MarcarAsistenciaRequestDTO {
+            <<DTO adaptado de MarcarAsistenciaRestRequest>>
+            +asistio: boolean
+        }
+
+        %% RF1 - filtros de la tabla de busqueda del Agendador
+        class FiltroBusquedaCitasRequestDTO {
+            <<DTO>>
+            +medicoId: Long
+            +pacienteId: Long
+            +fecha: LocalDate
+            +fechaInicio: LocalDate
+            +fechaFin: LocalDate
+            +estado: EstadoCita
+            +especialidad: EspecialidadMedica
+        }
+
+        %% adaptado de CitaResponse y CitaRestResponse en citas-service
+        class CitaResponseDTO {
+            <<DTO adaptado de CitaRestResponse>>
+            +id: String
+            +pacienteId: Long
+            +pacienteNombre: String
+            +medicoId: Long
+            +medicoNombre: String
+            +especialidad: EspecialidadMedica
+            +tipoAgendamiento: TipoAgendamiento
+            +fechaHora: LocalDateTime
+            +estado: EstadoCita
+            +motivoAgendamiento: String
+            +motivoCancelacion: String
+            +fechaAsistencia: LocalDateTime
+            +createdAt: LocalDateTime
+            +updatedAt: LocalDateTime
+        }
+
+        %% RF1 - incluye la CANTIDAD de citas exigida por el requisito
+        class ListadoCitasResponseDTO {
+            <<DTO>>
+            +medicoId: Long
+            +medicoNombre: String
+            +fechaConsultada: LocalDate
+            +fechaInicio: LocalDate
+            +fechaFin: LocalDate
+            +cantidad: long
+            +citas: List~CitaResponseDTO~
+        }
+
+        %% RF2 - franjas disponibles presentadas al paciente
+        class SlotsDisponiblesResponseDTO {
+            <<DTO>>
+            +medicoId: Long
+            +medicoNombre: String
+            +semanasDisponibles: Integer
+            +cantidad: int
+            +slots: List~LocalDateTime~
+            +slotsPorFecha: List~SlotsPorFechaDTO~
+        }
+
+        class SlotsPorFechaDTO {
+            <<DTO>>
+            +fecha: LocalDate
+            +diaSemana: DiaSemana
+            +horas: List~LocalTime~
+        }
+
+        %% adaptado de CitaAgendadaEvent en citas-service
+        class CitaAgendadaEvent {
+            <<DomainEvent adaptado de CitaAgendadaEvent>>
+            +citaId: String
+            +pacienteId: Long
+            +pacienteNombre: String
+            +pacienteCorreo: String
+            +medicoId: Long
+            +medicoNombre: String
+            +medicoCorreo: String
+            +fechaHora: LocalDateTime
+            +estado: EstadoCita
+            +ocurridoEn: LocalDateTime
+        }
+
+        %% adaptado de CitaCanceladaEvent en citas-service
+        class CitaCanceladaEvent {
+            <<DomainEvent adaptado de CitaCanceladaEvent>>
+            +citaId: String
+            +pacienteId: Long
+            +pacienteCorreo: String
+            +medicoId: Long
+            +medicoCorreo: String
+            +fechaHoraOriginal: LocalDateTime
+            +motivo: String
+            +ocurridoEn: LocalDateTime
+        }
+
+        %% adaptado de CitaReagendadaEvent en citas-service
+        class CitaReagendadaEvent {
+            <<DomainEvent adaptado de CitaReagendadaEvent>>
+            +citaId: String
+            +pacienteId: Long
+            +pacienteCorreo: String
+            +medicoId: Long
+            +medicoCorreo: String
+            +fechaHoraOriginal: LocalDateTime
+            +nuevaFechaHora: LocalDateTime
+            +ocurridoEn: LocalDateTime
+        }
+
+        %% adaptado de CitaNoEncontradaException en citas-service
+        class CitaNoEncontradaException {
+            <<Exception adaptado de CitaNoEncontradaException>>
+            +CitaNoEncontradaException(mensaje: String)
+        }
+
+        %% adaptado de CitaNoCancelableException en citas-service
+        class CitaNoCancelableException {
+            <<Exception adaptado de CitaNoCancelableException>>
+            +CitaNoCancelableException(mensaje: String)
+        }
+
+        %% adaptado de CitaNoReagendableException en citas-service
+        class CitaNoReagendableException {
+            <<Exception adaptado de CitaNoReagendableException>>
+            +CitaNoReagendableException(mensaje: String)
+        }
+
+        %% adaptado de CitaNoMarcableException en citas-service
+        class CitaNoMarcableException {
+            <<Exception adaptado de CitaNoMarcableException>>
+            +CitaNoMarcableException(mensaje: String)
+        }
+
+        %% adaptado de MedicoNoDisponibleException en citas-service
+        class MedicoNoDisponibleException {
+            <<Exception adaptado de MedicoNoDisponibleException>>
+            +MedicoNoDisponibleException(mensaje: String)
+        }
+
+        %% adaptado de PacienteNoDisponibleException en citas-service
+        class PacienteNoDisponibleException {
+            <<Exception adaptado de PacienteNoDisponibleException>>
+            +PacienteNoDisponibleException(mensaje: String)
+        }
+
+        %% adaptado de SlotNoDisponibleException y DisponibilidadNoDisponibleException
+        class SlotNoDisponibleException {
+            <<Exception adaptado de DisponibilidadNoDisponibleException>>
+            +SlotNoDisponibleException(mensaje: String)
+        }
+
+        %% adaptado de ConsultaGeneralRequeridaException en citas-service
+        class ConsultaGeneralRequeridaException {
+            <<Exception adaptado de ConsultaGeneralRequeridaException>>
+            +ConsultaGeneralRequeridaException(mensaje: String)
+        }
+
+        %% adaptado de RestriccionAutoservicioException en citas-service
+        class RestriccionAutoservicioException {
+            <<Exception adaptado de RestriccionAutoservicioException>>
+            +RestriccionAutoservicioException(mensaje: String)
+        }
+    }
+
+%% =====================================================================
+%% MODULO 5 - NOTIFICACIONES  (origen: notifications-service)
+%% =====================================================================
+    namespace ModuloNotificaciones {
+
+        %% adaptado de NotificationController en notifications-service
+        class NotificacionController {
+            <<RestController adaptado de NotificationController>>
+            -consultarNotificacionesUseCase: ConsultarNotificacionesUseCase
+            -marcarNotificacionUseCase: MarcarNotificacionUseCase
+            +listarMias(personaId: Long, leida: Boolean) ResponseEntity~List~NotificacionResponseDTO~~
+            +contarNoLeidas(personaId: Long) ResponseEntity~ConteoNotificacionesDTO~
+            +marcarLeida(id: String, personaId: Long) ResponseEntity~Void~
+            +marcarTodasLeidas(personaId: Long) ResponseEntity~Void~
+        }
+
+        class ConsultarNotificacionesUseCase {
+            <<interface>>
+            +listar(personaId: PersonaId, leida: Boolean) List~NotificacionResponseDTO~
+            +contarNoLeidas(personaId: PersonaId) long
+        }
+
+        class MarcarNotificacionUseCase {
+            <<interface>>
+            +marcarLeida(id: NotificacionId, personaId: PersonaId) void
+            +marcarTodasLeidas(personaId: PersonaId) void
+        }
+
+        class EnviarNotificacionUseCase {
+            <<interface>>
+            +ejecutar(comando: EnviarNotificacionCommand) NotificacionResponseDTO
+        }
+
+        %% adaptado de InAppNotificationService en notifications-service
+        class NotificacionService {
+            <<Service adaptado de InAppNotificationService>>
+            -notificacionRepository: NotificacionRepository
+            -canales: List~CanalNotificacionPort~
+            -mapper: NotificacionApplicationMapper
+            +ejecutar(comando: EnviarNotificacionCommand) NotificacionResponseDTO
+            +listar(personaId: PersonaId, leida: Boolean) List~NotificacionResponseDTO~
+            +contarNoLeidas(personaId: PersonaId) long
+            +marcarLeida(id: NotificacionId, personaId: PersonaId) void
+            +marcarTodasLeidas(personaId: PersonaId) void
+            -despachar(notificacion: Notificacion) void
+        }
+
+        %% adaptado de NotificacionEntity en notifications-service, ahora entidad de dominio
+        class Notificacion {
+            <<AggregateRoot adaptado de NotificacionEntity>>
+            -id: NotificacionId
+            -personaId: PersonaId
+            -tipo: TipoNotificacion
+            -canal: CanalNotificacion
+            -titulo: String
+            -mensaje: String
+            -citaId: String
+            -leida: boolean
+            -fechaCreacion: LocalDateTime
+            +crear(personaId: PersonaId, tipo: TipoNotificacion, canal: CanalNotificacion, titulo: String, mensaje: String, citaId: String) Notificacion
+            +reconstruir(id: NotificacionId, personaId: PersonaId, tipo: TipoNotificacion, canal: CanalNotificacion, titulo: String, mensaje: String, citaId: String, leida: boolean, fechaCreacion: LocalDateTime) Notificacion
+            +marcarLeida() void
+            +esDe(personaId: PersonaId) boolean
+            +getId() NotificacionId
+            +getPersonaId() PersonaId
+            +getTipo() TipoNotificacion
+            +getCanal() CanalNotificacion
+            +getTitulo() String
+            +getMensaje() String
+            +getCitaId() String
+            +isLeida() boolean
+            +getFechaCreacion() LocalDateTime
+        }
+
+        %% adaptado de TipoNotificacion en notifications-service
+        class TipoNotificacion {
+            <<enumeration>>
+            CITA_AGENDADA
+            CITA_CANCELADA
+            CITA_REAGENDADA
+            RECORDATORIO_CITA
+            +getPlantillaTitulo() String
+        }
+
+        class CanalNotificacion {
+            <<enumeration>>
+            IN_APP
+            EMAIL
+            +getEtiqueta() String
+        }
+
+        %% adaptado de SpringDataNotificacionRepository en notifications-service
+        class NotificacionRepository {
+            <<interface>>
+            +guardar(notificacion: Notificacion) Notificacion
+            +buscarPorId(id: NotificacionId) Optional~Notificacion~
+            +buscarPorIdYPersona(id: NotificacionId, personaId: PersonaId) Optional~Notificacion~
+            +buscarPorPersona(personaId: PersonaId) List~Notificacion~
+            +buscarPorPersonaYEstadoLectura(personaId: PersonaId, leida: boolean) List~Notificacion~
+            +contarPorPersonaYEstadoLectura(personaId: PersonaId, leida: boolean) long
+            +marcarTodasLeidas(personaId: PersonaId) void
+        }
+
+        %% patron Strategy para los canales de envio
+        class CanalNotificacionPort {
+            <<interface>>
+            +canal() CanalNotificacion
+            +enviar(notificacion: Notificacion, destinatario: String) void
+        }
+
+        %% adaptado de InAppNotificationService en notifications-service
+        class InAppCanalAdapter {
+            <<Adapter adaptado de InAppNotificationService>>
+            +canal() CanalNotificacion
+            +enviar(notificacion: Notificacion, destinatario: String) void
+        }
+
+        %% adaptado de NotificationService en notifications-service
+        class EmailCanalAdapter {
+            <<Adapter adaptado de NotificationService>>
+            -mailSender: JavaMailSender
+            -remitente: String
+            +canal() CanalNotificacion
+            +enviar(notificacion: Notificacion, destinatario: String) void
+        }
+
+        %% FACHADA: implementa NotificadorCitasPort del Modulo de Citas
+        class NotificacionesModuleFacade {
+            <<Facade reemplaza CitaEventPublisherImpl>>
+            -enviarNotificacionUseCase: EnviarNotificacionUseCase
+            -constructorMensaje: ConstructorMensajeCita
+            +notificarCitaAgendada(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) void
+            +notificarCitaCancelada(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) void
+            +notificarCitaReagendada(cita: Cita, fechaHoraOriginal: LocalDateTime, paciente: PacienteReadModel, medico: MedicoReadModel) void
+        }
+
+        %% adaptado de CitaEventConsumer en notifications-service; ahora escucha en proceso
+        class CitaEventListener {
+            <<EventListener adaptado de CitaEventConsumer>>
+            -enviarNotificacionUseCase: EnviarNotificacionUseCase
+            -constructorMensaje: ConstructorMensajeCita
+            +alAgendarCita(evento: CitaAgendadaEvent) void
+            +alCancelarCita(evento: CitaCanceladaEvent) void
+            +alReagendarCita(evento: CitaReagendadaEvent) void
+        }
+
+        class ConstructorMensajeCita {
+            <<DomainService>>
+            +paraCitaAgendada(evento: CitaAgendadaEvent) EnviarNotificacionCommand
+            +paraCitaCancelada(evento: CitaCanceladaEvent) EnviarNotificacionCommand
+            +paraCitaReagendada(evento: CitaReagendadaEvent) EnviarNotificacionCommand
+        }
+
+        %% adaptado de NotificacionEntity en notifications-service
+        class NotificacionJpaEntity {
+            <<Entity adaptado de NotificacionEntity>>
+            -id: String
+            -personaId: Long
+            -tipo: TipoNotificacion
+            -canal: CanalNotificacion
+            -titulo: String
+            -mensaje: String
+            -citaId: String
+            -leida: boolean
+            -fechaCreacion: LocalDateTime
+        }
+
+        class NotificacionPersistenceMapper {
+            <<Mapper>>
+            +toEntity(notificacion: Notificacion) NotificacionJpaEntity
+            +toDomain(entity: NotificacionJpaEntity) Notificacion
+        }
+
+        %% adaptado de SpringDataNotificacionRepository en notifications-service
+        class SpringDataNotificacionRepository {
+            <<interface>>
+            +findByPersonaIdOrderByFechaCreacionDesc(personaId: Long) List~NotificacionJpaEntity~
+            +findByPersonaIdAndLeidaOrderByFechaCreacionDesc(personaId: Long, leida: boolean) List~NotificacionJpaEntity~
+            +countByPersonaIdAndLeida(personaId: Long, leida: boolean) long
+            +findByIdAndPersonaId(id: String, personaId: Long) Optional~NotificacionJpaEntity~
+        }
+
+        class NotificacionRepositoryAdapter {
+            <<Repository>>
+            -springDataRepository: SpringDataNotificacionRepository
+            -mapper: NotificacionPersistenceMapper
+            +guardar(notificacion: Notificacion) Notificacion
+            +buscarPorId(id: NotificacionId) Optional~Notificacion~
+            +buscarPorIdYPersona(id: NotificacionId, personaId: PersonaId) Optional~Notificacion~
+            +buscarPorPersona(personaId: PersonaId) List~Notificacion~
+            +buscarPorPersonaYEstadoLectura(personaId: PersonaId, leida: boolean) List~Notificacion~
+            +contarPorPersonaYEstadoLectura(personaId: PersonaId, leida: boolean) long
+            +marcarTodasLeidas(personaId: PersonaId) void
+        }
+
+        class NotificacionApplicationMapper {
+            <<Mapper>>
+            +toResponse(notificacion: Notificacion) NotificacionResponseDTO
+        }
+
+        %% adaptado de NotificacionRequest en notifications-service
+        class EnviarNotificacionCommand {
+            <<DTO adaptado de NotificacionRequest>>
+            +personaId: Long
+            +tipo: TipoNotificacion
+            +canal: CanalNotificacion
+            +destinatario: String
+            +titulo: String
+            +mensaje: String
+            +citaId: String
+        }
+
+        %% adaptado de NotificacionResponse en notifications-service
+        class NotificacionResponseDTO {
+            <<DTO adaptado de NotificacionResponse>>
+            +id: String
+            +personaId: Long
+            +tipo: TipoNotificacion
+            +canal: CanalNotificacion
+            +titulo: String
+            +mensaje: String
+            +citaId: String
+            +leida: boolean
+            +fechaCreacion: LocalDateTime
+        }
+
+        class ConteoNotificacionesDTO {
+            <<DTO>>
+            +noLeidas: long
+        }
+    }
+
+%% =====================================================================
+%% INFRAESTRUCTURA TRANSVERSAL  (origen: api-gateway + GlobalExceptionHandler)
+%% =====================================================================
+    namespace InfraestructuraTransversal {
+
+        %% adaptado de SecurityConfig del api-gateway; la matriz de autorizacion
+        %% se traslada al monolito como filtro unico
+        class SeguridadWebConfig {
+            <<Configuration adaptado de SecurityConfig>>
+            -jwtAuthConverter: JwtRolesConverter
+            +securityFilterChain(http: HttpSecurity) SecurityFilterChain
+            +corsConfigurationSource() CorsConfigurationSource
+        }
+
+        %% adaptado de KeycloakRealmRolesConverter del api-gateway
+        class JwtRolesConverter {
+            <<Converter adaptado de KeycloakRealmRolesConverter>>
+            +convert(jwt: Jwt) AbstractAuthenticationToken
+            -extraerRoles(jwt: Jwt) Collection~GrantedAuthority~
+            -extraerPrincipal(jwt: Jwt) String
+        }
+
+        class UsuarioAutenticadoResolver {
+            <<Component>>
+            +usuarioActual() UsuarioId
+            +personaActual() PersonaId
+            +pacienteActual() PacienteId
+            +tieneRol(rol: RolUsuario) boolean
+        }
+
+        %% adaptado de los GlobalExceptionHandler de cada microservicio
+        class ManejadorGlobalExcepciones {
+            <<RestControllerAdvice adaptado de GlobalExceptionHandler>>
+            +manejarNoEncontrado(ex: RecursoNoEncontradoException) ResponseEntity~ErrorResponseDTO~
+            +manejarReglaDeNegocio(ex: ReglaDeNegocioException) ResponseEntity~ErrorResponseDTO~
+            +manejarDominio(ex: DomainException) ResponseEntity~ErrorResponseDTO~
+            +manejarValidacion(ex: MethodArgumentNotValidException) ResponseEntity~ErrorResponseDTO~
+            +manejarArgumentoIlegal(ex: IllegalArgumentException) ResponseEntity~ErrorResponseDTO~
+            +manejarInesperado(ex: RuntimeException) ResponseEntity~ErrorResponseDTO~
+        }
+
+        class ErrorResponseDTO {
+            <<DTO>>
+            +timestamp: LocalDateTime
+            +status: int
+            +codigo: String
+            +mensaje: String
+            +path: String
+            +erroresCampo: List~ErrorCampoDTO~
+        }
+
+        class ErrorCampoDTO {
+            <<DTO>>
+            +campo: String
+            +mensaje: String
+        }
+
+        %% reemplaza RabbitTemplate y RabbitMQConfig por eventos en proceso
+        class SpringDomainEventPublisher {
+            <<Component reemplaza CitaEventPublisherImpl>>
+            -applicationEventPublisher: ApplicationEventPublisher
+            +publicar(evento: DomainEvent) void
+            +publicarTodos(eventos: List~DomainEvent~) void
+        }
+
+        class ModuloConfig {
+            <<Configuration>>
+            +calculadorDeSlots() CalculadorDeSlots
+            +estadoCitaStateFactory() EstadoCitaStateFactory
+            +citaBuilderFactories() Map~TipoAgendamiento, CitaBuilderFactory~
+        }
+    }
+
+%% =====================================================================
+%% RELACIONES - SHARED KERNEL
+%% =====================================================================
+    DomainException <|-- ReglaDeNegocioException
+    DomainException <|-- RecursoNoEncontradoException
+    TimeRange ..> DiaSemana : coopera
+    RangoFechas ..> DiaSemana : coopera
+
+%% =====================================================================
+%% RELACIONES - MODULO IDENTIDAD Y ACCESO
+%% =====================================================================
+    UsuarioController ..> RegistrarUsuarioUseCase : invoca
+    UsuarioController ..> ConsultarUsuarioUseCase : invoca
+    AutenticacionController ..> AutenticarUsuarioUseCase : invoca
+
+    RegistrarUsuarioService ..|> RegistrarUsuarioUseCase
+    AutenticarUsuarioService ..|> AutenticarUsuarioUseCase
+    ConsultarUsuarioService ..|> ConsultarUsuarioUseCase
+
+    RegistrarUsuarioService --> UsuarioRepository : depende
+    RegistrarUsuarioService --> ProveedorIdentidadPort : depende
+    RegistrarUsuarioService --> RegistroPacientePort : depende
+    RegistrarUsuarioService ..> UsuarioApplicationMapper : usa
+    AutenticarUsuarioService --> UsuarioRepository : depende
+    AutenticarUsuarioService --> ProveedorIdentidadPort : depende
+    ConsultarUsuarioService --> UsuarioRepository : depende
+
+    RegistrarUsuarioService ..> RegistrarUsuarioCommand : recibe
+    RegistrarUsuarioService ..> Usuario : crea
+    RegistrarUsuarioService ..> UsuarioResponseDTO : retorna
+
+    Usuario "1" o-- "1..*" RolUsuario : posee
+    Usuario "1" --> "1" UsuarioId : identificado por
+    Usuario "1" --> "1" PersonaId : referencia
+
+    KeycloakIdentidadAdapter ..|> ProveedorIdentidadPort
+    IdentidadLocalAdapter ..|> ProveedorIdentidadPort
+    KeycloakIdentidadAdapter *-- KeycloakAdminProperties
+    IdentidadLocalAdapter --> PasswordHasherPort : depende
+    IdentidadLocalAdapter --> TokenProviderPort : depende
+    IdentidadLocalAdapter --> CredencialRepository : depende
+    BCryptPasswordHasherAdapter ..|> PasswordHasherPort
+    JwtTokenProviderAdapter ..|> TokenProviderPort
+    JwtTokenProviderAdapter ..> TokenResponseDTO : produce
+
+    UsuarioRepositoryAdapter ..|> UsuarioRepository
+    UsuarioRepositoryAdapter --> SpringDataUsuarioRepository : delega
+    UsuarioRepositoryAdapter *-- UsuarioPersistenceMapper
+    UsuarioPersistenceMapper ..> UsuarioJpaEntity : mapea
+    UsuarioPersistenceMapper ..> Usuario : mapea
+    SpringDataUsuarioRepository ..> UsuarioJpaEntity : gestiona
+    UsuarioApplicationMapper ..> UsuarioResponseDTO : produce
+
+    RegistrarUsuarioRequestDTO ..> RegistrarUsuarioCommand : se transforma en
+    RegistrarUsuarioCommand *-- DatosPacienteAutoRegistroDTO
+    RegistrarUsuarioCommand ..> RolUsuario : referencia
+    UsuarioResponseDTO ..> RolUsuario : referencia
+    TokenResponseDTO ..> RolUsuario : referencia
+    AutenticacionController ..> LoginRequestDTO : recibe
+
+%% =====================================================================
+%% RELACIONES - MODULO GESTION DE PERSONAS
+%% =====================================================================
+    PersonaController ..> CrearPersonaUseCase : invoca
+    PersonaController ..> ActualizarPersonaUseCase : invoca
+    PersonaController ..> ConsultarPersonaUseCase : invoca
+    PersonaController *-- PersonaRestMapper
+    MedicoController ..> RegistrarMedicoUseCase : invoca
+    MedicoController ..> ConsultarMedicoUseCase : invoca
+    MedicoController ..> CambiarEstadoMedicoUseCase : invoca
+    MedicoController ..> AsignarEspecialidadesMedicoUseCase : invoca
+    MedicoController *-- MedicoRestMapper
+    PacienteController ..> RegistrarPacienteUseCase : invoca
+    PacienteController ..> ConsultarPacienteUseCase : invoca
+    PacienteController *-- PacienteRestMapper
+    EspecialidadController ..> EspecialidadMedica : expone
+
+    CrearPersonaService ..|> CrearPersonaUseCase
+    ActualizarPersonaService ..|> ActualizarPersonaUseCase
+    ConsultarPersonaService ..|> ConsultarPersonaUseCase
+    RegistrarPacienteService ..|> RegistrarPacienteUseCase
+    ConsultarPacienteService ..|> ConsultarPacienteUseCase
+    RegistrarMedicoService ..|> RegistrarMedicoUseCase
+    ConsultarMedicoService ..|> ConsultarMedicoUseCase
+    CambiarEstadoMedicoService ..|> CambiarEstadoMedicoUseCase
+    AsignarEspecialidadesMedicoService ..|> AsignarEspecialidadesMedicoUseCase
+
+    CrearPersonaService --> PersonaRepository : depende
+    ActualizarPersonaService --> PersonaRepository : depende
+    ActualizarPersonaService --> DomainEventPublisher : publica con
+    ConsultarPersonaService --> PersonaRepository : depende
+    RegistrarPacienteService --> PersonaRepository : depende
+    RegistrarPacienteService --> PacienteRepository : depende
+    RegistrarPacienteService --> DomainEventPublisher : publica con
+    ConsultarPacienteService --> PacienteRepository : depende
+    RegistrarMedicoService --> PersonaRepository : depende
+    RegistrarMedicoService --> MedicoRepository : depende
+    RegistrarMedicoService --> MedicoEspecialidadRepository : depende
+    RegistrarMedicoService --> DomainEventPublisher : publica con
+    ConsultarMedicoService --> MedicoRepository : depende
+    CambiarEstadoMedicoService --> MedicoRepository : depende
+    AsignarEspecialidadesMedicoService --> MedicoRepository : depende
+    AsignarEspecialidadesMedicoService --> MedicoEspecialidadRepository : depende
+
+    Paciente "1" *-- "1" Persona : compone
+    Medico "1" *-- "1" Persona : compone
+    Persona "1" --> "1" PersonaId : identificado por
+    Persona "1" --> "1" Genero : clasificado por
+    Medico "1" o-- "1..*" EspecialidadMedica : atiende
+    Medico "1" --> "1" TipoProfesional : es de tipo
+    Medico "1" --> "1" EstadoMedico : tiene estado
+
+    PersonaRepositoryAdapter ..|> PersonaRepository
+    PacienteRepositoryAdapter ..|> PacienteRepository
+    MedicoRepositoryAdapter ..|> MedicoRepository
+    PersonaRepositoryAdapter --> SpringDataPersonaRepository : delega
+    PacienteRepositoryAdapter --> SpringDataPacienteRepository : delega
+    MedicoRepositoryAdapter --> SpringDataMedicoRepository : delega
+    PersonaRepositoryAdapter *-- PersonaPersistenceMapper
+    PacienteRepositoryAdapter *-- PacientePersistenceMapper
+    MedicoRepositoryAdapter *-- MedicoPersistenceMapper
+    PacienteJpaEntity "1" --> "1" PersonaJpaEntity : comparte PK
+    MedicoJpaEntity "1" --> "1" PersonaJpaEntity : comparte PK
+    SpringDataPersonaRepository ..> PersonaJpaEntity : gestiona
+    SpringDataPacienteRepository ..> PacienteJpaEntity : gestiona
+    SpringDataMedicoRepository ..> MedicoJpaEntity : gestiona
+    PersonaPersistenceMapper ..> PersonaJpaEntity : mapea
+    PacientePersistenceMapper ..> PacienteJpaEntity : mapea
+    MedicoPersistenceMapper ..> MedicoJpaEntity : mapea
+
+    PersonaApplicationMapper ..> PersonaResponseDTO : produce
+    PacienteApplicationMapper ..> PacienteResponseDTO : produce
+    PacienteApplicationMapper ..> PacienteReadModel : produce
+    MedicoApplicationMapper ..> MedicoResponseDTO : produce
+    MedicoApplicationMapper ..> MedicoReadModel : produce
+    PersonaRestMapper ..> CrearPersonaCommand : produce
+    PersonaRestMapper ..> ActualizarPersonaCommand : produce
+    MedicoRestMapper ..> RegistrarMedicoCommand : produce
+
+    PersonasModuleFacade --> MedicoRepository : depende
+    PersonasModuleFacade --> PacienteRepository : depende
+    PersonasModuleFacade ..> MedicoReadModel : produce
+    PersonasModuleFacade ..> PacienteReadModel : produce
+    PersonasModuleFacade ..|> CatalogoPersonasPort
+    PersonasModuleFacade ..|> CatalogoMedicosPort
+    PersonasModuleFacade ..|> RegistroPacientePort
+
+    ActualizarPersonaService ..> MedicoActualizadoEvent : publica
+    ActualizarPersonaService ..> PacienteRegistradoEvent : publica
+    RegistrarPacienteService ..> PacienteRegistradoEvent : publica
+    RegistrarMedicoService ..> MedicoActualizadoEvent : publica
+    CambiarEstadoMedicoService ..> MedicoActualizadoEvent : publica
+    MedicoActualizadoEvent ..|> DomainEvent
+    PacienteRegistradoEvent ..|> DomainEvent
+
+    MedicoReadModel ..> EspecialidadMedica : referencia
+    MedicoReadModel ..> EstadoMedico : referencia
+    CrearPersonaRequestDTO ..> CrearPersonaCommand : se transforma en
+    ActualizarPersonaRequestDTO ..> ActualizarPersonaCommand : se transforma en
+    RegistrarMedicoRequestDTO ..> RegistrarMedicoCommand : se transforma en
+    RegistrarPacienteRequestDTO ..> RegistrarPacienteUseCase : alimenta
+    CambiarEstadoMedicoRequestDTO ..> EstadoMedico : referencia
+    AsignarEspecialidadesRequestDTO ..> EspecialidadMedica : referencia
+
+%% =====================================================================
+%% RELACIONES - MODULO CONFIGURACION Y DISPONIBILIDAD  (RF3)
+%% =====================================================================
+    ConfiguracionController ..> ConsultarConfiguracionUseCase : invoca
+    ConfiguracionController ..> ActualizarConfiguracionUseCase : invoca
+    ConfiguracionController ..> GestionarFestivosUseCase : invoca
+    DisponibilidadController ..> CrearDisponibilidadUseCase : invoca
+    DisponibilidadController ..> ActualizarDisponibilidadUseCase : invoca
+    DisponibilidadController ..> EliminarDisponibilidadUseCase : invoca
+    DisponibilidadController ..> ConsultarDisponibilidadUseCase : invoca
+
+    ConfiguracionService ..|> ConsultarConfiguracionUseCase
+    ConfiguracionService ..|> ActualizarConfiguracionUseCase
+    ConfiguracionService ..|> GestionarFestivosUseCase
+    CrearDisponibilidadService ..|> CrearDisponibilidadUseCase
+    ActualizarDisponibilidadService ..|> ActualizarDisponibilidadUseCase
+    EliminarDisponibilidadService ..|> EliminarDisponibilidadUseCase
+    ConsultarDisponibilidadService ..|> ConsultarDisponibilidadUseCase
+
+    ConfiguracionService *-- ConfiguracionManager
+    ConfiguracionService ..> ConfiguracionApplicationMapper : usa
+    ConfiguracionManager --> ConfiguracionRepository : depende
+    ConfiguracionManager "1" o-- "1" ConfiguracionSistema : cachea
+
+    CrearDisponibilidadService --> DisponibilidadRepository : depende
+    CrearDisponibilidadService --> CatalogoMedicosPort : depende
+    CrearDisponibilidadService --> ValidadorSolapamientoDisponibilidad : usa
+    CrearDisponibilidadService --> DomainEventPublisher : publica con
+    ActualizarDisponibilidadService --> DisponibilidadRepository : depende
+    ActualizarDisponibilidadService --> VerificadorCitasActivasPort : depende
+    ActualizarDisponibilidadService --> ValidadorSolapamientoDisponibilidad : usa
+    ActualizarDisponibilidadService --> DomainEventPublisher : publica con
+    EliminarDisponibilidadService --> DisponibilidadRepository : depende
+    EliminarDisponibilidadService --> VerificadorCitasActivasPort : depende
+    EliminarDisponibilidadService --> DomainEventPublisher : publica con
+    ConsultarDisponibilidadService --> DisponibilidadRepository : depende
+    ConsultarDisponibilidadService *-- ConfiguracionManager
+    ConsultarDisponibilidadService ..> DisponibilidadApplicationMapper : usa
+
+    Disponibilidad "1" *-- "1" TimeRange : compone
+    Disponibilidad "1" --> "1" DiaSemana : se agenda en
+    Disponibilidad "1" --> "1" DisponibilidadId : identificado por
+    Disponibilidad "1" --> "1" MedicoId : pertenece a
+    AgendaMedico "1" o-- "1..*" Disponibilidad : agrega
+    AgendaMedico "1" --> "1" MedicoId : pertenece a
+    ConfiguracionSistema ..> RangoFechas : produce
+
+    CalculadorDeSlots ..> AgendaMedico : consume
+    CalculadorDeSlots ..> ConfiguracionSistema : consume
+    CalculadorDeSlots ..> Disponibilidad : recorre
+    ValidadorSolapamientoDisponibilidad ..> Disponibilidad : valida
+    ValidadorSolapamientoDisponibilidad ..> FranjaSolapadaException : lanza
+
+    ConfiguracionRepositoryAdapter ..|> ConfiguracionRepository
+    DisponibilidadRepositoryAdapter ..|> DisponibilidadRepository
+    ConfiguracionRepositoryAdapter --> SpringDataConfiguracionRepository : delega
+    DisponibilidadRepositoryAdapter --> SpringDataDisponibilidadRepository : delega
+    DisponibilidadRepositoryAdapter *-- DisponibilidadPersistenceMapper
+    SpringDataConfiguracionRepository ..> ConfiguracionSistemaJpaEntity : gestiona
+    SpringDataDisponibilidadRepository ..> DisponibilidadJpaEntity : gestiona
+    DisponibilidadPersistenceMapper ..> DisponibilidadJpaEntity : mapea
+    DisponibilidadPersistenceMapper ..> Disponibilidad : mapea
+    BloqueoAgendaRepository ..> BloqueoAgendaJpaEntity : gestiona
+
+    DisponibilidadModuleFacade ..|> DisponibilidadConsultaPort
+    DisponibilidadModuleFacade --> DisponibilidadRepository : depende
+    DisponibilidadModuleFacade --> BloqueoAgendaRepository : depende
+    DisponibilidadModuleFacade *-- ConfiguracionManager
+    DisponibilidadModuleFacade *-- CalculadorDeSlots
+    DisponibilidadModuleFacade ..> AgendaMedico : construye
+
+    ConfiguracionApplicationMapper ..> ConfiguracionResponseDTO : produce
+    ConfiguracionApplicationMapper ..> FestivosResponseDTO : produce
+    DisponibilidadApplicationMapper ..> DisponibilidadResponseDTO : produce
+    DisponibilidadApplicationMapper ..> AgendaMedicoResponseDTO : produce
+    AgendaMedicoResponseDTO "1" o-- "0..*" DisponibilidadResponseDTO : contiene
+    CrearDisponibilidadRequestDTO ..> CrearDisponibilidadCommand : se transforma en
+    ActualizarDisponibilidadRequestDTO ..> ActualizarDisponibilidadCommand : se transforma en
+    ActualizarConfiguracionRequestDTO ..> ActualizarConfiguracionUseCase : alimenta
+    ActualizarFestivosRequestDTO ..> GestionarFestivosUseCase : alimenta
+
+    CrearDisponibilidadService ..> DisponibilidadModificadaEvent : publica
+    ActualizarDisponibilidadService ..> DisponibilidadModificadaEvent : publica
+    EliminarDisponibilidadService ..> DisponibilidadEliminadaEvent : publica
+    DisponibilidadModificadaEvent ..|> DomainEvent
+    DisponibilidadEliminadaEvent ..|> DomainEvent
+
+    ConsultarDisponibilidadService ..> DisponibilidadNoEncontradaException : lanza
+    EliminarDisponibilidadService ..> DisponibilidadConCitasActivasException : lanza
+    DisponibilidadNoEncontradaException --|> RecursoNoEncontradoException
+    DisponibilidadConCitasActivasException --|> ReglaDeNegocioException
+    FranjaSolapadaException --|> ReglaDeNegocioException
+
+%% =====================================================================
+%% RELACIONES - MODULO GESTION DE CITAS  (RF1 + RF2)
+%% =====================================================================
+    CitaController ..> AgendarCitaPacienteUseCase : invoca
+    CitaController ..> AgendarCitaManualUseCase : invoca
+    CitaController ..> CancelarCitaUseCase : invoca
+    CitaController ..> ReagendarCitaUseCase : invoca
+    CitaController ..> MarcarAsistenciaUseCase : invoca
+    CitaController *-- CitaRestMapper
+    AgendaCitasController ..> ListarCitasPorMedicoYFechaUseCase : invoca
+    AgendaCitasController *-- CitaRestMapper
+    SlotsDisponiblesController ..> ConsultarSlotsDisponiblesUseCase : invoca
+    CatalogoAgendamientoController ..> CatalogoPersonasPort : consulta
+
+    AbstractAgendamientoService <|-- AgendarCitaPacienteService
+    AbstractAgendamientoService <|-- AgendarCitaManualService
+    AgendarCitaPacienteService ..|> AgendarCitaPacienteUseCase
+    AgendarCitaManualService ..|> AgendarCitaManualUseCase
+    ListarCitasService ..|> ListarCitasPorMedicoYFechaUseCase
+    ConsultarSlotsDisponiblesService ..|> ConsultarSlotsDisponiblesUseCase
+    GestionCitaService ..|> CancelarCitaUseCase
+    GestionCitaService ..|> ReagendarCitaUseCase
+    GestionCitaService ..|> MarcarAsistenciaUseCase
+
+    AbstractAgendamientoService --> CitaRepository : depende
+    AbstractAgendamientoService --> CatalogoPersonasPort : depende
+    AbstractAgendamientoService --> DisponibilidadConsultaPort : depende
+    AbstractAgendamientoService --> NotificadorCitasPort : depende
+    AbstractAgendamientoService --> DomainEventPublisher : publica con
+    AbstractAgendamientoService --> CitaBuilderFactory : depende
+    AbstractAgendamientoService ..> CitaApplicationMapper : usa
+    AbstractAgendamientoService ..> DatosCreacionCita : construye
+    AbstractAgendamientoService ..> AgendarCitaCommand : recibe
+    AbstractAgendamientoService ..> VentanaAgendamientoPolicy : aplica
+
+    AgendarCitaPacienteService *-- ConsultaGeneralPolicy
+    AgendarCitaPacienteService *-- CitaProgramadaUnicaPolicy
+    ListarCitasService --> CitaRepository : depende
+    ListarCitasService --> CatalogoPersonasPort : depende
+    ListarCitasService ..> CitaApplicationMapper : usa
+    ListarCitasService ..> FiltroBusquedaCitas : recibe
+    ListarCitasService ..> ListadoCitasResponseDTO : retorna
+    ConsultarSlotsDisponiblesService --> CitaRepository : depende
+    ConsultarSlotsDisponiblesService --> DisponibilidadConsultaPort : depende
+    ConsultarSlotsDisponiblesService --> CatalogoPersonasPort : depende
+    ConsultarSlotsDisponiblesService ..> SlotsDisponiblesResponseDTO : retorna
+    GestionCitaService --> CitaRepository : depende
+    GestionCitaService --> CatalogoPersonasPort : depende
+    GestionCitaService --> DisponibilidadConsultaPort : depende
+    GestionCitaService --> NotificadorCitasPort : depende
+    GestionCitaService --> DomainEventPublisher : publica con
+    VerificarCitasActivasService --> CitaRepository : depende
+
+    Cita ..|> EstadoCitaContext
+    Cita "1" --> "1" EstadoCita : tiene
+    Cita "1" o-- "1" EstadoCitaState : delega comportamiento
+    Cita "1" *-- "1" AuditMetadata : compone
+    Cita "1" --> "1" CitaId : identificada por
+    Cita "1" --> "1" PacienteId : referencia
+    Cita "1" --> "1" MedicoId : referencia
+    Cita "1" --> "1" UsuarioId : creada por
+    Cita "1" --> "1" EspecialidadMedica : de especialidad
+    Cita "1" --> "1" TipoAgendamiento : clasificada como
+    Cita ..> AgendaMedico : valida contra
+
+    EstadoCitaState <|.. AbstractEstadoCitaState
+    AbstractEstadoCitaState <|-- ProgramadaState
+    AbstractEstadoCitaState <|-- ReagendadaState
+    AbstractEstadoCitaState <|-- AtendidaState
+    AbstractEstadoCitaState <|-- CanceladaState
+    AbstractEstadoCitaState <|-- NoAsistidaState
+    EstadoCitaStateFactory ..> EstadoCitaState : crea
+    EstadoCitaStateFactory ..> EstadoCita : resuelve desde
+    EstadoCita ..> EstadoCitaStateFactory : consulta
+    AbstractEstadoCitaState ..> EstadoCitaContext : muta
+    ProgramadaState ..> CitaNoCancelableException : lanza
+    AbstractEstadoCitaState ..> CitaNoReagendableException : lanza
+    AbstractEstadoCitaState ..> CitaNoMarcableException : lanza
+
+    CitaBuilder <|-- CitaManualBuilder
+    CitaBuilder <|-- CitaAutonomaBuilder
+    CitaBuilder <|-- CitaReagendadaBuilder
+    CitaBuilder ..> Cita : construye
+    CitaBuilder ..> MedicoReadModel : valida
+    CitaBuilder ..> PacienteReadModel : valida
+    CitaBuilder ..> AgendaMedico : valida
+    CitaBuilder ..> MedicoNoDisponibleException : lanza
+    CitaBuilder ..> PacienteNoDisponibleException : lanza
+    CitaBuilder ..> SlotNoDisponibleException : lanza
+    CitaManualFactory ..|> CitaBuilderFactory
+    CitaAutonomaFactory ..|> CitaBuilderFactory
+    CitaManualFactory ..> CitaManualBuilder : crea
+    CitaAutonomaFactory ..> CitaAutonomaBuilder : crea
+
+    DatosCreacionCita o-- MedicoReadModel
+    DatosCreacionCita o-- PacienteReadModel
+    DatosCreacionCita o-- AgendaMedico
+    DatosCreacionCita o-- ConfiguracionSistema
+    FiltroBusquedaCitas *-- RangoFechas
+    FiltroBusquedaCitas ..> EstadoCita : filtra por
+    FiltroBusquedaCitas ..> EspecialidadMedica : filtra por
+
+    ConsultaGeneralPolicy ..> ConsultaGeneralRequeridaException : lanza
+    CitaProgramadaUnicaPolicy ..> RestriccionAutoservicioException : lanza
+    VentanaAgendamientoPolicy ..> ConfiguracionSistema : consulta
+    VentanaAgendamientoPolicy ..> SlotNoDisponibleException : lanza
+
+    CitaRepositoryAdapter ..|> CitaRepository
+    CitaRepositoryAdapter --> SpringDataCitaRepository : delega
+    CitaRepositoryAdapter *-- CitaPersistenceMapper
+    CitaRepositoryAdapter *-- CitaSpecificationBuilder
+    CitaSpecificationBuilder ..> FiltroBusquedaCitas : traduce
+    SpringDataCitaRepository ..> CitaJpaEntity : gestiona
+    CitaPersistenceMapper ..> CitaJpaEntity : mapea
+    CitaPersistenceMapper ..> Cita : mapea
+
+    CitasActivasAdapter ..|> VerificadorCitasActivasPort
+    CitasActivasAdapter *-- VerificarCitasActivasService
+    CitasActivasAdapter ..> DisponibilidadConCitasActivasException : lanza
+
+    CitaApplicationMapper ..> CitaResponseDTO : produce
+    CitaApplicationMapper ..> ListadoCitasResponseDTO : produce
+    CitaApplicationMapper ..> SlotsDisponiblesResponseDTO : produce
+    CitaRestMapper ..> AgendarCitaCommand : produce
+    CitaRestMapper ..> FiltroBusquedaCitas : produce
+    AgendarCitaPacienteRequestDTO ..> AgendarCitaCommand : se transforma en
+    AgendarCitaManualRequestDTO ..> AgendarCitaCommand : se transforma en
+    FiltroBusquedaCitasRequestDTO ..> FiltroBusquedaCitas : se transforma en
+    ListadoCitasResponseDTO "1" o-- "0..*" CitaResponseDTO : contiene
+    SlotsDisponiblesResponseDTO "1" o-- "0..*" SlotsPorFechaDTO : agrupa
+    SlotsPorFechaDTO ..> DiaSemana : referencia
+    CitaController ..> CancelarCitaRequestDTO : recibe
+    CitaController ..> ReagendarCitaRequestDTO : recibe
+    CitaController ..> MarcarAsistenciaRequestDTO : recibe
+
+    AbstractAgendamientoService ..> CitaAgendadaEvent : publica
+    GestionCitaService ..> CitaCanceladaEvent : publica
+    GestionCitaService ..> CitaReagendadaEvent : publica
+    GestionCitaService ..> CitaNoEncontradaException : lanza
+    CitaAgendadaEvent ..|> DomainEvent
+    CitaCanceladaEvent ..|> DomainEvent
+    CitaReagendadaEvent ..|> DomainEvent
+    CitaNoEncontradaException --|> RecursoNoEncontradoException
+    CitaNoCancelableException --|> ReglaDeNegocioException
+    CitaNoReagendableException --|> ReglaDeNegocioException
+    CitaNoMarcableException --|> ReglaDeNegocioException
+    MedicoNoDisponibleException --|> ReglaDeNegocioException
+    PacienteNoDisponibleException --|> ReglaDeNegocioException
+    SlotNoDisponibleException --|> ReglaDeNegocioException
+    ConsultaGeneralRequeridaException --|> ReglaDeNegocioException
+    RestriccionAutoservicioException --|> ReglaDeNegocioException
+
+%% =====================================================================
+%% RELACIONES - MODULO NOTIFICACIONES
+%% =====================================================================
+    NotificacionController ..> ConsultarNotificacionesUseCase : invoca
+    NotificacionController ..> MarcarNotificacionUseCase : invoca
+    NotificacionService ..|> ConsultarNotificacionesUseCase
+    NotificacionService ..|> MarcarNotificacionUseCase
+    NotificacionService ..|> EnviarNotificacionUseCase
+    NotificacionService --> NotificacionRepository : depende
+    NotificacionService --> CanalNotificacionPort : despacha por
+    NotificacionService ..> NotificacionApplicationMapper : usa
+    NotificacionService ..> Notificacion : crea
+
+    Notificacion "1" --> "1" TipoNotificacion : es de tipo
+    Notificacion "1" --> "1" CanalNotificacion : se envia por
+    Notificacion "1" --> "1" NotificacionId : identificada por
+    Notificacion "1" --> "1" PersonaId : dirigida a
+
+    InAppCanalAdapter ..|> CanalNotificacionPort
+    EmailCanalAdapter ..|> CanalNotificacionPort
+    NotificacionRepositoryAdapter ..|> NotificacionRepository
+    NotificacionRepositoryAdapter --> SpringDataNotificacionRepository : delega
+    NotificacionRepositoryAdapter *-- NotificacionPersistenceMapper
+    SpringDataNotificacionRepository ..> NotificacionJpaEntity : gestiona
+    NotificacionPersistenceMapper ..> NotificacionJpaEntity : mapea
+    NotificacionPersistenceMapper ..> Notificacion : mapea
+
+    NotificacionesModuleFacade ..|> NotificadorCitasPort
+    NotificacionesModuleFacade --> EnviarNotificacionUseCase : depende
+    NotificacionesModuleFacade *-- ConstructorMensajeCita
+    NotificacionesModuleFacade ..> Cita : lee
+    NotificacionesModuleFacade ..> MedicoReadModel : lee
+    NotificacionesModuleFacade ..> PacienteReadModel : lee
+
+    CitaEventListener --> EnviarNotificacionUseCase : depende
+    CitaEventListener *-- ConstructorMensajeCita
+    CitaEventListener ..> CitaAgendadaEvent : escucha
+    CitaEventListener ..> CitaCanceladaEvent : escucha
+    CitaEventListener ..> CitaReagendadaEvent : escucha
+    ConstructorMensajeCita ..> EnviarNotificacionCommand : produce
+    NotificacionApplicationMapper ..> NotificacionResponseDTO : produce
+    NotificacionController ..> ConteoNotificacionesDTO : retorna
+
+%% =====================================================================
+%% RELACIONES - INFRAESTRUCTURA TRANSVERSAL
+%% =====================================================================
+    SeguridadWebConfig *-- JwtRolesConverter
+    JwtRolesConverter ..> RolUsuario : traduce a
+    UsuarioAutenticadoResolver ..> UsuarioId : resuelve
+    UsuarioAutenticadoResolver ..> PersonaId : resuelve
+    UsuarioAutenticadoResolver ..> PacienteId : resuelve
+    UsuarioAutenticadoResolver ..> RolUsuario : consulta
+    CitaController ..> UsuarioAutenticadoResolver : usa
+    SlotsDisponiblesController ..> UsuarioAutenticadoResolver : usa
+    NotificacionController ..> UsuarioAutenticadoResolver : usa
+
+    ManejadorGlobalExcepciones ..> ErrorResponseDTO : produce
+    ManejadorGlobalExcepciones ..> DomainException : maneja
+    ManejadorGlobalExcepciones ..> ReglaDeNegocioException : maneja
+    ManejadorGlobalExcepciones ..> RecursoNoEncontradoException : maneja
+    ErrorResponseDTO "1" o-- "0..*" ErrorCampoDTO : agrupa
+
+    SpringDomainEventPublisher ..|> DomainEventPublisher
+    SpringDomainEventPublisher ..> DomainEvent : publica
+    ModuloConfig ..> CalculadorDeSlots : provee
+    ModuloConfig ..> EstadoCitaStateFactory : provee
+    ModuloConfig ..> CitaBuilderFactory : provee

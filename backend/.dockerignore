@@ -1,0 +1,12 @@
+target/
+.idea/
+*.iml
+.vscode/
+.git/
+site/
+docs/
+docs_python/
+mkdocs.yml
+requirements-docs.txt
+.env
+*.md
