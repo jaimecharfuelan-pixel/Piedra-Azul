@@ -23,6 +23,8 @@ theme:
 nav:
   - Inicio: index.md
   - Arquitectura: arquitectura.md
+  - Núcleo común: nucleo.md
+  - Personas: personas.md
   - Módulos: modulos.md
   - Seguridad (JWT): seguridad.md
   - API: api/index.md

@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Cita } from '../../domain/models/cita.model';
+import { EstadoCita } from '../../domain/models/estado-cita.enum';
 import { CitaRepositoryPort } from '../../domain/ports/cita.repository.port';
 
 /** Adaptador secundario: HTTP hacia el backend Spring Boot. */
@@ -30,7 +31,7 @@ export class CitaHttpAdapter extends CitaRepositoryPort {
             pacienteId: 'p-1',
             inicio: `${desde}T09:00:00`,
             fin: `${desde}T09:30:00`,
-            estado: 'PROGRAMADA',
+            estado: EstadoCita.PROGRAMADA,
             titulo: 'Cita demo (backend aún no disponible)',
           } satisfies Cita,
         ])

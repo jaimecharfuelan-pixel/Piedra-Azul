@@ -9,7 +9,11 @@ import { RouterLink } from '@angular/router';
     <section class="home">
       <h1>PiedraAzul</h1>
       <p>Frontend Angular con arquitectura hexagonal.</p>
-      <a routerLink="/calendario">Ir a la agenda (FullCalendar)</a>
+      <p>
+        <a routerLink="/personas">Gestión de Personas</a>
+        ·
+        <a routerLink="/calendario">Agenda (FullCalendar)</a>
+      </p>
     </section>
   `,
   styles: `

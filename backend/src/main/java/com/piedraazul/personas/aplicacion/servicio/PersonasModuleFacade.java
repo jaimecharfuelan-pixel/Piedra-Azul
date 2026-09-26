@@ -1,0 +1,68 @@
+package com.piedraazul.personas.aplicacion.servicio;
+
+import com.piedraazul.nucleo.dominio.RolUsuario;
+import com.piedraazul.nucleo.dominio.excepciones.RecursoNoEncontradoException;
+import com.piedraazul.nucleo.dominio.excepciones.ReglaDeNegocioException;
+import com.piedraazul.personas.aplicacion.puertos.salida.CatalogoMedicosPort;
+import com.piedraazul.personas.aplicacion.puertos.salida.MedicoRepository;
+import com.piedraazul.personas.aplicacion.puertos.salida.PacienteRepository;
+import com.piedraazul.personas.aplicacion.puertos.salida.RegistrarPersonaPort;
+import com.piedraazul.personas.dominio.Medico;
+import com.piedraazul.personas.dominio.Paciente;
+import com.piedraazul.personas.infraestructura.dto.DatosPersonaDTO;
+import com.piedraazul.personas.infraestructura.dto.MedicoResumenDTO;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Fachada pública del módulo Personas hacia Identidad, Disponibilidad y Citas.
+ */
+@Service
+@Transactional
+public class PersonasModuleFacade implements CatalogoMedicosPort, RegistrarPersonaPort {
+
+    private final MedicoRepository medicoRepository;
+    private final PacienteRepository pacienteRepository;
+
+    public PersonasModuleFacade(MedicoRepository medicoRepository, PacienteRepository pacienteRepository) {
+        this.medicoRepository = medicoRepository;
+        this.pacienteRepository = pacienteRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existeMedicoActivo(Long medicoId) {
+        return medicoRepository.buscarPorId(medicoId).map(Medico::estaActivo).orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MedicoResumenDTO obtenerResumen(Long medicoId) {
+        Medico medico = medicoRepository.buscarPorId(medicoId)
+                .orElseThrow(() -> RecursoNoEncontradoException.de(
+                        "MEDICO_NO_ENCONTRADO",
+                        "No existe médico con id " + medicoId
+                ));
+        return new MedicoResumenDTO(medico.getId(), medico.getNombreCompleto());
+    }
+
+    @Override
+    public Long crearPersonaParaUsuario(RolUsuario rol, DatosPersonaDTO datos) {
+        if (rol == RolUsuario.MEDICO) {
+            Medico medico = medicoRepository.guardar(
+                    new Medico(datos.nombreCompleto(), datos.especialidadId())
+            );
+            return medico.getId();
+        }
+        if (rol == RolUsuario.PACIENTE) {
+            Paciente paciente = pacienteRepository.guardar(
+                    new Paciente(datos.usuarioId(), datos.nombreCompleto(), datos.telefono())
+            );
+            return paciente.getId();
+        }
+        throw ReglaDeNegocioException.de(
+                "ROL_SIN_PERSONA",
+                "Solo se crea persona para roles MEDICO o PACIENTE"
+        );
+    }
+}

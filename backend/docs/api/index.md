@@ -1,7 +1,11 @@
 # API
 
-Los controladores REST se irán añadiendo por módulo (`/api/auth`, `/api/personas`,
-`/api/disponibilidad`, `/api/citas`, `/api/notificaciones`).
+## Personas
 
-El frontend Angular consume estos endpoints; las vistas de agenda usan
-**FullCalendar** contra los recursos de citas/disponibilidad.
+Ver [Personas](../personas.md).
+
+Prefijo: `/api/personas`
+
+## Auth / Citas / Disponibilidad
+
+Pendientes (módulos Identidad, Citas, Disponibilidad).

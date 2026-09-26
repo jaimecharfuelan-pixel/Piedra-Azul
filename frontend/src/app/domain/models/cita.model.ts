@@ -1,4 +1,4 @@
-export type CitaEstado = 'PROGRAMADA' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA';
+import { EstadoCita } from './estado-cita.enum';
 
 export interface Cita {
   id: string;
@@ -6,6 +6,6 @@ export interface Cita {
   pacienteId: string;
   inicio: string;
   fin: string;
-  estado: CitaEstado;
+  estado: EstadoCita;
   titulo?: string;
 }

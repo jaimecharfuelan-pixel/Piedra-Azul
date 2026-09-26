@@ -1,0 +1,74 @@
+<section class="personas">
+  <header>
+    <p><a routerLink="/">← Inicio</a></p>
+    <h1>Gestión de Personas</h1>
+    <p>Especialidades, médicos y pacientes (módulo 03).</p>
+  </header>
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+
+  <div class="grid">
+    <article>
+      <h2>Especialidades activas</h2>
+      <form (ngSubmit)="onCrearEspecialidad()">
+        <input [(ngModel)]="nuevaEspecialidad" name="esp" placeholder="Nombre especialidad" />
+        <button type="submit">Crear</button>
+      </form>
+      <ul>
+        @for (e of especialidades(); track e.id) {
+          <li>{{ e.nombre }}</li>
+        } @empty {
+          <li class="muted">Sin especialidades</li>
+        }
+      </ul>
+    </article>
+
+    <article>
+      <h2>Médicos activos</h2>
+      <form (ngSubmit)="onCrearMedico()">
+        <input [(ngModel)]="nuevoMedicoNombre" name="med" placeholder="Nombre completo" />
+        <select [(ngModel)]="nuevoMedicoEspecialidadId" name="espId">
+          <option [ngValue]="null">Especialidad…</option>
+          @for (e of especialidades(); track e.id) {
+            <option [ngValue]="e.id">{{ e.nombre }}</option>
+          }
+        </select>
+        <button type="submit">Crear</button>
+      </form>
+      <table>
+        <thead>
+          <tr>
+            <th>Médico</th>
+            <th>Especialidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (m of medicos(); track m.id) {
+            <tr>
+              <td>{{ m.nombreCompleto }}</td>
+              <td>{{ m.especialidad?.nombre ?? '—' }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="2" class="muted">Sin médicos</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </article>
+
+    <article>
+      <h2>Pacientes</h2>
+      <p class="muted">Se crean vía Identidad (RegistrarPersonaPort).</p>
+      <ul>
+        @for (p of pacientes(); track p.id) {
+          <li>{{ p.nombreCompleto }} — {{ p.telefono || 'sin teléfono' }}</li>
+        } @empty {
+          <li class="muted">Sin pacientes</li>
+        }
+      </ul>
+    </article>
+  </div>
+</section>
