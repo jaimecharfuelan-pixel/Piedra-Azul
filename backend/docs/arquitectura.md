@@ -6,14 +6,12 @@ por fachadas del módulo proveedor.
 
 ```
 com.piedraazul
-├── sharedkernel      # Value objects, IDs, enums compartidos
-├── identidad         # RF2 — usuarios, roles, autenticación
+├── nucleo            # Value objects, enums, excepciones compartidas
+├── identidad         # RF2 — usuarios, roles, JWT, SecurityConfig
 ├── personas          # RF1/RF2 — pacientes, médicos, especialidades
-├── disponibilidad    # RF3 — ventanas, festivos, franjas
-├── citas             # RF1/RF2 — agenda y ciclo de vida de citas
-├── notificaciones    # in-app y email
-└── infraestructura   # Security/JWT, errores, eventos en proceso
+├── disponibilidad    # RF3 — ventanas, periodos, franjas
+└── citas             # RF1/RF2 — agenda y ciclo de vida de citas
 ```
 
-Los eventos de dominio se publican **en proceso** (sin RabbitMQ) mediante
-`ApplicationEventPublisher` de Spring.
+Cada módulo de negocio lleva su propia capa `infraestructura` (REST, JPA, DTO).
+La seguridad transversal vive en **Identidad**, no en un paquete aparte.

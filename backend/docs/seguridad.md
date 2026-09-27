@@ -1,69 +1,48 @@
 # Seguridad (JWT + Spring Security)
 
 - Sesiones **stateless** (`SessionCreationPolicy.STATELESS`).
-- Filtro `JwtAuthenticationFilter` valida el header `Authorization: Bearer <token>`.
-- CORS abierto a `http://localhost:*` y `http://127.0.0.1:*` (`CorsConfig`), para
-  que el frontend en el 4200 pueda llamar al backend en el 8080.
-
-Configuración en `application.properties`:
+- Filtro `JwtAuthenticationFilter` valida `Authorization: Bearer <token>` y
+  carga `UsuarioAutenticado` (rol + `personaId`) en el `SecurityContext`.
+- Roles en `SecurityConfig` (módulo Identidad). Propiedad de recurso (✔*) en
+  controllers vía `SesionActual` — los `*Service` de negocio no reciben el rol.
+- CORS: `http://localhost:*` y `http://127.0.0.1:*`.
 
 ```properties
 app.security.jwt.secret=...
 app.security.jwt.expiration-ms=86400000
 ```
 
-Clases relevantes:
+## Endpoints públicos
 
-- `JwtService` — emite y valida tokens
-- `JwtAuthenticationFilter` — integra el token en el `SecurityContext`
-- `SecurityConfig` — cadena de filtros Spring Security
+| Método | Ruta |
+|---|---|
+| `POST` | `/api/auth/login` |
+| `POST` | `/api/auth/registro-paciente` |
+| `GET` | `/actuator/health` |
 
-## Estado actual: la API de negocio está abierta
+## Usuarios demo (seed)
 
-!!! warning "Pendiente de cablear la autorización por rol"
-    El módulo **Identidad (02)** todavía no existe, así que **no hay endpoint de
-    login** y no hay forma de obtener un JWT. Para que la aplicación sea usable de
-    punta a punta, `SecurityConfig` deja en `permitAll()` los módulos de negocio:
+Password de todos: `demo1234`
 
-    ```
-    /api/auth/**            (reservado para Identidad)
-    /api/personas/**
-    /api/disponibilidad/**
-    /api/citas/**
-    /h2-console/**
-    /actuator/health
-    ```
+| Username | Rol |
+|---|---|
+| `admin` | ADMINISTRADOR |
+| `agendador` | AGENDADOR |
+| `ana.medico` / `carlos.medico` | MEDICO |
+| `juan.paciente` / `maria.paciente` | PACIENTE |
 
-    Esto es deuda técnica consciente y **no debe salir así a producción**.
+## Matriz de roles (resumen)
 
-## Autorización prevista por rol
+| Área | ADMIN | AGENDADOR | MEDICO | PACIENTE |
+|---|:---:|:---:|:---:|:---:|
+| CRUD usuarios | ✔ | — | — | — |
+| Especialidades / médicos (escritura) | ✔ | — | — | — |
+| Registrar paciente walk-in | ✔ | ✔ | ✔ | — |
+| Ventana agendamiento | ✔ | — | — | — |
+| Periodos horario | ✔ | ✔ | ✔\* | — |
+| Slots | ✔ | ✔ | ✔ | ✔ |
+| Agendar / cancelar / reagendar | ✔ | ✔ | ✔ | ✔\* |
+| Marcar atendida | — | — | ✔\* | — |
+| Agenda del día | ✔ | ✔ | ✔\* | — |
 
-Los casos de uso no conocen roles a propósito: la restricción es una decisión de
-la capa de entrada. Cuando exista Identidad, ésta es la matriz a aplicar en
-`SecurityConfig` (o con `@PreAuthorize` habilitando `@EnableMethodSecurity`):
-
-| Operación | ADMINISTRADOR | AGENDADOR | MEDICO | PACIENTE |
-|---|---|---|---|---|
-| `PUT /api/disponibilidad/configuracion` | ✔ | — | — | — |
-| `POST /api/disponibilidad/periodos` | ✔ | ✔ | ✔ (el suyo) | — |
-| `GET /api/disponibilidad/slots` | ✔ | ✔ | ✔ | ✔ |
-| `GET /api/citas?medicoId=&fecha=` | ✔ | ✔ | ✔ (la suya) | — |
-| `POST /api/citas` | ✔ | ✔ (para cualquiera) | — | ✔ (para sí mismo) |
-| `PUT /api/citas/{id}/cancelacion` | ✔ | ✔ | — | ✔ (la suya) |
-| `PUT /api/citas/{id}/reagendamiento` | ✔ | ✔ | — | ✔ (la suya) |
-| `PUT /api/citas/{id}/atencion` | — | — | ✔ | — |
-| `POST /api/personas/medicos` | ✔ | — | — | — |
-
-Los casos marcados "el suyo" / "la suya" necesitan además comprobar la propiedad
-del recurso contra el `personaId` del token, no sólo el rol.
-
-## Qué falta para cerrarlo
-
-1. Implementar el módulo Identidad (`Usuario`, `AuthController` con
-   `POST /api/auth/login`, `GestionarUsuarioService` usando
-   `RegistrarPersonaPort`).
-2. Que `JwtAuthenticationFilter` cargue el `RolUsuario` del token como authority
-   (`ROLE_MEDICO`, `ROLE_AGENDADOR`, …); hoy pone la lista de authorities vacía.
-3. Sustituir los `permitAll()` de negocio por `hasRole(...)` según la matriz.
-4. En el frontend, añadir el interceptor que adjunte el token y los guards de ruta;
-   hoy no hay ninguno.
+\* = solo su `personaId` (`SesionActual`).

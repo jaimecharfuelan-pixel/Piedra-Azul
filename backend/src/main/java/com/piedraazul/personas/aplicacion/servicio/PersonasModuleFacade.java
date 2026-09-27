@@ -2,7 +2,6 @@ package com.piedraazul.personas.aplicacion.servicio;
 
 import com.piedraazul.nucleo.dominio.RolUsuario;
 import com.piedraazul.nucleo.dominio.excepciones.RecursoNoEncontradoException;
-import com.piedraazul.nucleo.dominio.excepciones.ReglaDeNegocioException;
 import com.piedraazul.personas.aplicacion.puertos.salida.CatalogoMedicosPort;
 import com.piedraazul.personas.aplicacion.puertos.salida.CatalogoPacientesPort;
 import com.piedraazul.personas.aplicacion.puertos.salida.MedicoRepository;
@@ -94,9 +93,7 @@ public class PersonasModuleFacade implements CatalogoMedicosPort, CatalogoPacien
             );
             return paciente.getId();
         }
-        throw ReglaDeNegocioException.de(
-                "ROL_SIN_PERSONA",
-                "Solo se crea persona para roles MEDICO o PACIENTE"
-        );
+        // ADMINISTRADOR y AGENDADOR no tienen ficha en Personas (diagrama Identidad).
+        return null;
     }
 }

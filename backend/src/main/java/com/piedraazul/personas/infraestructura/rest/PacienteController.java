@@ -1,5 +1,6 @@
 package com.piedraazul.personas.infraestructura.rest;
 
+import com.piedraazul.identidad.infraestructura.security.SesionActual;
 import com.piedraazul.personas.aplicacion.puertos.entrada.ConsultarPacienteUseCase;
 import com.piedraazul.personas.aplicacion.puertos.entrada.RegistrarPacienteUseCase;
 import com.piedraazul.personas.infraestructura.dto.PacienteResponseDTO;
@@ -22,17 +23,21 @@ public class PacienteController {
 
     private final ConsultarPacienteUseCase consultarUseCase;
     private final RegistrarPacienteUseCase registrarUseCase;
+    private final SesionActual sesion;
 
     public PacienteController(
             ConsultarPacienteUseCase consultarUseCase,
-            RegistrarPacienteUseCase registrarUseCase
+            RegistrarPacienteUseCase registrarUseCase,
+            SesionActual sesion
     ) {
         this.consultarUseCase = consultarUseCase;
         this.registrarUseCase = registrarUseCase;
+        this.sesion = sesion;
     }
 
     /**
-     * RF2: registro del paciente en la web, previo al agendamiento.
+     * Alta operativa (admin/agendador/médico) de un paciente walk-in sin cuenta de login.
+     * El registro web con usuario va por {@code POST /api/auth/registro-paciente}.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -42,6 +47,7 @@ public class PacienteController {
 
     @GetMapping("/{id}")
     public PacienteResponseDTO buscarPorId(@PathVariable Long id) {
+        sesion.siEsPacienteExigirPersona(id);
         return consultarUseCase.buscarPorId(id);
     }
 

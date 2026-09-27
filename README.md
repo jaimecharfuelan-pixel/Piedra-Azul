@@ -68,10 +68,20 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1
 
 ## Documentación
 
+Con Docker (recomendado; no hace falta instalar `pip` en el host):
+
+```bash
+docker compose up docs
+# http://127.0.0.1:8000
+```
+
+Sin Docker:
+
 ```bash
 cd backend
-pip install -r requirements-docs.txt
-mkdocs serve      # http://127.0.0.1:8000
+sudo apt install -y python3-pip   # si no tienes pip/pip3
+python3 -m pip install -r requirements-docs.txt
+python3 -m mkdocs serve           # http://127.0.0.1:8000
 ```
 
 ## Desarrollo sin Docker
