@@ -31,6 +31,7 @@ public class NucleoExceptionHandler {
             "SLOT_NO_DISPONIBLE",
             "CITA_NO_MODIFICABLE",
             "USERNAME_REPETIDO",
+            "USERNAME_YA_REGISTRADO",
             "MEDICO_INACTIVO",
             "MEDICO_NO_DISPONIBLE",
             "ESPECIALIDAD_INACTIVA",
@@ -41,6 +42,19 @@ public class NucleoExceptionHandler {
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ProblemDetail handleNoEncontrado(RecursoNoEncontradoException ex) {
         return problem(HttpStatus.NOT_FOUND, ex);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ProblemDetail handleAccesoDenegado(org.springframework.security.access.AccessDeniedException ex) {
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN,
+                ex.getMessage() == null ? "No tienes permiso para esta operación" : ex.getMessage()
+        );
+        detail.setTitle("ACCESO_DENEGADO");
+        detail.setProperty("codigo", "ACCESO_DENEGADO");
+        detail.setProperty("timestamp", Instant.now().toString());
+        detail.setProperty("extra", Map.of());
+        return detail;
     }
 
     @ExceptionHandler(ReglaDeNegocioException.class)

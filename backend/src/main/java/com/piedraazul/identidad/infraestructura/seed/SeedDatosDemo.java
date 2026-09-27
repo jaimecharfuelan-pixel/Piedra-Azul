@@ -1,4 +1,4 @@
-package com.piedraazul.infraestructura.seed;
+package com.piedraazul.identidad.infraestructura.seed;
 
 import com.piedraazul.citas.aplicacion.puertos.entrada.GestionarCitaUseCase;
 import com.piedraazul.citas.infraestructura.dto.AgendarCitaCommand;
@@ -6,18 +6,16 @@ import com.piedraazul.disponibilidad.aplicacion.puertos.entrada.ConfigurarPeriod
 import com.piedraazul.disponibilidad.aplicacion.puertos.entrada.ConfigurarVentanaAgendamientoUseCase;
 import com.piedraazul.disponibilidad.aplicacion.puertos.entrada.ConsultarPeriodosDisponibilidadUseCase;
 import com.piedraazul.disponibilidad.infraestructura.dto.ConfigurarPeriodoCommand;
+import com.piedraazul.identidad.aplicacion.puertos.entrada.GestionarUsuarioUseCase;
+import com.piedraazul.identidad.aplicacion.puertos.salida.UsuarioRepository;
+import com.piedraazul.identidad.infraestructura.dto.CrearUsuarioCommand;
+import com.piedraazul.identidad.infraestructura.dto.UsuarioResponseDTO;
 import com.piedraazul.nucleo.dominio.DiaSemana;
 import com.piedraazul.nucleo.dominio.RolUsuario;
-import com.piedraazul.personas.aplicacion.puertos.entrada.ConsultarPacienteUseCase;
 import com.piedraazul.personas.aplicacion.puertos.entrada.GestionarEspecialidadUseCase;
-import com.piedraazul.personas.aplicacion.puertos.entrada.GestionarMedicoUseCase;
-import com.piedraazul.personas.aplicacion.puertos.salida.RegistrarPersonaPort;
 import com.piedraazul.personas.infraestructura.dto.CrearEspecialidadCommand;
-import com.piedraazul.personas.infraestructura.dto.CrearMedicoCommand;
 import com.piedraazul.personas.infraestructura.dto.DatosPersonaDTO;
 import com.piedraazul.personas.infraestructura.dto.EspecialidadResponseDTO;
-import com.piedraazul.personas.infraestructura.dto.MedicoResponseDTO;
-import com.piedraazul.personas.infraestructura.dto.PacienteResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -29,31 +27,22 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Set;
 
 /**
- * Carga datos mínimos para poder probar los RF1, RF2 y RF3 en cuanto arranca el
- * contenedor: especialidades, médicos, pacientes, la ventana de agendamiento,
- * un horario por médico y un par de citas de ejemplo.
- *
- * <p>Se ejecuta a través de los casos de uso (no escribiendo SQL) para que los
- * datos sembrados cumplan las mismas reglas de negocio que la aplicación. Es
- * idempotente: si ya hay datos no toca nada. Se apaga con
- * {@code app.seed.enabled=false}.</p>
+ * Datos demo + usuarios de prueba (password: {@code demo1234}).
  */
 @Component
 @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = false)
 public class SeedDatosDemo implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SeedDatosDemo.class);
-
+    private static final String PASSWORD_DEMO = "demo1234";
     private static final int VENTANA_SEMANAS_DEMO = 4;
 
+    private final GestionarUsuarioUseCase usuarios;
+    private final UsuarioRepository usuarioRepository;
     private final GestionarEspecialidadUseCase especialidades;
-    private final GestionarMedicoUseCase medicos;
-    private final ConsultarPacienteUseCase pacientes;
-    private final RegistrarPersonaPort registrarPersona;
     private final ConfigurarVentanaAgendamientoUseCase ventana;
     private final ConfigurarPeriodoDisponibilidadUseCase configurarPeriodo;
     private final ConsultarPeriodosDisponibilidadUseCase consultarPeriodos;
@@ -61,20 +50,18 @@ public class SeedDatosDemo implements ApplicationRunner {
     private final Clock clock;
 
     public SeedDatosDemo(
+            GestionarUsuarioUseCase usuarios,
+            UsuarioRepository usuarioRepository,
             GestionarEspecialidadUseCase especialidades,
-            GestionarMedicoUseCase medicos,
-            ConsultarPacienteUseCase pacientes,
-            RegistrarPersonaPort registrarPersona,
             ConfigurarVentanaAgendamientoUseCase ventana,
             ConfigurarPeriodoDisponibilidadUseCase configurarPeriodo,
             ConsultarPeriodosDisponibilidadUseCase consultarPeriodos,
             GestionarCitaUseCase citas,
             Clock clock
     ) {
+        this.usuarios = usuarios;
+        this.usuarioRepository = usuarioRepository;
         this.especialidades = especialidades;
-        this.medicos = medicos;
-        this.pacientes = pacientes;
-        this.registrarPersona = registrarPersona;
         this.ventana = ventana;
         this.configurarPeriodo = configurarPeriodo;
         this.consultarPeriodos = consultarPeriodos;
@@ -87,32 +74,48 @@ public class SeedDatosDemo implements ApplicationRunner {
         try {
             sembrar();
         } catch (RuntimeException ex) {
-            // Un problema con los datos de ejemplo no debe tumbar la aplicación.
             log.warn("No se pudieron sembrar los datos de demostración: {}", ex.getMessage());
         }
     }
 
     private void sembrar() {
-        List<MedicoResponseDTO> existentes = medicos.listarActivos();
-        if (!existentes.isEmpty()) {
-            log.info("Datos de demostración ya presentes ({} médicos), no se siembra nada", existentes.size());
+        if (usuarioRepository.existePorUsername("admin")) {
+            log.info("Datos de demostración ya presentes, no se siembra nada");
             return;
         }
 
         Long medicinaGeneral = crearEspecialidad("Medicina General");
         Long fisioterapia = crearEspecialidad("Fisioterapia");
 
-        MedicoResponseDTO ana = medicos.crear(new CrearMedicoCommand("Dra. Ana Pérez", medicinaGeneral));
-        MedicoResponseDTO carlos = medicos.crear(new CrearMedicoCommand("Ft. Carlos Muñoz", fisioterapia));
+        crearUsuario("admin", RolUsuario.ADMINISTRADOR, null);
+        crearUsuario("agendador", RolUsuario.AGENDADOR, null);
 
-        Long juan = crearPaciente(1001L, "Juan Ramírez", "3001234567");
-        crearPaciente(1002L, "María Gómez", "3009876543");
+        UsuarioResponseDTO ana = crearUsuario(
+                "ana.medico",
+                RolUsuario.MEDICO,
+                new DatosPersonaDTO(null, "Dra. Ana Pérez", null, medicinaGeneral)
+        );
+        UsuarioResponseDTO carlos = crearUsuario(
+                "carlos.medico",
+                RolUsuario.MEDICO,
+                new DatosPersonaDTO(null, "Ft. Carlos Muñoz", null, fisioterapia)
+        );
+        UsuarioResponseDTO juan = crearUsuario(
+                "juan.paciente",
+                RolUsuario.PACIENTE,
+                new DatosPersonaDTO(null, "Juan Ramírez", "3001234567", null)
+        );
+        crearUsuario(
+                "maria.paciente",
+                RolUsuario.PACIENTE,
+                new DatosPersonaDTO(null, "María Gómez", "3009876543", null)
+        );
 
         ventana.ejecutar(VENTANA_SEMANAS_DEMO);
 
         LocalDate hoy = LocalDate.now(clock);
         configurarHorario(
-                ana.id(),
+                ana.personaId(),
                 hoy,
                 EnumSet.of(DiaSemana.LUNES, DiaSemana.MARTES, DiaSemana.MIERCOLES,
                         DiaSemana.JUEVES, DiaSemana.VIERNES, DiaSemana.SABADO),
@@ -122,7 +125,7 @@ public class SeedDatosDemo implements ApplicationRunner {
                 0
         );
         configurarHorario(
-                carlos.id(),
+                carlos.personaId(),
                 hoy,
                 EnumSet.allOf(DiaSemana.class),
                 LocalTime.of(14, 0),
@@ -131,10 +134,16 @@ public class SeedDatosDemo implements ApplicationRunner {
                 15
         );
 
-        agendarCitasDeEjemplo(ana.id(), juan, hoy);
+        agendarCitasDeEjemplo(ana.personaId(), juan.personaId(), hoy);
 
-        log.info("Datos de demostración creados: médicos {} y {}, ventana de {} semanas",
-                ana.nombreCompleto(), carlos.nombreCompleto(), VENTANA_SEMANAS_DEMO);
+        log.info(
+                "Demo lista. Usuarios (password {}): admin, agendador, ana.medico, carlos.medico, juan.paciente, maria.paciente",
+                PASSWORD_DEMO
+        );
+    }
+
+    private UsuarioResponseDTO crearUsuario(String username, RolUsuario rol, DatosPersonaDTO datos) {
+        return usuarios.crear(new CrearUsuarioCommand(username, PASSWORD_DEMO, rol, datos));
     }
 
     private Long crearEspecialidad(String nombre) {
@@ -143,17 +152,6 @@ public class SeedDatosDemo implements ApplicationRunner {
                 .map(EspecialidadResponseDTO::id)
                 .findFirst()
                 .orElseGet(() -> especialidades.crear(new CrearEspecialidadCommand(nombre)).id());
-    }
-
-    private Long crearPaciente(Long usuarioId, String nombre, String telefono) {
-        return pacientes.listarTodos().stream()
-                .filter(paciente -> paciente.nombreCompleto().equalsIgnoreCase(nombre))
-                .map(PacienteResponseDTO::id)
-                .findFirst()
-                .orElseGet(() -> registrarPersona.crearPersonaParaUsuario(
-                        RolUsuario.PACIENTE,
-                        new DatosPersonaDTO(usuarioId, nombre, telefono, null)
-                ));
     }
 
     private void configurarHorario(
@@ -180,10 +178,6 @@ public class SeedDatosDemo implements ApplicationRunner {
         ));
     }
 
-    /**
-     * Agenda dos citas en el primer día hábil siguiente para que la tabla del RF1
-     * no arranque vacía. Si alguna franja no aplica se omite en silencio.
-     */
     private void agendarCitasDeEjemplo(Long medicoId, Long pacienteId, LocalDate hoy) {
         LocalDate fecha = hoy.plusDays(1);
         for (int intento = 0; intento < 7; intento++) {

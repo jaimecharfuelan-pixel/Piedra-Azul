@@ -9,6 +9,7 @@ import com.piedraazul.disponibilidad.infraestructura.dto.ConfigurarPeriodoComman
 import com.piedraazul.disponibilidad.infraestructura.dto.ConfiguracionSistemaResponseDTO;
 import com.piedraazul.disponibilidad.infraestructura.dto.PeriodoDisponibilidadResponseDTO;
 import com.piedraazul.disponibilidad.infraestructura.dto.SlotDisponibleDTO;
+import com.piedraazul.identidad.infraestructura.security.SesionActual;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -25,11 +26,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * API del módulo Disponibilidad (RF2 lectura de franjas, RF3 configuración).
- *
- * <p>La autorización por rol (Admin/Agendador/Médico para configurar, cualquiera
- * autenticado para consultar franjas) se resuelve en la capa de seguridad; los
- * casos de uso no conocen roles.</p>
+ * API Disponibilidad. Roles en SecurityConfig; médico solo configura/consulta sus periodos.
  */
 @RestController
 @RequestMapping("/api/disponibilidad")
@@ -39,17 +36,20 @@ public class DisponibilidadController {
     private final ConfigurarPeriodoDisponibilidadUseCase configurarPeriodoUseCase;
     private final ConsultarPeriodosDisponibilidadUseCase consultarPeriodosUseCase;
     private final ConsultarDisponibilidadUseCase consultarDisponibilidadUseCase;
+    private final SesionActual sesion;
 
     public DisponibilidadController(
             ConfigurarVentanaAgendamientoUseCase configurarVentanaUseCase,
             ConfigurarPeriodoDisponibilidadUseCase configurarPeriodoUseCase,
             ConsultarPeriodosDisponibilidadUseCase consultarPeriodosUseCase,
-            ConsultarDisponibilidadUseCase consultarDisponibilidadUseCase
+            ConsultarDisponibilidadUseCase consultarDisponibilidadUseCase,
+            SesionActual sesion
     ) {
         this.configurarVentanaUseCase = configurarVentanaUseCase;
         this.configurarPeriodoUseCase = configurarPeriodoUseCase;
         this.consultarPeriodosUseCase = consultarPeriodosUseCase;
         this.consultarDisponibilidadUseCase = consultarDisponibilidadUseCase;
+        this.sesion = sesion;
     }
 
     @GetMapping("/configuracion")
@@ -65,11 +65,13 @@ public class DisponibilidadController {
     @PostMapping("/periodos")
     @ResponseStatus(HttpStatus.CREATED)
     public PeriodoDisponibilidadResponseDTO configurarPeriodo(@Valid @RequestBody ConfigurarPeriodoCommand comando) {
+        sesion.siEsMedicoExigirPersona(comando.medicoId());
         return configurarPeriodoUseCase.ejecutar(comando);
     }
 
     @GetMapping("/periodos")
     public List<PeriodoDisponibilidadResponseDTO> listarPeriodos(@RequestParam Long medicoId) {
+        sesion.siEsMedicoExigirPersona(medicoId);
         return consultarPeriodosUseCase.porMedico(medicoId);
     }
 

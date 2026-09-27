@@ -1,4 +1,4 @@
-# API
+git pull# API
 
 Base: `http://localhost:8080`. Todas las respuestas son JSON.
 
@@ -89,4 +89,9 @@ Ver [Citas](../citas.md).
 
 ## Auth — `/api/auth`
 
-Pendiente (módulo Identidad). Ver [Seguridad](../seguridad.md).
+| Método | Ruta | Público |
+|---|---|---|
+| POST | `/login` | Sí |
+| POST | `/registro-paciente` | Sí |
+
+Gestión de usuarios (solo ADMIN): `/api/usuarios`. Ver [Seguridad](../seguridad.md).

@@ -1,4 +1,4 @@
-package com.piedraazul.infraestructura.security;
+package com.piedraazul.identidad.infraestructura.security;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

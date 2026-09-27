@@ -2,15 +2,20 @@ package com.piedraazul.citas;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.piedraazul.identidad.aplicacion.puertos.entrada.GestionarUsuarioUseCase;
+import com.piedraazul.identidad.infraestructura.dto.CrearUsuarioCommand;
+import com.piedraazul.nucleo.dominio.RolUsuario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -24,13 +29,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Recorre por HTTP el flujo completo de los tres requisitos funcionales:
- * el administrador configura (RF3), el paciente ve franjas y agenda (RF2) y el
- * agendador lista las citas del día con su cantidad (RF1).
+ * Recorre por HTTP el flujo completo de los tres requisitos funcionales con JWT.
  */
 @SpringBootTest(properties = "app.seed.enabled=false")
 @AutoConfigureMockMvc
 class FlujoAgendamientoTest {
+
+    private static final String PASSWORD = "demo1234";
 
     @Autowired
     private MockMvc mvc;
@@ -38,6 +43,11 @@ class FlujoAgendamientoTest {
     @Autowired
     private ObjectMapper json;
 
+    @Autowired
+    private GestionarUsuarioUseCase usuarios;
+
+    private String tokenAdmin;
+    private String tokenMedico;
     private Long medicoId;
     private Long pacienteId;
     private LocalDate fecha;
@@ -45,28 +55,46 @@ class FlujoAgendamientoTest {
     @BeforeEach
     void prepararCatalogo() throws Exception {
         String sufijo = UUID.randomUUID().toString().substring(0, 8);
+        String adminUser = "admin_" + sufijo;
+        String medicoUser = "medico_" + sufijo;
+
+        usuarios.crear(new CrearUsuarioCommand(adminUser, PASSWORD, RolUsuario.ADMINISTRADOR, null));
+        tokenAdmin = login(adminUser, PASSWORD);
 
         Long especialidadId = idDe(mvc.perform(post("/api/personas/especialidades")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombre\":\"Especialidad " + sufijo + "\"}"))
                 .andExpect(status().isCreated())
                 .andReturn());
 
-        medicoId = idDe(mvc.perform(post("/api/personas/medicos")
+        MvcResult medicoCreado = mvc.perform(post("/api/usuarios")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombreCompleto\":\"Dra. Prueba " + sufijo + "\",\"especialidadId\":"
-                                + especialidadId + "}"))
+                        .content("""
+                                {
+                                  "username": "%s",
+                                  "password": "%s",
+                                  "rol": "MEDICO",
+                                  "datosPersona": {
+                                    "nombreCompleto": "Dra. Prueba %s",
+                                    "especialidadId": %d
+                                  }
+                                }
+                                """.formatted(medicoUser, PASSWORD, sufijo, especialidadId)))
                 .andExpect(status().isCreated())
-                .andReturn());
+                .andReturn();
+        medicoId = leer(medicoCreado).get("personaId").asLong();
+        tokenMedico = login(medicoUser, PASSWORD);
 
         pacienteId = idDe(mvc.perform(post("/api/personas/pacientes")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombreCompleto\":\"Paciente " + sufijo + "\",\"telefono\":\"3001112233\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nombreCompleto").value("Paciente " + sufijo))
                 .andReturn());
 
-        // Tres días adelante: dentro de la ventana y sin el filtro de "franjas ya pasadas".
         fecha = LocalDate.now().plusDays(3);
     }
 
@@ -97,6 +125,7 @@ class FlujoAgendamientoTest {
         Long segundaCita = idDe(agendar("09:00", "09:30").andExpect(status().isCreated()).andReturn());
 
         mvc.perform(get("/api/citas")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .param("medicoId", String.valueOf(medicoId))
                         .param("fecha", fecha.toString()))
                 .andExpect(status().isOk())
@@ -108,6 +137,7 @@ class FlujoAgendamientoTest {
                 .andExpect(jsonPath("$.citas[0].pacienteNombre").isString());
 
         mvc.perform(get("/api/citas")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .param("medicoId", String.valueOf(medicoId))
                         .param("fecha", fecha.toString())
                         .param("orden", "HORA_DESC"))
@@ -115,25 +145,29 @@ class FlujoAgendamientoTest {
                 .andExpect(jsonPath("$.orden").value("HORA_DESC"))
                 .andExpect(jsonPath("$.citas[0].horaInicio").value("09:00"));
 
-        mvc.perform(put("/api/citas/" + primeraCita + "/cancelacion"))
+        mvc.perform(put("/api/citas/" + primeraCita + "/cancelacion")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("CANCELADA"));
 
         assertEquals(7, cantidadDeSlots(), "cancelar libera la franja de las 08:00 pero sigue ocupada la de las 09:00");
 
         mvc.perform(put("/api/citas/" + segundaCita + "/atencion")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenMedico))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"observaciones\":\"Paciente estable\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.citaId").value(segundaCita))
                 .andExpect(jsonPath("$.observaciones").value("Paciente estable"));
 
-        mvc.perform(get("/api/citas/historial/paciente/" + pacienteId))
+        mvc.perform(get("/api/citas/historial/paciente/" + pacienteId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].citaId").value(segundaCita));
 
-        mvc.perform(put("/api/citas/" + segundaCita + "/cancelacion"))
+        mvc.perform(put("/api/citas/" + segundaCita + "/cancelacion")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.codigo").value("CITA_NO_MODIFICABLE"));
     }
@@ -147,7 +181,6 @@ class FlujoAgendamientoTest {
         assertEquals(4, cantidadDeSlots(), "45 + 15 minutos de paso caben 4 veces en 4 horas");
 
         agendar("14:00", "14:45").andExpect(status().isCreated());
-        // 14:45 cae en el descanso, no es un inicio válido de la rejilla
         agendar("14:45", "15:30")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.codigo").value("SLOT_NO_DISPONIBLE"));
@@ -164,13 +197,13 @@ class FlujoAgendamientoTest {
         configurarHorarioTodosLosDias(inicioNuevo, "15:00", "18:00", 60, 0);
 
         MvcResult resultado = mvc.perform(get("/api/disponibilidad/periodos")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .param("medicoId", String.valueOf(medicoId)))
                 .andExpect(status().isOk())
                 .andReturn();
 
         JsonNode periodos = leer(resultado);
         assertEquals(2, periodos.size());
-        // Vienen del más reciente al más antiguo
         assertTrue(periodos.get(0).get("fechaFin").isNull(), "el periodo nuevo queda abierto");
         assertEquals(inicioNuevo.toString(), periodos.get(0).get("fechaInicio").asText());
         assertEquals(inicioViejo.plusDays(9).toString(), periodos.get(1).get("fechaFin").asText());
@@ -189,6 +222,7 @@ class FlujoAgendamientoTest {
                 .andExpect(jsonPath("$.codigo").value("FUERA_DE_VENTANA_AGENDAMIENTO"));
 
         mvc.perform(get("/api/disponibilidad/slots")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .param("medicoId", String.valueOf(medicoId))
                         .param("fecha", fecha.toString()))
                 .andExpect(status().isConflict())
@@ -199,6 +233,7 @@ class FlujoAgendamientoTest {
     @DisplayName("la validación de formulario responde con el detalle por campo")
     void validaElCuerpoDeLaPeticion() throws Exception {
         mvc.perform(post("/api/citas")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"medicoId\":null,\"pacienteId\":null,\"fecha\":null}"))
                 .andExpect(status().isBadRequest())
@@ -210,6 +245,7 @@ class FlujoAgendamientoTest {
     @DisplayName("RF2 exige registro de paciente con nombre y teléfono válidos")
     void rechazaRegistroDePacienteIncompleto() throws Exception {
         mvc.perform(post("/api/personas/pacientes")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombreCompleto\":\"\",\"telefono\":\"abc\"}"))
                 .andExpect(status().isBadRequest())
@@ -218,8 +254,22 @@ class FlujoAgendamientoTest {
                 .andExpect(jsonPath("$.extra.telefono").exists());
     }
 
+    private String login(String username, String password) throws Exception {
+        MvcResult result = mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        return leer(result).get("accessToken").asText();
+    }
+
+    private static String bearer(String token) {
+        return "Bearer " + token;
+    }
+
     private void configurarVentana(int semanas) throws Exception {
         mvc.perform(put("/api/disponibilidad/configuracion")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"semanas\":" + semanas + "}"))
                 .andExpect(status().isOk())
@@ -246,6 +296,7 @@ class FlujoAgendamientoTest {
                 """.formatted(medicoId, desde, horaInicio, horaFin, duracion, descanso);
 
         mvc.perform(post("/api/disponibilidad/periodos")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo))
                 .andExpect(status().isCreated())
@@ -253,8 +304,7 @@ class FlujoAgendamientoTest {
                 .andExpect(jsonPath("$.diasAtencion.length()").value(7));
     }
 
-    private org.springframework.test.web.servlet.ResultActions agendar(String horaInicio, String horaFin)
-            throws Exception {
+    private ResultActions agendar(String horaInicio, String horaFin) throws Exception {
         String cuerpo = """
                 {
                   "pacienteId": %d,
@@ -266,12 +316,14 @@ class FlujoAgendamientoTest {
                 """.formatted(pacienteId, medicoId, fecha, horaInicio, horaFin);
 
         return mvc.perform(post("/api/citas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo));
     }
 
     private int cantidadDeSlots() throws Exception {
         MvcResult resultado = mvc.perform(get("/api/disponibilidad/slots")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .param("medicoId", String.valueOf(medicoId))
                         .param("fecha", fecha.toString()))
                 .andExpect(status().isOk())

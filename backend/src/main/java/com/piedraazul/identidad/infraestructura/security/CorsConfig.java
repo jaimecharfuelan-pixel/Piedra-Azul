@@ -1,4 +1,4 @@
-package com.piedraazul.infraestructura.security;
+package com.piedraazul.identidad.infraestructura.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

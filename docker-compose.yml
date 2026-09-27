@@ -54,5 +54,18 @@ services:
     ports:
       - "4200:80"
 
+  # Solo documentación MkDocs (no depende de db/backend/frontend)
+  docs:
+    image: python:3.12-slim
+    container_name: piedraazul-docs
+    working_dir: /docs
+    volumes:
+      - ./backend:/docs
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements-docs.txt
+      && mkdocs serve -a 0.0.0.0:8000"
+
 volumes:
   postgres_data:

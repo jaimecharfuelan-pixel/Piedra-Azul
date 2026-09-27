@@ -6,14 +6,13 @@
 | **Gestión de Personas** | `personas` | RF1, RF2, RF3 | Implementado |
 | **Configuración / Disponibilidad** | `disponibilidad` | RF3, RF2 | Implementado |
 | **Gestión de Citas** | `citas` | RF1, RF2 | Implementado |
-| Identidad y Acceso | `identidad` | RF2 | Pendiente |
-| Notificaciones | `notificaciones` | — | Pendiente |
-| Infraestructura transversal | `infraestructura` | Security, JWT, datos de demo | Parcial |
+| **Identidad y Acceso** | `identidad` | RF2 (JWT + roles) | Implementado |
 
 - [Núcleo común](nucleo.md)
 - [Personas](personas.md)
 - [Disponibilidad](disponibilidad.md)
 - [Citas](citas.md)
+- [Seguridad](seguridad.md)
 
 ## Orden de dependencia
 
@@ -49,17 +48,14 @@ interfaz de puerto público:
 |---|---|---|
 | `CatalogoMedicosPort` | `PersonasModuleFacade` | Disponibilidad, Citas |
 | `CatalogoPacientesPort` | `PersonasModuleFacade` | Citas |
-| `RegistrarPersonaPort` | `PersonasModuleFacade` | Identidad (pendiente) |
+| `RegistrarPersonaPort` | `PersonasModuleFacade` | Identidad |
 | `ConsultarConfiguracionPort` | `DisponibilidadModuleFacade` | Citas |
 | `PeriodoDisponibilidadRef` | entidad `PeriodoDisponibilidad` | Citas |
 | `ConsultarCitasPort` | `CitasModuleFacade` | Disponibilidad |
 
 ## Datos de demostración
 
-Al arrancar, `SeedDatosDemo` siembra especialidades, dos médicos con horario, dos
-pacientes, la ventana de agendamiento y un par de citas de ejemplo — **sólo si la
-base está vacía**. Lo hace invocando los casos de uso, no con SQL, de modo que los
-datos sembrados cumplen las mismas reglas de negocio que la aplicación.
-
-Se apaga con `app.seed.enabled=false` (o `APP_SEED_ENABLED=false` como variable de
-entorno).
+Al arrancar, `SeedDatosDemo` (en Identidad) siembra especialidades, usuarios
+demo (`admin`, `agendador`, `ana.medico`, `carlos.medico`, `juan.paciente`,
+`maria.paciente` — password `demo1234`), horarios y citas de ejemplo — **sólo
+si la base está vacía**. Se apaga con `app.seed.enabled=false`.
