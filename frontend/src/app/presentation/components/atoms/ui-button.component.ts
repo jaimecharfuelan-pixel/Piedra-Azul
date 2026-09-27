@@ -4,12 +4,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 export type VarianteBoton = 'primario' | 'secundario' | 'peligro' | 'fantasma';
 export type TamanoBoton = 'md' | 'sm';
 
-/**
- * Átomo: botón del sistema de diseño.
- *
- * Mientras está ocupado se deshabilita y muestra un indicador, para que el
- * usuario sepa que la acción está en curso y no la dispare dos veces.
- */
+/** Botón del sistema de diseño; soporta estado de carga. */
 @Component({
   selector: 'ui-button',
   standalone: true,

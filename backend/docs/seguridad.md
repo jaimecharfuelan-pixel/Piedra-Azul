@@ -43,6 +43,11 @@ Password de todos: `demo1234`
 | Slots | ✔ | ✔ | ✔ | ✔ |
 | Agendar / cancelar / reagendar | ✔ | ✔ | ✔ | ✔\* |
 | Marcar atendida | — | — | ✔\* | — |
-| Agenda del día | ✔ | ✔ | ✔\* | — |
+| Agenda del día | ✔\*UI | ✔ | ✔\* | — |
 
-\* = solo su `personaId` (`SesionActual`).
+En la **UI**, el administrador no ve Agenda del día (configura el centro;
+cancelar/atender lo hacen agendador y médico). El backend aún autoriza
+`GET /api/citas` a ADMIN si se llama por API.
+
+\* = solo su `personaId` (`SesionActual`).  
+\*UI = permitido en API; oculto en navegación Angular.

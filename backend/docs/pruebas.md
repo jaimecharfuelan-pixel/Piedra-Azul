@@ -59,23 +59,26 @@ y médico en cada ejecución).
 El script crea su propia especialidad y su propio médico en cada ejecución, así que
 se puede repetir sin limpiar la base ni tocar los datos sembrados.
 
-!!! tip "La duración mínima está protegida dos veces"
-    Una cita de 20 minutos se rechaza con `DATOS_INVALIDOS`, porque Bean Validation
-    la para en el DTO antes de llegar al dominio. Para ver la regla del dominio
-    (`DURACION_CITA_INVALIDA`) hay que enviar una duración que pase el formulario
-    pero no quepa en la franja, por ejemplo 120 minutos en una franja de una hora.
-    El script comprueba los dos caminos.
+!!! tip "Duración mínima"
+    Una cita de 20 minutos se rechaza con `DATOS_INVALIDOS` (Bean Validation en el
+    DTO). Para ver `DURACION_CITA_INVALIDA` del dominio hay que enviar una duración
+    válida en el formulario pero que no quepa en la franja (p. ej. 120 min en una
+    hora). El script de humo cubre ambos casos.
 
-## Pruebas manuales por interfaz
+## Pruebas manuales (UI)
 
-Ver la [guía de pruebas manuales](../../GUIA_PRUEBAS_MANUALES.md) en la raíz del
-repositorio: recorre las tres pantallas paso a paso indicando qué debe pasar en
-cada una.
+Con el stack en marcha (`docker compose up -d`):
+
+1. Iniciar sesión con un usuario demo (`demo1234`).
+2. **Configuración** — ventana de semanas y horario de un médico.
+3. **Agendar** — elegir médico, fecha y franja; confirmar.
+4. **Agenda** — listar, filtrar, cancelar / reagendar / atender (según rol).
+5. **Calendario** e **Historial** — estados y consultas creadas al atender.
+
+Detalle de roles y endpoints: [Seguridad](seguridad.md) y [Frontend](frontend.md).
 
 ## Qué falta
 
-- Pruebas del frontend (Karma/Jasmine está configurado pero sólo existe el
-  esqueleto `app.component.spec.ts`).
-- Pruebas de concurrencia sobre `existeSolapamiento`: hoy dos peticiones
-  simultáneas sobre la misma franja se resuelven por la comprobación previa, no por
-  una restricción única en la base de datos.
+- Cobertura automatizada del frontend (solo existe el esqueleto de Karma).
+- Prueba de concurrencia sobre solapamiento de citas (hoy se resuelve en
+  aplicación, sin restricción única en BD).

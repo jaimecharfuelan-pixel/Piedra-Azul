@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { claveSlot, SlotDisponible } from '../../../domain/models/slot-disponible.model';
 
 /**
- * Organismo: rejilla de franjas libres para elegir una (RF2).
+ * Rejilla de franjas libres para seleccionar una.
  *
  * Cada franja es un botón con {@code aria-pressed}, de modo que la selección se
  * puede hacer con teclado y queda anunciada.

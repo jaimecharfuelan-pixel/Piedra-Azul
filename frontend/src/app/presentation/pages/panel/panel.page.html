@@ -1,0 +1,18 @@
+<section class="pz-pagina panel">
+  <header class="pz-encabezado-pagina">
+    <h1>{{ titulo() }}</h1>
+    <p>
+      Hola, <strong>{{ username() }}</strong>. {{ subtitulo() }}
+    </p>
+  </header>
+
+  <div class="panel__acciones">
+    @for (accion of acciones(); track accion.ruta) {
+      <a class="pz-tarjeta panel__tarjeta" [routerLink]="accion.ruta">
+        <h2>{{ accion.titulo }}</h2>
+        <p>{{ accion.descripcion }}</p>
+        <span>Abrir →</span>
+      </a>
+    }
+  </div>
+</section>

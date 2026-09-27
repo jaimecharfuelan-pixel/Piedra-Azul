@@ -39,6 +39,12 @@
     }
   }
 
+  &__solo-propio {
+    margin: 0;
+    color: var(--pz-gris-700);
+    font-size: var(--pz-texto-sm);
+  }
+
   &__conteo {
     margin: 0 0 var(--pz-esp-3);
     font-size: var(--pz-texto-sm);

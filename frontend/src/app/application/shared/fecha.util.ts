@@ -46,8 +46,12 @@ export function fechaLegible(fechaIso: string): string {
   });
 }
 
-/** Combina fecha y hora ISO en el formato que espera FullCalendar. */
+/** Combina fecha y hora ISO en el formato que espera FullCalendar (hora local). */
 export function aFechaHoraIso(fechaIso: string, hora: string): string {
-  const horaNormalizada = hora.length === 5 ? `${hora}:00` : hora;
-  return `${fechaIso}T${horaNormalizada}`;
+  const limpia = (hora ?? '').trim();
+  const partes = limpia.split(':');
+  const h = (partes[0] ?? '00').padStart(2, '0');
+  const m = (partes[1] ?? '00').padStart(2, '0');
+  const s = (partes[2] ?? '00').padStart(2, '0').slice(0, 2);
+  return `${fechaIso}T${h}:${m}:${s}`;
 }

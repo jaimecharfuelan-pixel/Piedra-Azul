@@ -2,8 +2,12 @@
   <header class="pz-encabezado-pagina">
     <h1>Historial de consultas</h1>
     <p>
-      Notas que quedan cuando una cita se marca como atendida. Las citas canceladas no aparecen
-      aquí.
+      @if (soloPropio()) {
+        Tus consultas registradas cuando una cita se marca como atendida.
+      } @else {
+        Notas que quedan cuando una cita se marca como atendida. Las citas canceladas no aparecen
+        aquí.
+      }
     </p>
   </header>
 
@@ -12,31 +16,37 @@
   }
 
   <div class="pz-tarjeta">
-    <div class="historial__pestanas" role="tablist" aria-label="Consultar historial por">
-      <button
-        type="button"
-        role="tab"
-        class="historial__pestana"
-        [class.historial__pestana--activa]="vista() === 'paciente'"
-        [attr.aria-selected]="vista() === 'paciente'"
-        (click)="cambiarVista('paciente')"
-      >
-        Por paciente
-      </button>
-      <button
-        type="button"
-        role="tab"
-        class="historial__pestana"
-        [class.historial__pestana--activa]="vista() === 'medico'"
-        [attr.aria-selected]="vista() === 'medico'"
-        (click)="cambiarVista('medico')"
-      >
-        Por médico
-      </button>
-    </div>
+    @if (!soloPropio()) {
+      <div class="historial__pestanas" role="tablist" aria-label="Consultar historial por">
+        <button
+          type="button"
+          role="tab"
+          class="historial__pestana"
+          [class.historial__pestana--activa]="vista() === 'paciente'"
+          [attr.aria-selected]="vista() === 'paciente'"
+          (click)="cambiarVista('paciente')"
+        >
+          Por paciente
+        </button>
+        @if (puedePorMedico()) {
+          <button
+            type="button"
+            role="tab"
+            class="historial__pestana"
+            [class.historial__pestana--activa]="vista() === 'medico'"
+            [attr.aria-selected]="vista() === 'medico'"
+            (click)="cambiarVista('medico')"
+          >
+            Por médico
+          </button>
+        }
+      </div>
+    }
 
     <div class="historial__filtros">
-      @if (vista() === 'paciente') {
+      @if (soloPropio()) {
+        <p class="historial__solo-propio">Mostrando tu historial de consultas.</p>
+      } @else if (vista() === 'paciente') {
         <ui-field etiqueta="Paciente" controlId="historial-paciente" [requerido]="true">
           <select
             id="historial-paciente"
@@ -48,6 +58,16 @@
               <option [ngValue]="paciente.id">{{ paciente.nombreCompleto }}</option>
             }
           </select>
+        </ui-field>
+      } @else if (medicoFijado()) {
+        <ui-field etiqueta="Médico / terapista" controlId="historial-medico">
+          <input
+            id="historial-medico"
+            class="pz-control"
+            type="text"
+            [value]="medicoSesionNombre()"
+            readonly
+          />
         </ui-field>
       } @else {
         <ui-field etiqueta="Médico / terapista" controlId="historial-medico" [requerido]="true">
@@ -73,7 +93,11 @@
     } @else if (consultas().length === 0) {
       <ui-empty-state
         titulo="Todavía no hay consultas registradas"
-        sugerencia="Marca una cita como atendida desde la Agenda del día para que aparezca aquí."
+        [sugerencia]="
+          soloPropio()
+            ? 'Cuando te atiendan una cita, la consulta aparecerá aquí.'
+            : 'Marca una cita como atendida desde la Agenda del día para que aparezca aquí.'
+        "
       />
     } @else {
       <p class="historial__conteo">{{ consultas().length }} consulta(s) registradas.</p>

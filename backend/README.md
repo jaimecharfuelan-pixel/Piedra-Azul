@@ -1,36 +1,35 @@
 # PiedraAzul — Backend
 
-Monolito modular con **Spring Boot**, **Spring Security**, **JWT** y documentación con **MkDocs + mkdocstrings**.
-
-## Stack
-
-- Spring Boot 3.4 / Java 17
-- Spring Security (stateless) + JWT (`jjwt`)
-- Spring Data JPA + **PostgreSQL** (Docker) / H2 (local)
-- MkDocs Material + mkdocstrings (documentación)
-
-> **FullCalendar** se usa en el **frontend** Angular para renderizar la agenda;
-> este backend expone los endpoints de citas/disponibilidad que alimentan el calendario.
+API REST en Spring Boot 3.4 (Java 17): monolito modular, Spring Security + JWT,
+JPA y PostgreSQL (H2 en perfil local).
 
 ## Perfiles
 
-| Perfil | Uso | Base de datos |
+| Perfil | Uso | BD |
 |---|---|---|
 | `local` (default) | `mvn spring-boot:run` | H2 en memoria |
-| `docker` | contenedor / Compose | PostgreSQL |
+| `docker` | Compose | PostgreSQL |
 
-## Ejecutar la API (local)
+## Datos de demo
+
+Con `APP_SEED_ENABLED=true`, al arrancar se ejecuta
+`com.piedraazul.bootstrap.SeedDatosDemo` (`ApplicationRunner`) si no existe el
+usuario `admin`. Crea usuarios, horarios y citas vía casos de uso.
+
+Password de demo: `demo1234`.
+
+```bash
+# regenerar datos
+docker compose down -v
+docker compose up -d --build
+```
+
+## Comandos
 
 ```bash
 mvn spring-boot:run
+mvn test
 ```
 
-## Docker
-
-Desde la raíz del monorepo:
-
-```bash
-docker compose up --build
-```
-
-Ver `docker-compose.yml` y `db/init/` para datos de prueba SQL.
+Documentación MkDocs: desde la raíz del repo, `docker compose up docs`
+(http://localhost:8000).

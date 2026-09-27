@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
@@ -11,10 +11,15 @@ import {
 } from '../../../application/use-cases/gestionar-medico.use-case';
 import { ListarPacientesUseCase } from '../../../application/use-cases/listar-pacientes.use-case';
 import { RegistrarPacienteUseCase } from '../../../application/use-cases/registrar-paciente.use-case';
+import {
+  puedeCrearCatalogoPersonas,
+  puedeRegistrarPacienteWalkIn,
+} from '../../../domain/auth/permisos';
 import { Especialidad } from '../../../domain/models/especialidad.model';
 import { ErrorDominio } from '../../../domain/models/error-dominio.model';
 import { Medico } from '../../../domain/models/medico.model';
 import { Paciente } from '../../../domain/models/paciente.model';
+import { AuthSessionStore } from '../../../infrastructure/auth/auth-session.store';
 import { aErrorDominio } from '../../../infrastructure/http/error-dominio.mapper';
 import { UiAlertComponent } from '../../components/atoms/ui-alert.component';
 import { UiButtonComponent } from '../../components/atoms/ui-button.component';
@@ -36,6 +41,7 @@ import { UiFieldComponent } from '../../components/molecules/ui-field.component'
 })
 export class PersonasPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
+  private readonly sesion = inject(AuthSessionStore);
   private readonly listarEspecialidades = inject(ListarEspecialidadesUseCase);
   private readonly crearEspecialidad = inject(CrearEspecialidadUseCase);
   private readonly listarMedicos = inject(ListarMedicosUseCase);
@@ -49,6 +55,9 @@ export class PersonasPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly errorDominio = signal<ErrorDominio | null>(null);
   readonly registrando = signal(false);
+
+  readonly puedeCrearCatalogo = computed(() => puedeCrearCatalogoPersonas(this.sesion.rol()));
+  readonly puedeRegistrarPaciente = computed(() => puedeRegistrarPacienteWalkIn(this.sesion.rol()));
 
   nuevaEspecialidad = '';
   nuevoMedicoNombre = '';
@@ -76,13 +85,13 @@ export class PersonasPageComponent implements OnInit {
     this.listarPacientes.execute().subscribe({
       next: (data) => this.pacientes.set(data),
       error: () => {
-        /* pacientes pueden estar vacíos sin Identidad */
+        /* listado denegado para algunos roles: se deja vacío */
       },
     });
   }
 
   onCrearEspecialidad(): void {
-    if (!this.nuevaEspecialidad.trim()) {
+    if (!this.puedeCrearCatalogo() || !this.nuevaEspecialidad.trim()) {
       return;
     }
     this.crearEspecialidad.execute({ nombre: this.nuevaEspecialidad.trim() }).subscribe({
@@ -95,7 +104,11 @@ export class PersonasPageComponent implements OnInit {
   }
 
   onCrearMedico(): void {
-    if (!this.nuevoMedicoNombre.trim() || this.nuevoMedicoEspecialidadId == null) {
+    if (
+      !this.puedeCrearCatalogo() ||
+      !this.nuevoMedicoNombre.trim() ||
+      this.nuevoMedicoEspecialidadId == null
+    ) {
       return;
     }
     this.crearMedico
@@ -114,7 +127,7 @@ export class PersonasPageComponent implements OnInit {
   }
 
   onRegistrarPaciente(): void {
-    if (this.formPaciente.invalid) {
+    if (!this.puedeRegistrarPaciente() || this.formPaciente.invalid) {
       this.formPaciente.markAllAsTouched();
       return;
     }

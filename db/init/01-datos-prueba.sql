@@ -1,21 +1,18 @@
 -- =============================================================================
--- PiedraAzul — datos de prueba (PostgreSQL)
+-- PiedraAzul — scripts en docker-entrypoint-initdb.d
 -- =============================================================================
--- JPA crea el esquema (ddl-auto=update). Este script corre SOLO al crear
--- el volumen por primera vez.
+-- Este archivo corre SOLO la primera vez que se crea el volumen de Postgres.
+-- En este proyecto NO se usan INSERTs aquí para la demo.
 --
--- Núcleo (01): sin tablas propias (enums VARCHAR, TimeRange TIME embeddable).
--- Personas (03): tablas especialidades, medicos, pacientes.
+-- Motivo: JPA crea las tablas al arrancar el backend (ddl-auto=update). Cuando
+-- este script corre, las tablas aún no existen. Además las contraseñas deben
+-- ir hasheadas (BCrypt) y las citas deben respetar reglas de negocio.
 --
--- Descomenta los INSERTs cuando quieras datos iniciales (después del primer
--- arranque del backend, o crea las tablas manualmente antes).
+-- La carga de datos demo la hace el backend:
+--   com.piedraazul.identidad.infraestructura.seed.SeedDatosDemo
+-- con APP_SEED_ENABLED=true (docker-compose).
 --
--- INSERT INTO especialidades (nombre, activa) VALUES ('Medicina General', TRUE);
--- INSERT INTO especialidades (nombre, activa) VALUES ('Fisioterapia', TRUE);
--- INSERT INTO medicos (nombre_completo, especialidad_id, activo)
---   VALUES ('Dra. Ana Pérez', 1, TRUE);
--- INSERT INTO pacientes (usuario_id, nombre_completo, telefono)
---   VALUES (1, 'Juan Paciente', '3001234567');
---
--- Reinicializar volumen: docker compose down -v
+-- Para regenerar datos desde cero:
+--   docker compose down -v
+--   docker compose up -d --build
 -- =============================================================================

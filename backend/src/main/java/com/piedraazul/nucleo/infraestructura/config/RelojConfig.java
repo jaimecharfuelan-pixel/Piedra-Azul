@@ -7,15 +7,8 @@ import java.time.Clock;
 import java.time.ZoneId;
 
 /**
- * Reloj compartido por los módulos que dependen de "hoy" (ventana de
- * agendamiento, filtrado de franjas ya pasadas).
- *
- * <p>Se inyecta como bean para que los tests puedan fijar la fecha con
- * {@code Clock.fixed(...)} en lugar de depender de la hora real de la máquina.</p>
- *
- * <p>La clínica opera en hora de Colombia. El contenedor suele estar en UTC;
- * si "hoy" saliera de esa zona, a partir de las 19:00 un horario que empieza
- * mañana ya se vería vigente.</p>
+ * Reloj de la aplicación en zona {@code America/Bogota}.
+ * Inyectable para fijar la fecha en pruebas con {@code Clock.fixed(...)}.
  */
 @Configuration
 public class RelojConfig {

@@ -22,6 +22,12 @@ import {
   alternarOrden,
 } from '../../../domain/models/orden-citas.enum';
 import { SlotDisponible, claveSlot } from '../../../domain/models/slot-disponible.model';
+import {
+  debeFijarMedicoPropio,
+  puedeAtenderCita,
+  puedeCancelarReagendar,
+} from '../../../domain/auth/permisos';
+import { AuthSessionStore } from '../../../infrastructure/auth/auth-session.store';
 import { aErrorDominio } from '../../../infrastructure/http/error-dominio.mapper';
 import { UiAlertComponent } from '../../components/atoms/ui-alert.component';
 import { UiButtonComponent } from '../../components/atoms/ui-button.component';
@@ -35,10 +41,7 @@ import { PzSlotPickerComponent } from '../../components/organisms/pz-slot-picker
 
 type AccionPendiente = 'cancelar' | 'atender' | 'reagendar';
 
-/**
- * RF1 — El agendador busca las citas de un médico en una fecha y ve el listado
- * con su cantidad. Desde la misma tabla puede cancelar, reagendar o cerrar la cita.
- */
+/** Agenda del día: listado, filtros y acciones sobre citas. */
 @Component({
   selector: 'app-agenda-page',
   standalone: true,
@@ -60,6 +63,7 @@ type AccionPendiente = 'cancelar' | 'atender' | 'reagendar';
 })
 export class AgendaPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
+  private readonly sesion = inject(AuthSessionStore);
   private readonly listarMedicos = inject(ListarMedicosUseCase);
   private readonly listarCitas = inject(ListarCitasPorMedicoUseCase);
   private readonly cancelarCita = inject(CancelarCitaUseCase);
@@ -73,6 +77,14 @@ export class AgendaPageComponent implements OnInit {
   readonly error = signal<ErrorDominio | null>(null);
   readonly aviso = signal<string | null>(null);
   readonly orden = signal<OrdenCitas>(OrdenCitas.HORA_ASC);
+
+  readonly medicoFijado = computed(() => debeFijarMedicoPropio(this.sesion.rol()));
+  readonly mostrarAtender = computed(() => puedeAtenderCita(this.sesion.rol()));
+  readonly mostrarCancelarReagendar = computed(() => puedeCancelarReagendar(this.sesion.rol()));
+  readonly medicoSesionNombre = computed(() => {
+    const id = this.sesion.personaId();
+    return this.medicos().find((m) => m.id === id)?.nombreCompleto ?? 'Tu agenda';
+  });
 
   /** Refinamiento en cliente sobre el resultado ya traído del servidor. */
   readonly textoPaciente = signal('');
@@ -119,6 +131,14 @@ export class AgendaPageComponent implements OnInit {
     this.listarMedicos.execute().subscribe({
       next: (medicos) => {
         this.medicos.set(medicos);
+        if (this.medicoFijado()) {
+          const propio = this.sesion.personaId();
+          if (propio != null) {
+            this.filtros.patchValue({ medicoId: propio });
+            this.buscar();
+          }
+          return;
+        }
         const primero = medicos[0];
         if (primero) {
           this.filtros.patchValue({ medicoId: primero.id });

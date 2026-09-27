@@ -1,0 +1,142 @@
+:host {
+  display: block;
+}
+
+.auth-pagina {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--pz-esp-5);
+  background:
+    radial-gradient(circle at 10% 10%, rgba(127, 178, 232, 0.35), transparent 40%),
+    linear-gradient(160deg, var(--pz-azul-50), #dbe8f7 55%, var(--pz-azul-100));
+}
+
+.auth-tarjeta {
+  width: min(440px, 100%);
+  padding: var(--pz-esp-6);
+  border-radius: var(--pz-radio-lg);
+  background: var(--pz-blanco);
+  box-shadow: var(--pz-sombra-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pz-esp-4);
+}
+
+.auth-marca {
+  margin: 0;
+  color: var(--pz-azul-700);
+  font-weight: 800;
+}
+
+.auth-tarjeta h1 {
+  margin: 0;
+  color: var(--pz-azul-900);
+  font-size: var(--pz-texto-2xl);
+}
+
+.auth-sub,
+.auth-pie {
+  margin: 0;
+  color: var(--pz-gris-700);
+  font-size: var(--pz-texto-sm);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pz-esp-4);
+}
+
+.auth-enlace {
+  color: var(--pz-azul-500);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-volver {
+  font-size: var(--pz-texto-sm);
+  color: var(--pz-gris-500);
+  text-decoration: none;
+}
+
+.registro__progreso {
+  height: 6px;
+  border-radius: var(--pz-radio-full);
+  background: var(--pz-gris-100);
+  overflow: hidden;
+}
+
+.registro__barra {
+  height: 100%;
+  background: linear-gradient(90deg, var(--pz-azul-500), var(--pz-azul-700));
+  transition: width 280ms ease;
+}
+
+.registro__pasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--pz-esp-2);
+  font-size: var(--pz-texto-xs);
+  color: var(--pz-gris-500);
+}
+
+.registro__pasos li {
+  flex: 1;
+  padding: var(--pz-esp-2);
+  border-radius: var(--pz-radio);
+  background: var(--pz-gris-100);
+  text-align: center;
+  font-weight: 600;
+}
+
+.registro__pasos li.activo {
+  background: var(--pz-azul-100);
+  color: var(--pz-azul-900);
+}
+
+.registro__pasos li.hecho {
+  background: var(--pz-exito-suave);
+  color: var(--pz-exito-fuerte);
+}
+
+.registro__escena {
+  min-height: 220px;
+}
+
+.registro__panel {
+  animation: registro-slide 280ms ease;
+}
+
+.registro__acciones {
+  display: flex;
+  gap: var(--pz-esp-3);
+  flex-wrap: wrap;
+}
+
+.registro__exito {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pz-esp-4);
+}
+
+@keyframes registro-slide {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .registro__barra,
+  .registro__panel {
+    transition: none;
+    animation: none;
+  }
+}

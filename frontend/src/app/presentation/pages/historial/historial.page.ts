@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   HistorialPorMedicoUseCase,
@@ -7,10 +7,17 @@ import {
 } from '../../../application/use-cases/consultar-historial.use-case';
 import { ListarMedicosUseCase } from '../../../application/use-cases/gestionar-medico.use-case';
 import { ListarPacientesUseCase } from '../../../application/use-cases/listar-pacientes.use-case';
+import {
+  debeFijarMedicoPropio,
+  historialSoloPropio,
+  puedeHistorialPorMedico,
+  puedeListarPacientes,
+} from '../../../domain/auth/permisos';
 import { Consulta } from '../../../domain/models/consulta.model';
 import { ErrorDominio } from '../../../domain/models/error-dominio.model';
 import { Medico } from '../../../domain/models/medico.model';
 import { Paciente } from '../../../domain/models/paciente.model';
+import { AuthSessionStore } from '../../../infrastructure/auth/auth-session.store';
 import { aErrorDominio } from '../../../infrastructure/http/error-dominio.mapper';
 import { UiAlertComponent } from '../../components/atoms/ui-alert.component';
 import { UiButtonComponent } from '../../components/atoms/ui-button.component';
@@ -39,6 +46,7 @@ type Vista = 'paciente' | 'medico';
   styleUrl: './historial.page.scss',
 })
 export class HistorialPageComponent implements OnInit {
+  private readonly sesion = inject(AuthSessionStore);
   private readonly listarMedicos = inject(ListarMedicosUseCase);
   private readonly listarPacientes = inject(ListarPacientesUseCase);
   private readonly historialPaciente = inject(HistorialPorPacienteUseCase);
@@ -51,34 +59,67 @@ export class HistorialPageComponent implements OnInit {
   readonly cargando = signal(false);
   readonly error = signal<ErrorDominio | null>(null);
 
+  readonly soloPropio = computed(() => historialSoloPropio(this.sesion.rol()));
+  readonly puedeListar = computed(() => puedeListarPacientes(this.sesion.rol()));
+  readonly puedePorMedico = computed(() => puedeHistorialPorMedico(this.sesion.rol()));
+  readonly medicoFijado = computed(() => debeFijarMedicoPropio(this.sesion.rol()));
+  readonly medicoSesionNombre = computed(() => {
+    const id = this.sesion.personaId();
+    return this.medicos().find((m) => m.id === id)?.nombreCompleto ?? 'Tu historial';
+  });
+
   pacienteId: number | null = null;
   medicoId: number | null = null;
 
   ngOnInit(): void {
-    this.listarPacientes.execute().subscribe({
-      next: (pacientes) => {
-        this.pacientes.set(pacientes);
-        const primero = pacientes[0];
-        if (primero) {
-          this.pacienteId = primero.id;
-          this.consultar();
-        }
-      },
-      error: (err) => this.error.set(aErrorDominio(err)),
-    });
+    if (this.soloPropio()) {
+      this.vista.set('paciente');
+      this.pacienteId = this.sesion.personaId();
+      this.consultar();
+      return;
+    }
 
-    this.listarMedicos.execute().subscribe({
-      next: (medicos) => {
-        this.medicos.set(medicos);
-        this.medicoId = medicos[0]?.id ?? null;
-      },
-      error: (err) => this.error.set(aErrorDominio(err)),
-    });
+    if (this.puedeListar()) {
+      this.listarPacientes.execute().subscribe({
+        next: (pacientes) => {
+          this.pacientes.set(pacientes);
+          const primero = pacientes[0];
+          if (primero && this.vista() === 'paciente') {
+            this.pacienteId = primero.id;
+            this.consultar();
+          }
+        },
+        error: (err) => this.error.set(aErrorDominio(err)),
+      });
+    }
+
+    if (this.puedePorMedico()) {
+      this.listarMedicos.execute().subscribe({
+        next: (medicos) => {
+          this.medicos.set(medicos);
+          if (this.medicoFijado()) {
+            this.medicoId = this.sesion.personaId();
+          } else {
+            this.medicoId = medicos[0]?.id ?? null;
+          }
+        },
+        error: (err) => this.error.set(aErrorDominio(err)),
+      });
+    }
   }
 
   cambiarVista(vista: Vista): void {
+    if (this.soloPropio()) {
+      return;
+    }
+    if (vista === 'medico' && !this.puedePorMedico()) {
+      return;
+    }
     this.vista.set(vista);
     this.consultas.set([]);
+    if (vista === 'medico' && this.medicoFijado()) {
+      this.medicoId = this.sesion.personaId();
+    }
     this.consultar();
   }
 

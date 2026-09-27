@@ -6,6 +6,13 @@ export {
   diaSemanaDeFecha,
 } from './dia-semana.enum';
 export { RolUsuario } from './rol-usuario.enum';
+export type {
+  SesionUsuario,
+  LoginCommand,
+  RegistroPacienteAuthCommand,
+  TokenResponseDto,
+  UsuarioResponseDto,
+} from './sesion.model';
 export { EstadoCita } from './estado-cita.enum';
 export { TimeRange } from './time-range.model';
 export type { ErrorDominio } from './error-dominio.model';

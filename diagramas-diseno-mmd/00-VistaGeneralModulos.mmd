@@ -1,0 +1,157 @@
+%% =====================================================================
+%% PIEDRAZUL - MONOLITO MODULAR 2026.2
+%% Vista general de modulos y contratos entre modulos (nivel C4 Componentes)
+%%
+%% Muestra unicamente los puntos de entrada de cada modulo y los PUERTOS
+%% por los que los modulos se comunican. Toda comunicacion entre modulos
+%% pasa por una fachada que implementa un puerto declarado por el modulo
+%% consumidor (Dependency Inversion Principle).
+%%
+%% Reemplaza en la migracion desde microservicios:
+%%   - RabbitMQ + *Snapshot  -> puertos de modulo + read models
+%%   - CitasServiceClient HTTP -> VerificadorCitasActivasPort (invertido)
+%% Draw.io: Extras > Editar diagrama, o Insertar > Avanzado > Mermaid
+%% =====================================================================
+
+classDiagram
+    direction LR
+
+    namespace ModuloIdentidadAcceso {
+        class ApiIdentidad {
+            <<Modulo>>
+            +registrarUsuario(comando: RegistrarUsuarioCommand) UsuarioResponseDTO
+            +autenticar(username: String, password: String) TokenResponseDTO
+        }
+        class RegistroPacientePort {
+            <<interface>>
+            +registrarPacienteDeAutoServicio(datos: DatosPacienteAutoRegistroDTO) PersonaId
+        }
+    }
+
+    namespace ModuloGestionPersonas {
+        class ApiPersonas {
+            <<Modulo>>
+            +registrarMedico(comando: RegistrarMedicoCommand) MedicoResponseDTO
+            +registrarPaciente(personaId: PersonaId) PacienteResponseDTO
+            +listarMedicosActivos() List~MedicoResponseDTO~
+        }
+        class PersonasModuleFacade {
+            <<Facade>>
+            +obtenerMedico(medicoId: MedicoId) Optional~MedicoReadModel~
+            +obtenerPaciente(pacienteId: PacienteId) Optional~PacienteReadModel~
+            +listarMedicosPorEspecialidad(especialidad: EspecialidadMedica) List~MedicoReadModel~
+            +registrarPacienteDeAutoServicio(datos: DatosPacienteAutoRegistroDTO) PersonaId
+        }
+    }
+
+    namespace ModuloConfiguracionDisponibilidad {
+        class ApiConfiguracion {
+            <<Modulo RF3>>
+            +actualizarSemanasDisponibles(semanas: Integer) ConfiguracionResponseDTO
+            +actualizarFestivos(festivos: Set~LocalDate~) Set~LocalDate~
+            +crearDisponibilidad(comando: CrearDisponibilidadCommand) DisponibilidadResponseDTO
+            +obtenerAgenda(medicoId: MedicoId) AgendaMedicoResponseDTO
+        }
+        class DisponibilidadModuleFacade {
+            <<Facade>>
+            +obtenerAgenda(medicoId: MedicoId) Optional~AgendaMedico~
+            +obtenerConfiguracion() ConfiguracionSistema
+            +calcularSlotsCandidatos(medicoId: MedicoId, desde: LocalDateTime) List~LocalDateTime~
+        }
+        class VerificadorCitasActivasPort {
+            <<interface>>
+            +validarEliminacion(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) void
+            +validarModificacion(actual: Disponibilidad, nueva: Disponibilidad) void
+        }
+        class CatalogoMedicosPort {
+            <<interface>>
+            +existeMedicoActivo(medicoId: MedicoId) boolean
+        }
+    }
+
+    namespace ModuloGestionCitas {
+        class ApiCitas {
+            <<Modulo RF1 RF2>>
+            +listarPorMedicoYFecha(medicoId: MedicoId, fecha: LocalDate) ListadoCitasResponseDTO
+            +consultarSlots(medicoId: MedicoId, pacienteId: PacienteId) SlotsDisponiblesResponseDTO
+            +agendarComoPaciente(comando: AgendarCitaCommand) CitaResponseDTO
+            +agendarManual(comando: AgendarCitaCommand) CitaResponseDTO
+        }
+        class CatalogoPersonasPort {
+            <<interface>>
+            +obtenerMedico(medicoId: MedicoId) Optional~MedicoReadModel~
+            +obtenerPaciente(pacienteId: PacienteId) Optional~PacienteReadModel~
+        }
+        class DisponibilidadConsultaPort {
+            <<interface>>
+            +obtenerAgenda(medicoId: MedicoId) Optional~AgendaMedico~
+            +obtenerConfiguracion() ConfiguracionSistema
+            +calcularSlotsCandidatos(medicoId: MedicoId, desde: LocalDateTime) List~LocalDateTime~
+        }
+        class NotificadorCitasPort {
+            <<interface>>
+            +notificarCitaAgendada(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) void
+            +notificarCitaCancelada(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) void
+        }
+        class CitasActivasAdapter {
+            <<Adapter>>
+            +validarEliminacion(medicoId: MedicoId, diaSemana: DiaSemana, horario: TimeRange) void
+            +validarModificacion(actual: Disponibilidad, nueva: Disponibilidad) void
+        }
+    }
+
+    namespace ModuloNotificaciones {
+        class ApiNotificaciones {
+            <<Modulo>>
+            +listarMias(personaId: PersonaId, leida: Boolean) List~NotificacionResponseDTO~
+            +contarNoLeidas(personaId: PersonaId) long
+        }
+        class NotificacionesModuleFacade {
+            <<Facade>>
+            +notificarCitaAgendada(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) void
+            +notificarCitaCancelada(cita: Cita, paciente: PacienteReadModel, medico: MedicoReadModel) void
+        }
+    }
+
+    namespace InfraestructuraTransversal {
+        class SeguridadWebConfig {
+            <<Configuration>>
+            +securityFilterChain(http: HttpSecurity) SecurityFilterChain
+        }
+        class SpringDomainEventPublisher {
+            <<Component>>
+            +publicar(evento: DomainEvent) void
+        }
+    }
+
+%% --------------------- CONTRATOS ENTRE MODULOS ---------------------
+    ApiCitas ..> CatalogoPersonasPort : consume
+    ApiCitas ..> DisponibilidadConsultaPort : consume
+    ApiCitas ..> NotificadorCitasPort : consume
+    PersonasModuleFacade ..|> CatalogoPersonasPort : implementa
+    DisponibilidadModuleFacade ..|> DisponibilidadConsultaPort : implementa
+    NotificacionesModuleFacade ..|> NotificadorCitasPort : implementa
+
+    ApiConfiguracion ..> VerificadorCitasActivasPort : consume
+    ApiConfiguracion ..> CatalogoMedicosPort : consume
+    CitasActivasAdapter ..|> VerificadorCitasActivasPort : implementa
+    PersonasModuleFacade ..|> CatalogoMedicosPort : implementa
+
+    ApiIdentidad ..> RegistroPacientePort : consume
+    PersonasModuleFacade ..|> RegistroPacientePort : implementa
+
+    ApiPersonas *-- PersonasModuleFacade
+    ApiConfiguracion *-- DisponibilidadModuleFacade
+    ApiNotificaciones *-- NotificacionesModuleFacade
+    ApiCitas *-- CitasActivasAdapter
+
+%% --------------------- INFRAESTRUCTURA ---------------------
+    SeguridadWebConfig ..> ApiIdentidad : protege
+    SeguridadWebConfig ..> ApiCitas : protege
+    SeguridadWebConfig ..> ApiConfiguracion : protege
+    SeguridadWebConfig ..> ApiPersonas : protege
+    SeguridadWebConfig ..> ApiNotificaciones : protege
+    ApiCitas ..> SpringDomainEventPublisher : publica eventos
+    ApiConfiguracion ..> SpringDomainEventPublisher : publica eventos
+    ApiPersonas ..> SpringDomainEventPublisher : publica eventos
+    ApiNotificaciones ..> SpringDomainEventPublisher : escucha eventos

@@ -1,0 +1,163 @@
+%% =====================================================================
+%% PIEDRAZUL - MONOLITO MODULAR 2026.2
+%% Shared Kernel - Value Objects y contratos compartidos
+%%
+%% Parte del diagrama de clases completo (DiagramaDeClasesMonolito2026-2.mmd),
+%% dividida para respetar el limite maxTextSize de Mermaid en Draw.io.
+%% Draw.io: Extras > Editar diagrama, o Insertar > Avanzado > Mermaid
+%%
+%% Clases incluidas: 17
+%% =====================================================================
+
+classDiagram
+    direction TB
+
+    namespace SharedKernel {
+        class DomainEvent {
+            <<interface>>
+            +eventId() UUID
+            +ocurridoEn() LocalDateTime
+            +tipoEvento() String
+        }
+        class DomainEventPublisher {
+            <<interface>>
+            +publicar(evento: DomainEvent) void
+            +publicarTodos(eventos: List~DomainEvent~) void
+        }
+        %% adaptado de AuditMetadata en citas-service (domain.model)
+        class AuditMetadata {
+            <<ValueObject adaptado de AuditMetadata>>
+            -createdAt: LocalDateTime
+            -updatedAt: LocalDateTime
+            -createdBy: String
+            +crear() AuditMetadata
+            +crearConUsuario(usuario: String) AuditMetadata
+            +reconstruir(createdAt: LocalDateTime, updatedAt: LocalDateTime, createdBy: String) AuditMetadata
+            +actualizar() void
+            +getCreatedAt() LocalDateTime
+            +getUpdatedAt() LocalDateTime
+            +getCreatedBy() String
+        }
+        %% adaptado de TimeRange en citas-service; campos start/end renombrados
+        class TimeRange {
+            <<ValueObject adaptado de TimeRange>>
+            -horaInicio: LocalTime
+            -horaFin: LocalTime
+            +de(horaInicio: LocalTime, horaFin: LocalTime) TimeRange
+            +contiene(hora: LocalTime) boolean
+            +solapaCon(otro: TimeRange) boolean
+            +duracionMinutos() long
+            +getHoraInicio() LocalTime
+            +getHoraFin() LocalTime
+        }
+        class RangoFechas {
+            <<ValueObject>>
+            -fechaInicio: LocalDate
+            -fechaFin: LocalDate
+            +deUnDia(fecha: LocalDate) RangoFechas
+            +de(fechaInicio: LocalDate, fechaFin: LocalDate) RangoFechas
+            +inicioDelRango() LocalDateTime
+            +finDelRango() LocalDateTime
+            +contiene(fecha: LocalDate) boolean
+            +getFechaInicio() LocalDate
+            +getFechaFin() LocalDate
+        }
+        %% adaptado de CitaId en citas-service (domain.valueobjects)
+        class CitaId {
+            <<ValueObject adaptado de CitaId>>
+            -value: UUID
+            +generate() CitaId
+            +fromString(value: String) CitaId
+            +of(value: UUID) CitaId
+            +getValue() UUID
+            +toString() String
+        }
+        %% adaptado de PacienteId en citas-service
+        class PacienteId {
+            <<ValueObject adaptado de PacienteId>>
+            -value: Long
+            +of(value: Long) PacienteId
+            +getValue() Long
+        }
+        %% adaptado de MedicoId en citas-service
+        class MedicoId {
+            <<ValueObject adaptado de MedicoId>>
+            -value: Long
+            +of(value: Long) MedicoId
+            +getValue() Long
+        }
+        %% adaptado de UsuarioId en citas-service
+        class UsuarioId {
+            <<ValueObject adaptado de UsuarioId>>
+            -value: UUID
+            +of(value: UUID) UsuarioId
+            +getValue() UUID
+        }
+        class PersonaId {
+            <<ValueObject>>
+            -value: Long
+            +of(value: Long) PersonaId
+            +getValue() Long
+        }
+        class DisponibilidadId {
+            <<ValueObject>>
+            -value: Long
+            +of(value: Long) DisponibilidadId
+            +getValue() Long
+        }
+        class NotificacionId {
+            <<ValueObject>>
+            -value: UUID
+            +generate() NotificacionId
+            +of(value: UUID) NotificacionId
+            +getValue() UUID
+        }
+        %% unifica String diaSemana (personas-service) con DayOfWeek (citas-service)
+        %% y reemplaza el enum vacio DiaSemanaLaboral y la clase DiaSemanaMapper
+        class DiaSemana {
+            <<enumeration>>
+            LUNES
+            MARTES
+            MIERCOLES
+            JUEVES
+            VIERNES
+            SABADO
+            DOMINGO
+            +desdeDayOfWeek(dia: DayOfWeek) DiaSemana
+            +aDayOfWeek() DayOfWeek
+            +desdeTexto(valor: String) DiaSemana
+            +getEtiqueta() String
+        }
+        %% adaptado de EspecialidadMedica (existia duplicado en citas y personas)
+        class EspecialidadMedica {
+            <<enumeration>>
+            GENERAL
+            TERAPEUTA_NEURAL
+            QUIROPRACTICO
+            FISIOTERAPEUTA
+            +getEtiqueta() String
+            +esConsultaGeneral() boolean
+            +desdeTexto(valor: String) EspecialidadMedica
+        }
+        class DomainException {
+            <<abstract>>
+            -codigo: String
+            -mensaje: String
+            +getCodigo() String
+            +getMessage() String
+        }
+        class ReglaDeNegocioException {
+            <<Exception adaptado de ReglaDeNegocioException>>
+            +ReglaDeNegocioException(mensaje: String)
+        }
+        class RecursoNoEncontradoException {
+            <<Exception>>
+            +RecursoNoEncontradoException(mensaje: String)
+        }
+    }
+
+%% --------------------- RELACIONES ---------------------
+    DomainException <|-- ReglaDeNegocioException
+    DomainException <|-- RecursoNoEncontradoException
+    TimeRange ..> DiaSemana : coopera
+    RangoFechas ..> DiaSemana : coopera

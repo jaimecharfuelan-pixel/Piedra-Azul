@@ -12,7 +12,7 @@ import { UiBadgeComponent } from '../atoms/ui-badge.component';
 import { UiButtonComponent } from '../atoms/ui-button.component';
 
 /**
- * Organismo: tabla de citas del RF1.
+ * Organismo: tabla de citas con orden y acciones.
  *
  * Los encabezados ordenables son botones reales con {@code aria-sort}, así que
  * el orden se puede cambiar con teclado y los lectores de pantalla lo anuncian.
@@ -28,6 +28,8 @@ export class PzCitasTableComponent {
   @Input() citas: readonly Cita[] = [];
   @Input() orden: OrdenCitas = OrdenCitas.HORA_ASC;
   @Input() mostrarAcciones = true;
+  @Input() mostrarAtender = true;
+  @Input() mostrarCancelarReagendar = true;
   @Input() leyenda = '';
 
   @Output() readonly ordenPulsado = new EventEmitter<CampoOrdenable>();

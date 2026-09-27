@@ -12,7 +12,6 @@ requisitos funcionales con pantallas dedicadas.
 | Reactive Forms | Validación en cliente (RF1 filtros, RF2 registro/agendar, RF3 config) |
 | FullCalendar 7 (`@fullcalendar/angular`) | Semana de franjas (RF2) y agenda visual |
 | Atomic Design | Átomos (`ui-*`), moléculas, organismos (`pz-*`) |
-| Heurísticas de Nielsen | Confirmación, estados vacíos, errores recuperables, feedback |
 
 ## Capas
 
@@ -31,26 +30,36 @@ esas líneas.
 
 | Ruta | Qué hace |
 |---|---|
-| `/agenda` | Citas de un médico en una fecha, con cantidad y orden |
-| `/agendar` | Registro del paciente, franjas libres y confirmación |
-| `/configuracion` | Ventana de reservas y horario de cada médico |
-| `/calendario` | Citas del médico en FullCalendar, con color por estado |
-| `/historial` | Consultas creadas al marcar una cita como atendida |
-| `/personas` | Especialidades, médicos y registro de pacientes |
+| `/` | Landing pública |
+| `/login` / `/registro` | JWT y alta de paciente |
+| `/panel/*` | Panel por rol |
+| `/agenda` | Citas del día (agendador / médico) |
+| `/agendar` | Reservar franja libre |
+| `/configuracion` | Ventana (admin) y horarios |
+| `/calendario` | FullCalendar por médico |
+| `/historial` | Consultas atendidas |
+| `/personas` | Catálogo; alta de médicos solo admin |
 
-## Cómo se conecta con los módulos 04 y 05
+## Autenticación y permisos en UI
 
-- **Disponibilidad**: `DisponibilidadRepositoryPort` → `GET/PUT /api/disponibilidad/*`
-- **Citas**: `CitaRepositoryPort` → `POST/PUT/GET /api/citas/*`
+- Token Bearer en `AuthSessionStore` + interceptor HTTP.
+- Navegación y botones filtrados por `domain/auth/permisos.ts` (alineado a
+  `SecurityConfig`, sin ofrecer acciones que el backend deniega).
+- El médico opera solo su `personaId` (agenda, calendario, horario).
+
+## Cómo se conecta con los módulos
+
+- **Identidad**: `POST /api/auth/login`, `POST /api/auth/registro-paciente`
+- **Disponibilidad**: `GET/PUT /api/disponibilidad/*`
+- **Citas**: `POST/PUT/GET /api/citas/*`
+- **Personas**: `GET/POST /api/personas/*`
 
 El algoritmo de slots vive en el backend (`CalculadorSlotsPorIntervaloFijo`).
 El frontend solo pinta las franjas que ya vienen libres.
 
 ## Usabilidad
 
-- Toda acción destructiva (cancelar, atender) pasa por `pz-confirm-dialog`.
-- Los errores de negocio se traducen a un mensaje + una sugerencia
-  (`error-dominio.mapper.ts`).
-- Los estados vacíos dicen qué hacer después (heurística de ayuda).
-- El orden de la tabla del RF1 se cambia pulsando el encabezado (reconocimiento
-  antes que recuerdo).
+- Acciones destructivas pasan por diálogo de confirmación.
+- Errores de negocio se muestran con mensaje y sugerencia.
+- Estados vacíos indican el siguiente paso.
+- La tabla de agenda ordena al pulsar el encabezado.

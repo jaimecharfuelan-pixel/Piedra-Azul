@@ -1,0 +1,45 @@
+<section class="auth-pagina">
+  <div class="auth-tarjeta">
+    <p class="auth-marca">PiedraAzul</p>
+    <h1>Inicio de sesión</h1>
+    <p class="auth-sub">Ingresa con tu usuario para continuar al panel de tu rol.</p>
+
+    @if (error()) {
+      <ui-alert tipo="error" titulo="No se pudo iniciar sesión" [mensaje]="error()!" />
+    }
+
+    <form class="auth-form" [formGroup]="form" (ngSubmit)="enviar()">
+      <ui-field
+        etiqueta="Usuario"
+        controlId="login-user"
+        [requerido]="true"
+        [error]="form.controls.username.touched && form.controls.username.invalid ? 'Indica tu usuario' : null"
+      >
+        <input id="login-user" class="pz-control" formControlName="username" autocomplete="username" />
+      </ui-field>
+
+      <ui-field
+        etiqueta="Contraseña"
+        controlId="login-pass"
+        [requerido]="true"
+        [error]="form.controls.password.touched && form.controls.password.invalid ? 'Mínimo 6 caracteres' : null"
+      >
+        <input
+          id="login-pass"
+          class="pz-control"
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+        />
+      </ui-field>
+
+      <ui-button type="submit" [cargando]="cargando()" [disabled]="cargando()">Entrar</ui-button>
+    </form>
+
+    <p class="auth-pie">
+      ¿No tienes cuenta?
+      <a routerLink="/registro" class="auth-enlace">Regístrate aquí</a>
+    </p>
+    <a class="auth-volver" routerLink="/">← Volver al inicio</a>
+  </div>
+</section>

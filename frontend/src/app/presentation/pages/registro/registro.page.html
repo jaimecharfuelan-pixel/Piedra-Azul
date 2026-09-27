@@ -1,0 +1,94 @@
+<section class="auth-pagina">
+  <div class="auth-tarjeta registro">
+    <p class="auth-marca">PiedraAzul</p>
+    <h1>Registro de paciente</h1>
+    <p class="auth-sub">Crea tu cuenta para agendar citas en línea.</p>
+
+    <div class="registro__progreso" aria-hidden="true">
+      <div class="registro__barra" [style.width.%]="progreso()"></div>
+    </div>
+    <ol class="registro__pasos" aria-label="Pasos del registro">
+      <li [class.activo]="paso() === 1" [class.hecho]="paso() > 1">1. Cuenta</li>
+      <li [class.activo]="paso() === 2" [class.hecho]="paso() > 2">2. Datos</li>
+      <li [class.activo]="paso() === 3">3. Listo</li>
+    </ol>
+
+    @if (error()) {
+      <ui-alert tipo="error" titulo="Revisa los datos" [mensaje]="error()!" />
+    }
+
+    <div class="registro__escena" [attr.data-paso]="paso()">
+      @if (paso() === 1) {
+        <form class="auth-form registro__panel" [formGroup]="cuenta" (ngSubmit)="siguienteDesdeCuenta()">
+          <ui-field
+            etiqueta="Usuario"
+            controlId="reg-user"
+            [requerido]="true"
+            [error]="cuenta.controls.username.touched && cuenta.controls.username.invalid ? 'Entre 3 y 80 caracteres' : null"
+          >
+            <input id="reg-user" class="pz-control" formControlName="username" autocomplete="username" />
+          </ui-field>
+          <ui-field
+            etiqueta="Contraseña"
+            controlId="reg-pass"
+            [requerido]="true"
+            [error]="cuenta.controls.password.touched && cuenta.controls.password.invalid ? 'Mínimo 6 caracteres' : null"
+          >
+            <input id="reg-pass" class="pz-control" type="password" formControlName="password" autocomplete="new-password" />
+          </ui-field>
+          <ui-field
+            etiqueta="Confirmar contraseña"
+            controlId="reg-pass2"
+            [requerido]="true"
+          >
+            <input id="reg-pass2" class="pz-control" type="password" formControlName="confirmar" autocomplete="new-password" />
+          </ui-field>
+          <ui-button type="submit">Continuar</ui-button>
+        </form>
+      }
+
+      @if (paso() === 2) {
+        <form class="auth-form registro__panel" [formGroup]="datos" (ngSubmit)="enviar()">
+          <ui-field
+            etiqueta="Nombre completo"
+            controlId="reg-nombre"
+            [requerido]="true"
+            [error]="datos.controls.nombreCompleto.touched && datos.controls.nombreCompleto.invalid ? 'Nombre obligatorio' : null"
+          >
+            <input id="reg-nombre" class="pz-control" formControlName="nombreCompleto" autocomplete="name" />
+          </ui-field>
+          <ui-field
+            etiqueta="Teléfono"
+            controlId="reg-tel"
+            [requerido]="true"
+            ayuda="Solo dígitos, entre 7 y 15"
+            [error]="datos.controls.telefono.touched && datos.controls.telefono.invalid ? 'Teléfono inválido' : null"
+          >
+            <input id="reg-tel" class="pz-control" formControlName="telefono" inputmode="numeric" autocomplete="tel" />
+          </ui-field>
+          <div class="registro__acciones">
+            <ui-button type="button" variante="secundario" (pulsado)="volver()">Atrás</ui-button>
+            <ui-button type="submit" [cargando]="cargando()" [disabled]="cargando()">Crear cuenta</ui-button>
+          </div>
+        </form>
+      }
+
+      @if (paso() === 3) {
+        <div class="registro__panel registro__exito">
+          <ui-alert
+            tipo="exito"
+            titulo="Cuenta creada"
+            mensaje="Ya puedes iniciar sesión con tu usuario y contraseña."
+          />
+          <ui-button type="button" (pulsado)="irALogin()">Ir a inicio de sesión</ui-button>
+        </div>
+      }
+    </div>
+
+    <p class="auth-pie">
+      ¿Ya tienes cuenta?
+      <a routerLink="/login" class="auth-enlace">Inicia sesión</a>
+    </p>
+    <a class="auth-volver" routerLink="/">← Volver al inicio</a>
+  </div>
+</section>
