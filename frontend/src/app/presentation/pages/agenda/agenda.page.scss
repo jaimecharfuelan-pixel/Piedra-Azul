@@ -1,0 +1,38 @@
+.agenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pz-esp-5);
+
+  &__filtros-rejilla {
+    display: grid;
+    gap: var(--pz-esp-4);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  &__acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pz-esp-2);
+    margin-top: var(--pz-esp-4);
+  }
+
+  &__mensaje {
+    display: block;
+  }
+
+  &__resumen {
+    display: grid;
+    gap: var(--pz-esp-4);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  &__resultados {
+    padding-bottom: var(--pz-esp-4);
+  }
+
+  &__slots-dialogo {
+    margin-top: var(--pz-esp-4);
+    max-height: 14rem;
+    overflow-y: auto;
+  }
+}

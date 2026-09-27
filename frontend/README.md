@@ -41,9 +41,16 @@ npm install
 npm start
 ```
 
-Abre http://localhost:4200 — agenda en `/calendario`.
+Abre http://localhost:4200.
 
-El backend esperado: `http://localhost:8080`.
+| Ruta | Qué hace |
+|---|---|
+| `/agenda` | Listado del día con filtros, cantidad y orden |
+| `/agendar` | Registro, franjas libres y confirmación |
+| `/configuracion` | Ventana de reservas, días, franja, duración y descanso |
+| `/calendario` | Vista semanal o mensual de las citas |
+
+El backend esperado: `http://localhost:8080`. Documentación MkDocs: `cd backend && mkdocs serve`.
 
 ## Git
 

@@ -1,72 +1,144 @@
-<section class="personas">
-  <header>
-    <p><a routerLink="/">← Inicio</a></p>
-    <h1>Gestión de Personas</h1>
-    <p>Especialidades, médicos y pacientes (módulo 03).</p>
+<section class="pz-pagina personas">
+  <header class="pz-encabezado-pagina">
+    <h1>Personas</h1>
+    <p>
+      Especialidades, médicos y pacientes. Un médico activo con horario configurado ya puede
+      recibir citas.
+    </p>
   </header>
 
   @if (error()) {
-    <p class="error" role="alert">{{ error() }}</p>
+    <ui-alert tipo="error" [mensaje]="error()!" />
+  }
+  @if (errorDominio()) {
+    <ui-alert tipo="error" [titulo]="errorDominio()!.codigo" [mensaje]="errorDominio()!.mensaje" />
   }
 
-  <div class="grid">
-    <article>
-      <h2>Especialidades activas</h2>
-      <form (ngSubmit)="onCrearEspecialidad()">
-        <input [(ngModel)]="nuevaEspecialidad" name="esp" placeholder="Nombre especialidad" />
-        <button type="submit">Crear</button>
+  <div class="pz-rejilla personas__rejilla">
+    <article class="pz-tarjeta">
+      <h2 class="pz-tarjeta__titulo">Especialidades activas</h2>
+      <p class="pz-tarjeta__ayuda">Cada médico pertenece a una especialidad.</p>
+
+      <form class="personas__form" (ngSubmit)="onCrearEspecialidad()">
+        <ui-field etiqueta="Nombre de la especialidad" controlId="personas-especialidad">
+          <input
+            id="personas-especialidad"
+            class="pz-control"
+            [(ngModel)]="nuevaEspecialidad"
+            name="esp"
+            placeholder="Ej. Fisioterapia"
+          />
+        </ui-field>
+        <ui-button type="submit">Crear</ui-button>
       </form>
-      <ul>
+
+      <ul class="personas__lista">
         @for (e of especialidades(); track e.id) {
           <li>{{ e.nombre }}</li>
         } @empty {
-          <li class="muted">Sin especialidades</li>
+          <li class="personas__vacio">Sin especialidades</li>
         }
       </ul>
     </article>
 
-    <article>
-      <h2>Médicos activos</h2>
-      <form (ngSubmit)="onCrearMedico()">
-        <input [(ngModel)]="nuevoMedicoNombre" name="med" placeholder="Nombre completo" />
-        <select [(ngModel)]="nuevoMedicoEspecialidadId" name="espId">
-          <option [ngValue]="null">Especialidad…</option>
-          @for (e of especialidades(); track e.id) {
-            <option [ngValue]="e.id">{{ e.nombre }}</option>
-          }
-        </select>
-        <button type="submit">Crear</button>
+    <article class="pz-tarjeta">
+      <h2 class="pz-tarjeta__titulo">Médicos y terapistas activos</h2>
+      <p class="pz-tarjeta__ayuda">Los que aparecen en los filtros de agenda y agendamiento.</p>
+
+      <form class="personas__form" (ngSubmit)="onCrearMedico()">
+        <ui-field etiqueta="Nombre completo" controlId="personas-medico">
+          <input
+            id="personas-medico"
+            class="pz-control"
+            [(ngModel)]="nuevoMedicoNombre"
+            name="med"
+            placeholder="Ej. Dra. Ana Pérez"
+          />
+        </ui-field>
+        <ui-field etiqueta="Especialidad" controlId="personas-medico-especialidad">
+          <select
+            id="personas-medico-especialidad"
+            class="pz-control"
+            [(ngModel)]="nuevoMedicoEspecialidadId"
+            name="espId"
+          >
+            <option [ngValue]="null">Selecciona…</option>
+            @for (e of especialidades(); track e.id) {
+              <option [ngValue]="e.id">{{ e.nombre }}</option>
+            }
+          </select>
+        </ui-field>
+        <ui-button type="submit">Crear</ui-button>
       </form>
-      <table>
-        <thead>
-          <tr>
-            <th>Médico</th>
-            <th>Especialidad</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (m of medicos(); track m.id) {
+
+      <div class="pz-tabla-scroll">
+        <table class="pz-tabla">
+          <thead>
             <tr>
-              <td>{{ m.nombreCompleto }}</td>
-              <td>{{ m.especialidad?.nombre ?? '—' }}</td>
+              <th scope="col">Médico</th>
+              <th scope="col">Especialidad</th>
             </tr>
-          } @empty {
-            <tr>
-              <td colspan="2" class="muted">Sin médicos</td>
-            </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (m of medicos(); track m.id) {
+              <tr>
+                <td>{{ m.nombreCompleto }}</td>
+                <td>{{ m.especialidad?.nombre ?? '—' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="2" class="personas__vacio">Sin médicos</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </article>
 
-    <article>
-      <h2>Pacientes</h2>
-      <p class="muted">Se crean vía Identidad (RegistrarPersonaPort).</p>
-      <ul>
+    <article class="pz-tarjeta">
+      <h2 class="pz-tarjeta__titulo">Pacientes</h2>
+      <p class="pz-tarjeta__ayuda">
+        El paciente se registra aquí o al agendar, con nombre y teléfono.
+      </p>
+
+      <form class="personas__form" [formGroup]="formPaciente" (ngSubmit)="onRegistrarPaciente()">
+        <ui-field
+          etiqueta="Nombre completo"
+          controlId="personas-paciente-nombre"
+          [requerido]="true"
+          [error]="errorPaciente('nombreCompleto', 'Escribe el nombre (mínimo 3 caracteres)')"
+        >
+          <input
+            id="personas-paciente-nombre"
+            class="pz-control"
+            type="text"
+            formControlName="nombreCompleto"
+            placeholder="Ej. Juan Ramírez"
+          />
+        </ui-field>
+        <ui-field
+          etiqueta="Teléfono"
+          controlId="personas-paciente-telefono"
+          [requerido]="true"
+          [error]="errorPaciente('telefono', 'Indica un teléfono de 7 a 15 dígitos')"
+        >
+          <input
+            id="personas-paciente-telefono"
+            class="pz-control"
+            type="tel"
+            inputmode="numeric"
+            formControlName="telefono"
+            placeholder="3001234567"
+          />
+        </ui-field>
+        <ui-button type="submit" [cargando]="registrando()">Registrar paciente</ui-button>
+      </form>
+
+      <ul class="personas__lista">
         @for (p of pacientes(); track p.id) {
           <li>{{ p.nombreCompleto }} — {{ p.telefono || 'sin teléfono' }}</li>
         } @empty {
-          <li class="muted">Sin pacientes</li>
+          <li class="personas__vacio">Sin pacientes</li>
         }
       </ul>
     </article>

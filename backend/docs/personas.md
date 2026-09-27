@@ -1,7 +1,12 @@
 # Módulo Personas
 
-CRUD de **Especialidad**, **Médico** y consulta de **Paciente**.
+CRUD de **Especialidad**, **Médico** y registro/consulta de **Paciente**.
 Corresponde a `diagramas-por-modulo/03_modulo_personas.puml`.
+
+El diagrama sólo pedía consultar pacientes (el alta venía de Identidad). El RF2
+exige que el paciente se registre en la web para poder agendar, así que se añadió
+`RegistrarPacienteUseCase` + `POST /api/personas/pacientes`. Hasta que exista
+login, se asigna un `usuarioId` temporal único.
 
 ## Requisitos funcionales
 
@@ -45,6 +50,7 @@ Depende solo de **`nucleo`** (`RolUsuario`, excepciones). No importa Identidad n
 | PUT | `/api/personas/medicos/{id}/estado` | Activar/desactivar |
 | GET | `/api/personas/medicos` | Listar activos |
 | GET | `/api/personas/medicos/{id}` | Buscar por id |
+| POST | `/api/personas/pacientes` | **RF2**: registrar paciente (nombre + teléfono) |
 | GET | `/api/personas/pacientes` | Listar |
 | GET | `/api/personas/pacientes/{id}` | Buscar por id |
 

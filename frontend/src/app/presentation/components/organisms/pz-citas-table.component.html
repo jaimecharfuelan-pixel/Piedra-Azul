@@ -1,0 +1,81 @@
+<div class="pz-tabla-scroll">
+  <table class="pz-tabla pz-citas-tabla">
+    @if (leyenda) {
+      <caption>{{ leyenda }}</caption>
+    }
+
+    <thead>
+      <tr>
+        @for (columna of columnas; track columna.campo) {
+          <th scope="col" [attr.aria-sort]="sentidoDe(columna.campo)">
+            <button
+              type="button"
+              class="pz-citas-tabla__orden"
+              (click)="ordenPulsado.emit(columna.campo)"
+              [title]="'Ordenar por ' + columna.etiqueta"
+            >
+              {{ columna.etiqueta }}
+              <span class="pz-citas-tabla__flecha" aria-hidden="true">
+                {{ indicadorDe(columna.campo) }}
+              </span>
+            </button>
+          </th>
+        }
+        <th scope="col">Teléfono</th>
+        <th scope="col">Duración</th>
+        @if (mostrarAcciones) {
+          <th scope="col">Acciones</th>
+        }
+      </tr>
+    </thead>
+
+    <tbody>
+      @for (cita of citas; track cita.id) {
+        <tr>
+          <td class="pz-citas-tabla__hora">{{ cita.horaInicio }} – {{ cita.horaFin }}</td>
+          <td>
+            <span class="pz-citas-tabla__paciente">{{ cita.pacienteNombre }}</span>
+            <span class="pz-citas-tabla__id">#{{ cita.pacienteId }}</span>
+          </td>
+          <td><ui-badge [estado]="cita.estado" /></td>
+          <td>{{ cita.pacienteTelefono || '—' }}</td>
+          <td>{{ cita.duracionMinutos }} min</td>
+          @if (mostrarAcciones) {
+            <td>
+              @if (esProgramada(cita)) {
+                <div class="pz-citas-tabla__acciones">
+                  <ui-button
+                    tamano="sm"
+                    variante="secundario"
+                    [ariaLabel]="'Reagendar la cita de ' + cita.pacienteNombre"
+                    (pulsado)="reagendarPulsado.emit(cita)"
+                  >
+                    Reagendar
+                  </ui-button>
+                  <ui-button
+                    tamano="sm"
+                    variante="secundario"
+                    [ariaLabel]="'Marcar como atendida la cita de ' + cita.pacienteNombre"
+                    (pulsado)="atenderPulsado.emit(cita)"
+                  >
+                    Atender
+                  </ui-button>
+                  <ui-button
+                    tamano="sm"
+                    variante="peligro"
+                    [ariaLabel]="'Cancelar la cita de ' + cita.pacienteNombre"
+                    (pulsado)="cancelarPulsado.emit(cita)"
+                  >
+                    Cancelar
+                  </ui-button>
+                </div>
+              } @else {
+                <span class="pz-citas-tabla__sin-acciones">Sin acciones</span>
+              }
+            </td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

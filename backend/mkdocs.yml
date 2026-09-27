@@ -23,11 +23,16 @@ theme:
 nav:
   - Inicio: index.md
   - Arquitectura: arquitectura.md
-  - Núcleo común: nucleo.md
-  - Personas: personas.md
-  - Módulos: modulos.md
+  - Módulos:
+      - Vista general: modulos.md
+      - Núcleo común: nucleo.md
+      - Personas: personas.md
+      - Disponibilidad: disponibilidad.md
+      - Citas: citas.md
   - Seguridad (JWT): seguridad.md
+  - Frontend (Angular): frontend.md
   - API: api/index.md
+  - Pruebas: pruebas.md
   - Diagramas: diagramas/index.md
   - Referencia (mkdocstrings): referencia.md
 

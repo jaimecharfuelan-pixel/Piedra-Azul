@@ -1,0 +1,186 @@
+<section class="pz-pagina agenda">
+  <header class="pz-encabezado-pagina">
+    <h1>Agenda del día</h1>
+    <p>
+      Elige un médico y una fecha para ver sus citas, cuántas hay y en qué estado. Desde la tabla
+      puedes reagendar, marcar como atendida o cancelar.
+    </p>
+  </header>
+
+  <form class="pz-tarjeta agenda__filtros" [formGroup]="filtros" (ngSubmit)="buscar()">
+    <h2 class="pz-tarjeta__titulo">Filtros de búsqueda</h2>
+    <p class="pz-tarjeta__ayuda">El médico y la fecha son obligatorios; el resto afina el resultado.</p>
+
+    <div class="agenda__filtros-rejilla">
+      <ui-field
+        etiqueta="Médico / terapista"
+        controlId="filtro-medico"
+        [requerido]="true"
+        [error]="filtros.controls.medicoId.touched && filtros.controls.medicoId.invalid ? 'Selecciona un médico' : null"
+      >
+        <select id="filtro-medico" class="pz-control" formControlName="medicoId">
+          <option [ngValue]="null" disabled>Selecciona…</option>
+          @for (medico of medicos(); track medico.id) {
+            <option [ngValue]="medico.id">
+              {{ medico.nombreCompleto }}
+              @if (medico.especialidad) {
+                — {{ medico.especialidad.nombre }}
+              }
+            </option>
+          }
+        </select>
+      </ui-field>
+
+      <ui-field
+        etiqueta="Fecha"
+        controlId="filtro-fecha"
+        [requerido]="true"
+        ayuda="Puedes consultar días pasados y futuros."
+        [error]="filtros.controls.fecha.touched && filtros.controls.fecha.invalid ? 'Indica una fecha' : null"
+      >
+        <input id="filtro-fecha" type="date" class="pz-control" formControlName="fecha" />
+      </ui-field>
+
+      <ui-field
+        etiqueta="Buscar paciente"
+        controlId="filtro-paciente"
+        ayuda="Filtra las filas ya cargadas por nombre."
+      >
+        <input
+          id="filtro-paciente"
+          type="search"
+          class="pz-control"
+          placeholder="Ej. María"
+          [value]="textoPaciente()"
+          (input)="textoPaciente.set($any($event.target).value)"
+        />
+      </ui-field>
+
+      <ui-field etiqueta="Estado" controlId="filtro-estado">
+        <select
+          id="filtro-estado"
+          class="pz-control"
+          [value]="estadoFiltro()"
+          (change)="estadoFiltro.set($any($event.target).value)"
+        >
+          @for (estado of estados; track estado) {
+            <option [value]="estado">{{ estado === 'TODOS' ? 'Todos' : estado }}</option>
+          }
+        </select>
+      </ui-field>
+    </div>
+
+    <div class="agenda__acciones">
+      <ui-button type="submit" [cargando]="cargando()">Buscar citas</ui-button>
+      @if (hayRefinamiento()) {
+        <ui-button variante="fantasma" (pulsado)="limpiarRefinamiento()">Quitar filtros</ui-button>
+      }
+    </div>
+  </form>
+
+  @if (error()) {
+    <ui-alert class="agenda__mensaje" tipo="error" [titulo]="error()!.codigo" [mensaje]="error()!.mensaje" />
+  }
+  @if (aviso()) {
+    <ui-alert class="agenda__mensaje" tipo="exito" [mensaje]="aviso()!" />
+  }
+
+  @if (cargando()) {
+    <ui-spinner texto="Consultando la agenda…" />
+  }
+
+  @if (listado(); as resultado) {
+    <div class="agenda__resumen">
+      <ui-stat-card etiqueta="Total de citas" [valor]="resultado.cantidad" tono="info" />
+      <ui-stat-card etiqueta="Programadas" [valor]="resultado.cantidadProgramadas" tono="info" />
+      <ui-stat-card etiqueta="Atendidas" [valor]="resultado.cantidadAtendidas" tono="exito" />
+      <ui-stat-card etiqueta="Canceladas" [valor]="resultado.cantidadCanceladas" tono="error" />
+    </div>
+
+    <div class="pz-tarjeta agenda__resultados">
+      <h2 class="pz-tarjeta__titulo">{{ resultado.medicoNombre }}</h2>
+      <p class="pz-tarjeta__ayuda">{{ fechaEnTexto() }}</p>
+
+      @if (resultado.cantidad === 0) {
+        <ui-empty-state
+          titulo="No hay citas para ese médico en esa fecha"
+          sugerencia="Prueba con otra fecha, o revisa en Configuración que el médico tenga horario vigente."
+        />
+      } @else if (citasVisibles().length === 0) {
+        <ui-empty-state
+          titulo="Ninguna cita coincide con los filtros"
+          sugerencia="Quita la búsqueda por paciente o cambia el estado para volver a ver las {{ resultado.cantidad }} citas."
+        />
+      } @else {
+        <pz-citas-table
+          [citas]="citasVisibles()"
+          [orden]="orden()"
+          [leyenda]="
+            'Mostrando ' + citasVisibles().length + ' de ' + resultado.cantidad +
+            ' citas. Pulsa un encabezado para cambiar el orden.'
+          "
+          (ordenPulsado)="cambiarOrden($event)"
+          (cancelarPulsado)="pedirCancelar($event)"
+          (atenderPulsado)="pedirAtender($event)"
+          (reagendarPulsado)="pedirReagendar($event)"
+        />
+      }
+    </div>
+  }
+
+  <pz-confirm-dialog
+    [abierto]="accion() !== null"
+    [titulo]="tituloDialogo()"
+    [mensaje]="mensajeDialogo()"
+    [textoConfirmar]="accion() === 'cancelar' ? 'Sí, cancelar' : 'Confirmar'"
+    [varianteConfirmar]="accion() === 'cancelar' ? 'peligro' : 'primario'"
+    [procesando]="procesando()"
+    (confirmado)="confirmar()"
+    (cancelado)="cerrarDialogo()"
+  >
+    @if (accion() === 'atender') {
+      <ui-field
+        etiqueta="Observaciones de la consulta"
+        controlId="dialogo-observaciones"
+        ayuda="Quedarán en el historial del paciente. Máximo 2000 caracteres."
+      >
+        <textarea
+          id="dialogo-observaciones"
+          class="pz-control"
+          maxlength="2000"
+          [value]="observaciones()"
+          (input)="observaciones.set($any($event.target).value)"
+        ></textarea>
+      </ui-field>
+    }
+
+    @if (accion() === 'reagendar') {
+      <ui-field etiqueta="Nueva fecha" controlId="dialogo-fecha-reagendar" [requerido]="true">
+        <input
+          id="dialogo-fecha-reagendar"
+          type="date"
+          class="pz-control"
+          [value]="fechaReagendar()"
+          (change)="cambiarFechaReagendar($any($event.target).value)"
+        />
+      </ui-field>
+
+      <div class="agenda__slots-dialogo">
+        @if (cargandoSlots()) {
+          <ui-spinner texto="Buscando franjas libres…" />
+        } @else if (slotsReagendar().length === 0) {
+          <ui-empty-state
+            titulo="No hay franjas libres ese día"
+            sugerencia="Elige otra fecha dentro de la ventana de agendamiento."
+          />
+        } @else {
+          <pz-slot-picker
+            [slots]="slotsReagendar()"
+            [seleccionada]="claveSlotElegido()"
+            (slotElegido)="elegirSlotReagendar($event)"
+          />
+        }
+      </div>
+    }
+  </pz-confirm-dialog>
+</section>

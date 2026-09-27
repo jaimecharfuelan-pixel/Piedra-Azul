@@ -1,7 +1,57 @@
-<section class="calendar-page">
-  <header>
-    <h1>Agenda</h1>
-    <p>Vista FullCalendar alimentada por el caso de uso de citas.</p>
+<section class="pz-pagina calendario">
+  <header class="pz-encabezado-pagina">
+    <h1>Calendario del médico</h1>
+    <p>Revisa las citas de un profesional por semana o por mes. El color indica el estado.</p>
   </header>
-  <full-calendar [options]="calendarOptions"></full-calendar>
+
+  @if (error()) {
+    <ui-alert tipo="error" [titulo]="error()!.codigo" [mensaje]="error()!.mensaje" />
+  }
+
+  <div class="pz-tarjeta calendario__filtros">
+    <ui-field etiqueta="Médico / terapista" controlId="calendario-medico" [requerido]="true">
+      <select
+        id="calendario-medico"
+        class="pz-control"
+        [(ngModel)]="medicoId"
+        (ngModelChange)="cargar()"
+      >
+        @for (medico of medicos(); track medico.id) {
+          <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
+        }
+      </select>
+    </ui-field>
+
+    <ui-field
+      etiqueta="Semana de"
+      controlId="calendario-semana"
+      ayuda="Se cargan cinco semanas desde el lunes de esa fecha."
+    >
+      <input
+        id="calendario-semana"
+        type="date"
+        class="pz-control"
+        [(ngModel)]="semanaDe"
+        (ngModelChange)="cargar()"
+      />
+    </ui-field>
+
+    <p class="calendario__conteo">
+      @if (cargando()) {
+        <ui-spinner texto="Cargando citas…" />
+      } @else {
+        {{ totalCitas() }} cita(s) en el rango cargado.
+      }
+    </p>
+  </div>
+
+  <ul class="calendario__leyenda" aria-label="Significado de los colores">
+    <li><span class="calendario__punto calendario__punto--programada"></span> Programada</li>
+    <li><span class="calendario__punto calendario__punto--atendida"></span> Atendida</li>
+    <li><span class="calendario__punto calendario__punto--cancelada"></span> Cancelada</li>
+  </ul>
+
+  <div class="pz-tarjeta">
+    <full-calendar [options]="calendarOptions" />
+  </div>
 </section>

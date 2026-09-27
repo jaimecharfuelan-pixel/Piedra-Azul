@@ -1,0 +1,95 @@
+.configuracion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pz-esp-5);
+
+  &__ventana {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--pz-esp-4);
+
+    ui-field {
+      flex: 0 1 12rem;
+    }
+  }
+
+  &__vigencia {
+    margin: 0;
+    flex: 1 1 18rem;
+    font-size: var(--pz-texto-sm);
+    color: var(--pz-gris-700);
+  }
+
+  &__rejilla {
+    display: grid;
+    gap: var(--pz-esp-4);
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+
+  &__dias {
+    margin: var(--pz-esp-5) 0 0;
+    padding: var(--pz-esp-4);
+    border: var(--pz-borde);
+    border-radius: var(--pz-radio);
+
+    legend {
+      padding: 0 var(--pz-esp-2);
+      font-size: var(--pz-texto-sm);
+      font-weight: 600;
+      color: var(--pz-gris-700);
+    }
+  }
+
+  &__dias-lista {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--pz-esp-2);
+  }
+
+  &__dia {
+    min-width: 3.25rem;
+    padding: var(--pz-esp-2) var(--pz-esp-3);
+    font: inherit;
+    font-weight: 600;
+    background: var(--pz-blanco);
+    border: 1px solid var(--pz-gris-300);
+    border-radius: var(--pz-radio-full);
+    cursor: pointer;
+    transition: background var(--pz-transicion), border-color var(--pz-transicion);
+
+    &:hover {
+      border-color: var(--pz-azul-500);
+      background: var(--pz-azul-50);
+    }
+
+    &--activo {
+      background: var(--pz-azul-700);
+      border-color: var(--pz-azul-900);
+      color: var(--pz-blanco);
+    }
+  }
+
+  &__error {
+    margin: var(--pz-esp-3) 0 0;
+    font-size: var(--pz-texto-xs);
+    font-weight: 600;
+    color: var(--pz-error-fuerte);
+  }
+
+  &__previsualizacion {
+    margin: var(--pz-esp-4) 0 0;
+    padding: var(--pz-esp-3);
+    background: var(--pz-azul-50);
+    border-radius: var(--pz-radio);
+    font-size: var(--pz-texto-sm);
+    color: var(--pz-gris-700);
+  }
+
+  &__acciones {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--pz-esp-4);
+  }
+}

@@ -1,0 +1,258 @@
+<section class="pz-pagina configuracion">
+  <header class="pz-encabezado-pagina">
+    <h1>Configuración</h1>
+    <p>
+      Indica hasta cuántas semanas adelante se pueden reservar citas y, para cada médico, en qué
+      días y horario atiende.
+    </p>
+  </header>
+
+  @if (error()) {
+    <ui-alert tipo="error" [titulo]="error()!.codigo" [mensaje]="error()!.mensaje" />
+  }
+  @if (aviso()) {
+    <ui-alert tipo="exito" [mensaje]="aviso()!" />
+  }
+
+  <form class="pz-tarjeta" [formGroup]="formVentana" (ngSubmit)="guardarVentana()">
+    <h2 class="pz-tarjeta__titulo">Ventana de agendamiento</h2>
+    <p class="pz-tarjeta__ayuda">
+      Cuántas semanas hacia adelante puede reservar un paciente. Aplica a todos los médicos.
+    </p>
+
+    <div class="configuracion__ventana">
+      <ui-field
+        etiqueta="Semanas habilitadas"
+        controlId="ventana-semanas"
+        [requerido]="true"
+        ayuda="Entre 1 y 52 semanas."
+        [error]="
+          formVentana.controls.semanas.touched && formVentana.controls.semanas.invalid
+            ? 'Indica un número entre 1 y 52'
+            : null
+        "
+      >
+        <input
+          id="ventana-semanas"
+          type="number"
+          class="pz-control"
+          min="1"
+          max="52"
+          formControlName="semanas"
+        />
+      </ui-field>
+
+      @if (configuracion(); as config) {
+        <p class="configuracion__vigencia">
+          Hoy se puede agendar del <strong>{{ config.agendamientoDesde }}</strong> al
+          <strong>{{ config.agendamientoHasta }}</strong>.
+        </p>
+      }
+
+      <ui-button type="submit" [cargando]="guardandoVentana()">Guardar ventana</ui-button>
+    </div>
+  </form>
+
+  <form class="pz-tarjeta" [formGroup]="formPeriodo" (ngSubmit)="guardarPeriodo()">
+    <h2 class="pz-tarjeta__titulo">Horario de un médico</h2>
+    <p class="pz-tarjeta__ayuda">
+      Elige el médico, desde cuándo aplica el horario, la franja del día, cuánto dura cada cita y
+      los días en que atiende. Si ya tenía un horario, el anterior se cierra el día previo y este
+      pasa a ser el vigente. Un médico nuevo necesita este paso para que los pacientes vean franjas
+      libres.
+    </p>
+
+    <div class="configuracion__rejilla">
+      <ui-field
+        etiqueta="Médico / terapista"
+        controlId="periodo-medico"
+        [requerido]="true"
+        [error]="errorDe('medicoId', 'Selecciona un médico')"
+      >
+        <select
+          id="periodo-medico"
+          class="pz-control"
+          formControlName="medicoId"
+          (change)="onMedicoCambiado()"
+        >
+          <option [ngValue]="null" disabled>Selecciona…</option>
+          @for (medico of medicos(); track medico.id) {
+            <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
+          }
+        </select>
+      </ui-field>
+
+      <ui-field
+        etiqueta="Rige desde"
+        controlId="periodo-fecha"
+        [requerido]="true"
+        [ayuda]="ayudaFechaInicio()"
+        [error]="errorDe('fechaInicio', 'Indica la fecha de inicio')"
+      >
+        <input id="periodo-fecha" type="date" class="pz-control" formControlName="fechaInicio" />
+      </ui-field>
+
+      <ui-field
+        etiqueta="Desde la hora"
+        controlId="periodo-hora-inicio"
+        [requerido]="true"
+        [error]="errorDe('horaInicio', 'Indica la hora de inicio')"
+      >
+        <input
+          id="periodo-hora-inicio"
+          type="time"
+          class="pz-control"
+          step="900"
+          formControlName="horaInicio"
+        />
+      </ui-field>
+
+      <ui-field
+        etiqueta="Hasta la hora"
+        controlId="periodo-hora-fin"
+        [requerido]="true"
+        [error]="errorDe('horaFin', 'Indica la hora de fin')"
+      >
+        <input
+          id="periodo-hora-fin"
+          type="time"
+          class="pz-control"
+          step="900"
+          formControlName="horaFin"
+        />
+      </ui-field>
+
+      <ui-field
+        etiqueta="Duración de la cita (min)"
+        controlId="periodo-duracion"
+        [requerido]="true"
+        [ayuda]="'Mínimo ' + duracionMinima + ' minutos.'"
+        [error]="errorDe('duracionCitaMinutos', 'Mínimo 30 minutos')"
+      >
+        <input
+          id="periodo-duracion"
+          type="number"
+          class="pz-control"
+          min="30"
+          max="480"
+          step="5"
+          formControlName="duracionCitaMinutos"
+        />
+      </ui-field>
+
+      <ui-field
+        etiqueta="Descanso entre citas (min)"
+        controlId="periodo-descanso"
+        [requerido]="true"
+        [ayuda]="'De 0 a ' + descansoMaximo + ' minutos.'"
+        [error]="errorDe('descansoEntreCitasMinutos', 'Entre 0 y 120 minutos')"
+      >
+        <input
+          id="periodo-descanso"
+          type="number"
+          class="pz-control"
+          min="0"
+          max="120"
+          step="5"
+          formControlName="descansoEntreCitasMinutos"
+        />
+      </ui-field>
+    </div>
+
+    <fieldset class="configuracion__dias">
+      <legend>Días que atiende <span aria-hidden="true">*</span></legend>
+      <div class="configuracion__dias-lista">
+        @for (dia of dias; track dia) {
+          <button
+            type="button"
+            class="configuracion__dia"
+            [class.configuracion__dia--activo]="estaElegido(dia)"
+            [attr.aria-pressed]="estaElegido(dia)"
+            [title]="etiqueta(dia)"
+            (click)="alternarDia(dia)"
+          >
+            {{ abreviatura(dia) }}
+          </button>
+        }
+        <ui-button variante="fantasma" tamano="sm" (pulsado)="elegirDiasHabiles()">
+          Lunes a viernes
+        </ui-button>
+      </div>
+      @if (diasElegidos().size === 0) {
+        <p class="configuracion__error" role="alert">Selecciona al menos un día de atención.</p>
+      }
+    </fieldset>
+
+    @if (errorFranja(); as mensaje) {
+      <ui-alert tipo="alerta" titulo="Revisa la franja horaria" [mensaje]="mensaje" />
+    } @else {
+      <p class="configuracion__previsualizacion">
+        Con esta configuración se ofrecerán
+        <strong>{{ citasPorDia() }} citas</strong>
+        por cada día de atención.
+      </p>
+    }
+
+    @if (avisoHorarioExistente(); as avisoHorario) {
+      <ui-alert tipo="info" titulo="Horario de este médico" [mensaje]="avisoHorario" />
+    }
+
+    <div class="configuracion__acciones">
+      <ui-button type="submit" [cargando]="guardandoPeriodo()">
+        Guardar horario
+      </ui-button>
+    </div>
+  </form>
+
+  <div class="pz-tarjeta">
+    <h2 class="pz-tarjeta__titulo">Horarios guardados</h2>
+    <p class="pz-tarjeta__ayuda">
+      Del más reciente al más antiguo. El vigente es el que se usa al agendar.
+    </p>
+
+    @if (cargandoPeriodos()) {
+      <ui-spinner texto="Cargando horarios…" />
+    } @else if (periodos().length === 0) {
+      <ui-empty-state
+        titulo="Este médico todavía no tiene horario"
+        sugerencia="Complétalo arriba y pulsa Guardar horario. Hasta entonces no aparecerán franjas al agendar."
+      />
+    } @else {
+      <div class="pz-tabla-scroll">
+        <table class="pz-tabla">
+          <thead>
+            <tr>
+              <th scope="col">Vigencia</th>
+              <th scope="col">Días</th>
+              <th scope="col">Franja</th>
+              <th scope="col">Cita</th>
+              <th scope="col">Descanso</th>
+              <th scope="col">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (periodo of periodos(); track periodo.id) {
+              <tr>
+                <td>
+                  {{ periodo.fechaInicio }} →
+                  {{ periodo.fechaFin || 'indefinido' }}
+                </td>
+                <td>{{ diasEnTexto(periodo) }}</td>
+                <td>{{ periodo.horaInicio }} – {{ periodo.horaFin }}</td>
+                <td>{{ periodo.duracionCitaMinutos }} min</td>
+                <td>{{ periodo.descansoEntreCitasMinutos }} min</td>
+                <td>
+                  @if (periodo.vigente) {
+                    <ui-badge tono="exito" texto="Vigente hoy" />
+                  } @else {
+                    <ui-badge tono="neutro" texto="Histórico" />
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</section>

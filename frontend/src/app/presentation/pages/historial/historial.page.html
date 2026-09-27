@@ -1,0 +1,98 @@
+<section class="pz-pagina historial">
+  <header class="pz-encabezado-pagina">
+    <h1>Historial de consultas</h1>
+    <p>
+      Notas que quedan cuando una cita se marca como atendida. Las citas canceladas no aparecen
+      aquí.
+    </p>
+  </header>
+
+  @if (error()) {
+    <ui-alert tipo="error" [titulo]="error()!.codigo" [mensaje]="error()!.mensaje" />
+  }
+
+  <div class="pz-tarjeta">
+    <div class="historial__pestanas" role="tablist" aria-label="Consultar historial por">
+      <button
+        type="button"
+        role="tab"
+        class="historial__pestana"
+        [class.historial__pestana--activa]="vista() === 'paciente'"
+        [attr.aria-selected]="vista() === 'paciente'"
+        (click)="cambiarVista('paciente')"
+      >
+        Por paciente
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="historial__pestana"
+        [class.historial__pestana--activa]="vista() === 'medico'"
+        [attr.aria-selected]="vista() === 'medico'"
+        (click)="cambiarVista('medico')"
+      >
+        Por médico
+      </button>
+    </div>
+
+    <div class="historial__filtros">
+      @if (vista() === 'paciente') {
+        <ui-field etiqueta="Paciente" controlId="historial-paciente" [requerido]="true">
+          <select
+            id="historial-paciente"
+            class="pz-control"
+            [(ngModel)]="pacienteId"
+            (ngModelChange)="consultar()"
+          >
+            @for (paciente of pacientes(); track paciente.id) {
+              <option [ngValue]="paciente.id">{{ paciente.nombreCompleto }}</option>
+            }
+          </select>
+        </ui-field>
+      } @else {
+        <ui-field etiqueta="Médico / terapista" controlId="historial-medico" [requerido]="true">
+          <select
+            id="historial-medico"
+            class="pz-control"
+            [(ngModel)]="medicoId"
+            (ngModelChange)="consultar()"
+          >
+            @for (medico of medicos(); track medico.id) {
+              <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
+            }
+          </select>
+        </ui-field>
+      }
+      <ui-button variante="secundario" [cargando]="cargando()" (pulsado)="consultar()">
+        Actualizar
+      </ui-button>
+    </div>
+
+    @if (cargando()) {
+      <ui-spinner texto="Cargando historial…" />
+    } @else if (consultas().length === 0) {
+      <ui-empty-state
+        titulo="Todavía no hay consultas registradas"
+        sugerencia="Marca una cita como atendida desde la Agenda del día para que aparezca aquí."
+      />
+    } @else {
+      <p class="historial__conteo">{{ consultas().length }} consulta(s) registradas.</p>
+      <ul class="historial__lista">
+        @for (consulta of consultas(); track consulta.id) {
+          <li class="historial__item">
+            <header class="historial__item-encabezado">
+              <strong>{{ consulta.fecha }}</strong>
+              <span>{{ consulta.pacienteNombre }} · {{ consulta.medicoNombre }}</span>
+            </header>
+            <p class="historial__observaciones">
+              {{ consulta.observaciones || 'Sin observaciones registradas.' }}
+            </p>
+            <footer class="historial__item-pie">
+              Cita #{{ consulta.citaId }} · registrada el {{ consulta.fechaRegistro }}
+            </footer>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</section>

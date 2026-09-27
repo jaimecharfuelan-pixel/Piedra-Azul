@@ -1,6 +1,274 @@
-/* PiedraAzul frontend — estilos globales */
+/* =========================================================================
+   PiedraAzul — estilos globales y design tokens (base del Atomic Design)
+   Todo el color, espaciado y tipografía de los componentes sale de aquí, así
+   que cambiar la identidad visual del producto es cambiar este bloque.
+   ========================================================================= */
+
+:root {
+  /* Marca */
+  --pz-azul-900: #0a2b52;
+  --pz-azul-700: #14487f;
+  --pz-azul-500: #2170c4;
+  --pz-azul-300: #7fb2e8;
+  --pz-azul-100: #e3eefb;
+  --pz-azul-50: #f2f7fd;
+
+  /* Neutros */
+  --pz-gris-900: #1c2430;
+  --pz-gris-700: #3d4a5c;
+  --pz-gris-500: #6b7889;
+  --pz-gris-300: #c3cdda;
+  --pz-gris-200: #dde4ed;
+  --pz-gris-100: #eef2f7;
+  --pz-blanco: #ffffff;
+
+  /* Semánticos (estado del sistema visible — heurística 1 de Nielsen) */
+  --pz-exito-fuerte: #10633f;
+  --pz-exito-suave: #e2f4ea;
+  --pz-error-fuerte: #9b1c1c;
+  --pz-error-suave: #fdecec;
+  --pz-alerta-fuerte: #8a5300;
+  --pz-alerta-suave: #fdf3e0;
+  --pz-info-fuerte: var(--pz-azul-700);
+  --pz-info-suave: var(--pz-azul-100);
+
+  /* Tipografía */
+  --pz-fuente: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --pz-texto-xs: 0.75rem;
+  --pz-texto-sm: 0.85rem;
+  --pz-texto-base: 0.95rem;
+  --pz-texto-lg: 1.15rem;
+  --pz-texto-xl: 1.45rem;
+  --pz-texto-2xl: 1.9rem;
+
+  /* Espaciado (escala de 4px) */
+  --pz-esp-1: 0.25rem;
+  --pz-esp-2: 0.5rem;
+  --pz-esp-3: 0.75rem;
+  --pz-esp-4: 1rem;
+  --pz-esp-5: 1.5rem;
+  --pz-esp-6: 2rem;
+  --pz-esp-7: 3rem;
+
+  /* Formas y profundidad */
+  --pz-radio-sm: 4px;
+  --pz-radio: 8px;
+  --pz-radio-lg: 14px;
+  --pz-radio-full: 999px;
+  --pz-sombra-sm: 0 1px 2px rgba(16, 34, 56, 0.08);
+  --pz-sombra: 0 2px 10px rgba(16, 34, 56, 0.09);
+  --pz-sombra-lg: 0 12px 32px rgba(16, 34, 56, 0.18);
+
+  --pz-borde: 1px solid var(--pz-gris-200);
+  --pz-foco: 0 0 0 3px var(--pz-azul-300);
+  --pz-transicion: 140ms ease-in-out;
+  --pz-ancho-contenido: 1180px;
+}
+
+/* FullCalendar (tema classic) ignora backgroundColor del evento y usa
+   --fc-event-color. Las clases las pone el mapper / eventDidMount. */
+.pz-cal-evento--programada,
+.pz-cal-evento--programada * {
+  --fc-event-color: #2170c4 !important;
+  --fc-event-bg-color: #2170c4 !important;
+  --fc-event-contrast-color: #ffffff;
+}
+
+.pz-cal-evento--atendida,
+.pz-cal-evento--atendida * {
+  --fc-event-color: #10633f !important;
+  --fc-event-bg-color: #10633f !important;
+  --fc-event-contrast-color: #ffffff;
+}
+
+.fc-event.pz-cal-evento--atendida {
+  background-color: #10633f !important;
+  border-color: #0b4a2f !important;
+  color: #ffffff !important;
+}
+
+.pz-cal-evento--cancelada,
+.pz-cal-evento--cancelada * {
+  --fc-event-color: #c3cdda !important;
+  --fc-event-bg-color: #c3cdda !important;
+  --fc-event-contrast-color: #3d4a5c;
+}
+
+.fc-event.pz-cal-evento--cancelada {
+  background-color: #eef2f7 !important;
+  border-color: #c3cdda !important;
+  color: #6b7889 !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
+}
+
+body {
+  font-family: var(--pz-fuente);
+  font-size: var(--pz-texto-base);
+  color: var(--pz-gris-900);
+  background: var(--pz-azul-50);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.25;
+  color: var(--pz-azul-900);
+}
+
+/* Foco siempre visible: es el único indicador para quien navega con teclado. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--pz-foco);
+  border-radius: var(--pz-radio-sm);
+}
+
+/* Texto sólo para lectores de pantalla. */
+.pz-solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Primitivas reutilizadas por las páginas ----------------------------- */
+
+.pz-pagina {
+  max-width: var(--pz-ancho-contenido);
+  margin: 0 auto;
+  padding: var(--pz-esp-5) var(--pz-esp-4) var(--pz-esp-7);
+}
+
+.pz-encabezado-pagina {
+  margin-bottom: var(--pz-esp-5);
+
+  h1 {
+    font-size: var(--pz-texto-2xl);
+  }
+
+  p {
+    margin: var(--pz-esp-2) 0 0;
+    color: var(--pz-gris-700);
+    max-width: 68ch;
+  }
+}
+
+.pz-tarjeta {
+  background: var(--pz-blanco);
+  border: var(--pz-borde);
+  border-radius: var(--pz-radio-lg);
+  box-shadow: var(--pz-sombra-sm);
+  padding: var(--pz-esp-5);
+}
+
+.pz-tarjeta__titulo {
+  font-size: var(--pz-texto-lg);
+  margin-bottom: var(--pz-esp-2);
+}
+
+.pz-tarjeta__ayuda {
+  margin: 0 0 var(--pz-esp-4);
+  color: var(--pz-gris-500);
+  font-size: var(--pz-texto-sm);
+}
+
+.pz-rejilla {
+  display: grid;
+  gap: var(--pz-esp-5);
+}
+
+/* --- Controles de formulario -------------------------------------------- */
+
+.pz-control {
+  width: 100%;
+  padding: var(--pz-esp-2) var(--pz-esp-3);
+  font: inherit;
+  color: var(--pz-gris-900);
+  background: var(--pz-blanco);
+  border: 1px solid var(--pz-gris-300);
+  border-radius: var(--pz-radio);
+  transition: border-color var(--pz-transicion), box-shadow var(--pz-transicion);
+
+  &:hover:not(:disabled) {
+    border-color: var(--pz-azul-300);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--pz-azul-500);
+    box-shadow: var(--pz-foco);
+  }
+
+  &:disabled {
+    background: var(--pz-gris-100);
+    color: var(--pz-gris-500);
+    cursor: not-allowed;
+  }
+
+  &.pz-control--invalido {
+    border-color: var(--pz-error-fuerte);
+  }
+}
+
+textarea.pz-control {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+/* --- Tablas ------------------------------------------------------------- */
+
+.pz-tabla-scroll {
+  overflow-x: auto;
+}
+
+.pz-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--pz-texto-sm);
+
+  caption {
+    text-align: left;
+    color: var(--pz-gris-500);
+    font-size: var(--pz-texto-xs);
+    padding-bottom: var(--pz-esp-2);
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: var(--pz-esp-3);
+    border-bottom: 1px solid var(--pz-gris-200);
+    white-space: nowrap;
+  }
+
+  thead th {
+    background: var(--pz-gris-100);
+    color: var(--pz-gris-700);
+    font-size: var(--pz-texto-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    position: sticky;
+    top: 0;
+  }
+
+  tbody tr:hover {
+    background: var(--pz-azul-50);
+  }
 }

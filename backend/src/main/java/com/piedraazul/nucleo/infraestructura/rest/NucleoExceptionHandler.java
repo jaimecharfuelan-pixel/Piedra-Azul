@@ -5,25 +5,37 @@ import com.piedraazul.nucleo.dominio.excepciones.RecursoNoEncontradoException;
 import com.piedraazul.nucleo.dominio.excepciones.ReglaDeNegocioException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Mapea excepciones del núcleo común a respuestas HTTP.
+ * Mapea excepciones del núcleo común a respuestas HTTP (RFC 7807 ProblemDetail).
  * Los códigos de {@link ReglaDeNegocioException} confirman el status (409 vs 400).
  */
 @RestControllerAdvice
 public class NucleoExceptionHandler {
 
+    /**
+     * Códigos que representan un choque con el estado actual del sistema, no una
+     * petición mal formada: se responden como 409 CONFLICT.
+     */
     private static final Set<String> CONFLICTO = Set.of(
             "SLOT_NO_DISPONIBLE",
             "CITA_NO_MODIFICABLE",
             "USERNAME_REPETIDO",
-            "MEDICO_INACTIVO"
+            "MEDICO_INACTIVO",
+            "MEDICO_NO_DISPONIBLE",
+            "ESPECIALIDAD_INACTIVA",
+            "PERIODO_SOLAPADO",
+            "FUERA_DE_VENTANA_AGENDAMIENTO"
     );
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
@@ -37,6 +49,39 @@ public class NucleoExceptionHandler {
                 ? HttpStatus.CONFLICT
                 : HttpStatus.BAD_REQUEST;
         return problem(status, ex);
+    }
+
+    /**
+     * Errores de Bean Validation en los @RequestBody: se devuelve el detalle campo a campo
+     * para que el formulario de Angular pueda marcar el control exacto.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ProblemDetail handleValidacion(MethodArgumentNotValidException ex) {
+        Map<String, String> errores = new LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors()
+                .forEach(error -> errores.putIfAbsent(error.getField(), error.getDefaultMessage()));
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Hay campos inválidos en la solicitud"
+        );
+        detail.setTitle("DATOS_INVALIDOS");
+        detail.setProperty("codigo", "DATOS_INVALIDOS");
+        detail.setProperty("timestamp", Instant.now().toString());
+        detail.setProperty("extra", errores);
+        return detail;
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    public ProblemDetail handleFormato(Exception ex) {
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "No se pudo interpretar la solicitud: revisa el formato de fechas (yyyy-MM-dd) y horas (HH:mm)"
+        );
+        detail.setTitle("FORMATO_INVALIDO");
+        detail.setProperty("codigo", "FORMATO_INVALIDO");
+        detail.setProperty("timestamp", Instant.now().toString());
+        detail.setProperty("extra", Map.of());
+        return detail;
     }
 
     private ProblemDetail problem(HttpStatus status, DomainException ex) {

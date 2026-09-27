@@ -1,0 +1,48 @@
+.pz-citas-tabla {
+  &__orden {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pz-esp-1);
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: var(--pz-texto-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--pz-gris-700);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--pz-azul-700);
+    }
+  }
+
+  &__flecha {
+    color: var(--pz-azul-500);
+  }
+
+  &__hora {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  &__paciente {
+    display: block;
+  }
+
+  &__id {
+    font-size: var(--pz-texto-xs);
+    color: var(--pz-gris-500);
+  }
+
+  &__acciones {
+    display: flex;
+    gap: var(--pz-esp-2);
+  }
+
+  &__sin-acciones {
+    font-size: var(--pz-texto-xs);
+    color: var(--pz-gris-500);
+  }
+}

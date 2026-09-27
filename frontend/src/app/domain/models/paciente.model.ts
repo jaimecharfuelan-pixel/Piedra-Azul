@@ -3,3 +3,9 @@ export interface Paciente {
   nombreCompleto: string;
   telefono: string;
 }
+
+/** Datos que el paciente escribe para registrarse en la web (RF2). */
+export interface RegistrarPacienteCommand {
+  nombreCompleto: string;
+  telefono: string;
+}

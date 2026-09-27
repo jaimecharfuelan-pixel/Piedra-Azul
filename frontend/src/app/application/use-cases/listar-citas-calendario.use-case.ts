@@ -3,12 +3,14 @@ import { Observable } from 'rxjs';
 import { Cita } from '../../domain/models/cita.model';
 import { CitaRepositoryPort } from '../../domain/ports/cita.repository.port';
 
-/** Caso de uso de aplicación (capa hexagonal). */
+/**
+ * Citas de un médico en un rango de fechas, para la vista de calendario.
+ */
 @Injectable({ providedIn: 'root' })
 export class ListarCitasCalendarioUseCase {
-  private readonly citas = inject(CitaRepositoryPort);
+  private readonly repositorio = inject(CitaRepositoryPort);
 
-  execute(medicoId: string, desde: string, hasta: string): Observable<Cita[]> {
-    return this.citas.listarPorMedicoYRango(medicoId, desde, hasta);
+  execute(medicoId: number, desde: string, hasta: string): Observable<Cita[]> {
+    return this.repositorio.listarPorMedicoYRango(medicoId, desde, hasta);
   }
 }

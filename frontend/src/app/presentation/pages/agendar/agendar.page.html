@@ -1,0 +1,266 @@
+<section class="pz-pagina agendar">
+  <header class="pz-encabezado-pagina">
+    <h1>Agendar una cita</h1>
+    <p>
+      Elige con quién y cuándo. Solo verás las franjas que están realmente libres según el horario
+      del médico y las citas ya reservadas.
+    </p>
+  </header>
+
+  @if (error()) {
+    <ui-alert tipo="error" [titulo]="error()!.codigo" [mensaje]="error()!.mensaje" />
+  }
+  @if (aviso()) {
+    <ui-alert tipo="exito" [mensaje]="aviso()!" />
+  }
+
+  <div class="agendar__columnas">
+    <div class="agendar__principal">
+      <form class="pz-tarjeta" [formGroup]="formulario">
+        <h2 class="pz-tarjeta__titulo">1. ¿Quién y con quién?</h2>
+        <p class="pz-tarjeta__ayuda">
+          Debes estar registrado para agendar. Si ya lo estás, elígete en la lista; si no, crea tu
+          registro en un minuto.
+        </p>
+
+        <div class="agendar__rejilla">
+          <ui-field
+            etiqueta="Paciente"
+            controlId="agendar-paciente"
+            [requerido]="true"
+            [error]="
+              formulario.controls.pacienteId.touched && formulario.controls.pacienteId.invalid
+                ? 'Selecciona el paciente o regístrate'
+                : null
+            "
+          >
+            <select
+              id="agendar-paciente"
+              class="pz-control"
+              formControlName="pacienteId"
+              (change)="cambiarPaciente()"
+            >
+              <option [ngValue]="null" disabled>Selecciona…</option>
+              @for (paciente of pacientes(); track paciente.id) {
+                <option [ngValue]="paciente.id">{{ paciente.nombreCompleto }}</option>
+              }
+            </select>
+          </ui-field>
+
+          <div class="agendar__registro-atajo">
+            <ui-button variante="secundario" (pulsado)="abrirRegistro()">
+              Soy un paciente nuevo
+            </ui-button>
+          </div>
+
+          <ui-field
+            etiqueta="Médico / terapista"
+            controlId="agendar-medico"
+            [requerido]="true"
+            [error]="
+              formulario.controls.medicoId.touched && formulario.controls.medicoId.invalid
+                ? 'Selecciona el médico'
+                : null
+            "
+          >
+            <select
+              id="agendar-medico"
+              class="pz-control"
+              formControlName="medicoId"
+              (change)="recargarDisponibilidad()"
+            >
+              <option [ngValue]="null" disabled>Selecciona…</option>
+              @for (medico of medicos(); track medico.id) {
+                <option [ngValue]="medico.id">
+                  {{ medico.nombreCompleto }}
+                  @if (medico.especialidad) {
+                    — {{ medico.especialidad.nombre }}
+                  }
+                </option>
+              }
+            </select>
+          </ui-field>
+        </div>
+
+        <h2 class="pz-tarjeta__titulo agendar__subtitulo">2. ¿Cuándo?</h2>
+        <div class="agendar__rejilla">
+          <ui-field
+            etiqueta="Día de la cita"
+            controlId="agendar-fecha"
+            [requerido]="true"
+            [ayuda]="
+              configuracion()
+                ? 'Se puede agendar del ' + configuracion()!.agendamientoDesde + ' al ' + configuracion()!.agendamientoHasta + '.'
+                : ''
+            "
+          >
+            <input
+              id="agendar-fecha"
+              type="date"
+              class="pz-control"
+              formControlName="fecha"
+              [min]="configuracion()?.agendamientoDesde"
+              [max]="configuracion()?.agendamientoHasta"
+              (change)="recargarDisponibilidad()"
+            />
+          </ui-field>
+        </div>
+      </form>
+
+      <div class="pz-tarjeta">
+        <h2 class="pz-tarjeta__titulo">3. Elige la franja</h2>
+        <p class="pz-tarjeta__ayuda">{{ fechaEnTexto() }}</p>
+
+        @if (cargandoSlots()) {
+          <ui-spinner texto="Buscando franjas disponibles…" />
+        } @else if (slots().length === 0) {
+          <ui-empty-state
+            titulo="No hay franjas libres ese día"
+            sugerencia="Prueba con otra fecha o con otro médico. Si el médico no tiene horario configurado, un administrador debe crearlo en Configuración."
+          />
+        } @else {
+          <pz-slot-picker
+            [slots]="slots()"
+            [seleccionada]="claveElegida()"
+            (slotElegido)="elegirSlot($event)"
+          />
+        }
+
+        <div class="agendar__confirmar">
+          @if (slotElegido(); as slot) {
+            <p class="agendar__resumen">
+              <strong>{{ slot.horaInicio }} a {{ slot.horaFin }}</strong>
+              con {{ medicoSeleccionado()?.nombreCompleto }}
+              para {{ pacienteSeleccionado()?.nombreCompleto }}
+            </p>
+          } @else {
+            <p class="agendar__resumen agendar__resumen--vacio">
+              Selecciona una franja para continuar.
+            </p>
+          }
+          <ui-button [disabled]="!puedeConfirmar()" (pulsado)="abrirConfirmacion()">
+            Agendar cita
+          </ui-button>
+        </div>
+      </div>
+
+      <div class="pz-tarjeta">
+        <h2 class="pz-tarjeta__titulo">Disponibilidad de la semana</h2>
+        <p class="pz-tarjeta__ayuda">
+          Cada bloque azul claro es una franja libre. Pulsa una para seleccionarla.
+        </p>
+        <full-calendar [options]="calendarOptions" />
+      </div>
+    </div>
+
+    <aside class="agendar__lateral">
+      <div class="pz-tarjeta">
+        <h2 class="pz-tarjeta__titulo">Mis próximas citas</h2>
+        <p class="pz-tarjeta__ayuda">
+          Citas programadas de {{ pacienteSeleccionado()?.nombreCompleto || 'el paciente' }}.
+        </p>
+
+        @if (proximasCitas().length === 0) {
+          <ui-empty-state titulo="Todavía no tienes citas programadas" />
+        } @else {
+          <ul class="agendar__lista">
+            @for (cita of proximasCitas(); track cita.id) {
+              <li class="agendar__item">
+                <div>
+                  <strong>{{ cita.fecha }}</strong>
+                  <span class="agendar__hora">{{ cita.horaInicio }} – {{ cita.horaFin }}</span>
+                  <span class="agendar__medico">{{ cita.medicoNombre }}</span>
+                </div>
+                <div class="agendar__item-acciones">
+                  <ui-badge [estado]="cita.estado" />
+                  <ui-button
+                    tamano="sm"
+                    variante="peligro"
+                    [ariaLabel]="'Cancelar la cita del ' + cita.fecha"
+                    (pulsado)="pedirCancelacion(cita)"
+                  >
+                    Cancelar
+                  </ui-button>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </aside>
+  </div>
+
+  <pz-confirm-dialog
+    [abierto]="mostrandoRegistro()"
+    titulo="Regístrate para agendar"
+    mensaje="El sistema necesita tu nombre y un teléfono de contacto. Con eso ya puedes reservar una franja sin pasar por WhatsApp."
+    textoConfirmar="Crear registro"
+    [procesando]="registrando()"
+    (confirmado)="confirmarRegistro()"
+    (cancelado)="cerrarRegistro()"
+  >
+    <form class="agendar__registro-form" [formGroup]="formRegistro">
+      <ui-field
+        etiqueta="Nombre completo"
+        controlId="registro-nombre"
+        [requerido]="true"
+        [error]="errorRegistro('nombreCompleto', 'Escribe tu nombre (mínimo 3 caracteres)')"
+      >
+        <input
+          id="registro-nombre"
+          class="pz-control"
+          type="text"
+          autocomplete="name"
+          formControlName="nombreCompleto"
+          placeholder="Ej. Juan Ramírez"
+        />
+      </ui-field>
+      <ui-field
+        etiqueta="Teléfono"
+        controlId="registro-telefono"
+        [requerido]="true"
+        ayuda="Solo números, entre 7 y 15 dígitos."
+        [error]="errorRegistro('telefono', 'Indica un teléfono de 7 a 15 dígitos')"
+      >
+        <input
+          id="registro-telefono"
+          class="pz-control"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="tel"
+          formControlName="telefono"
+          placeholder="3001234567"
+        />
+      </ui-field>
+    </form>
+  </pz-confirm-dialog>
+
+  <pz-confirm-dialog
+    [abierto]="confirmando()"
+    titulo="Confirma tu cita"
+    [mensaje]="
+      slotElegido()
+        ? 'Se reservará el ' + slotElegido()!.fecha + ' de ' + slotElegido()!.horaInicio + ' a ' + slotElegido()!.horaFin + ' con ' + (medicoSeleccionado()?.nombreCompleto || '') + '.'
+        : ''
+    "
+    textoConfirmar="Sí, agendar"
+    [procesando]="procesando()"
+    (confirmado)="confirmarAgendamiento()"
+    (cancelado)="cerrarConfirmacion()"
+  />
+
+  <pz-confirm-dialog
+    [abierto]="citaACancelar() !== null"
+    titulo="Cancelar la cita"
+    [mensaje]="
+      citaACancelar()
+        ? 'Se liberará la franja del ' + citaACancelar()!.fecha + ' a las ' + citaACancelar()!.horaInicio + '. Esta acción no se puede deshacer.'
+        : ''
+    "
+    textoConfirmar="Sí, cancelar"
+    varianteConfirmar="peligro"
+    [procesando]="procesando()"
+    (confirmado)="confirmarCancelacion()"
+    (cancelado)="cerrarCancelacion()"
+  />
+</section>

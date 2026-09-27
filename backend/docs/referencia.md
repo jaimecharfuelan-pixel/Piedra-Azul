@@ -28,3 +28,39 @@
         - PUERTOS_PUBLICOS
         - ENDPOINTS
         - resumen_personas
+
+## Disponibilidad
+
+::: docs_python.disponibilidad
+    options:
+      members:
+        - TABLAS_DISPONIBILIDAD
+        - VENTANA_MINIMA_SEMANAS
+        - VENTANA_MAXIMA_SEMANAS
+        - DURACION_CITA_MINIMA_MINUTOS
+        - DESCANSO_MAXIMO_MINUTOS
+        - PUERTOS_PUBLICOS
+        - PUERTOS_CONSUMIDOS
+        - ENDPOINTS
+        - CODIGOS_ERROR
+        - PeriodoDisponibilidadDoc
+        - citas_por_dia
+        - resumen_disponibilidad
+
+## Citas
+
+::: docs_python.citas
+    options:
+      members:
+        - TABLAS_CITAS
+        - ESTADOS_CITA
+        - TRANSICIONES
+        - ORDENES_LISTADO
+        - VALIDACIONES_AGENDAR
+        - INDICES
+        - PUERTOS_PUBLICOS
+        - PUERTOS_CONSUMIDOS
+        - ENDPOINTS
+        - CODIGOS_ERROR
+        - puede_modificarse
+        - resumen_citas

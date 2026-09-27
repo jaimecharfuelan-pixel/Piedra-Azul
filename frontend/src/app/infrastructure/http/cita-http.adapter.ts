@@ -1,41 +1,67 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { Cita } from '../../domain/models/cita.model';
-import { EstadoCita } from '../../domain/models/estado-cita.enum';
+import { Observable } from 'rxjs';
+import {
+  AgendarCitaCommand,
+  Cita,
+  ListadoCitas,
+  ReagendarCitaCommand,
+} from '../../domain/models/cita.model';
+import { Consulta } from '../../domain/models/consulta.model';
+import { OrdenCitas } from '../../domain/models/orden-citas.enum';
 import { CitaRepositoryPort } from '../../domain/ports/cita.repository.port';
 
-/** Adaptador secundario: HTTP hacia el backend Spring Boot. */
+const BASE = '/api/citas';
+
+/**
+ * Adaptador REST del módulo Citas. No transforma el payload: el backend ya
+ * entrega fechas 'yyyy-MM-dd' y horas 'HH:mm', que es lo que usa la vista.
+ */
 @Injectable()
 export class CitaHttpAdapter extends CitaRepositoryPort {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '/api/citas';
 
-  listarPorMedicoYRango(
-    medicoId: string,
-    desde: string,
-    hasta: string
-  ): Observable<Cita[]> {
-    const params = new HttpParams()
-      .set('medicoId', medicoId)
-      .set('desde', desde)
-      .set('hasta', hasta);
+  listarPorMedicoYFecha(
+    medicoId: number,
+    fecha: string,
+    orden: OrdenCitas
+  ): Observable<ListadoCitas> {
+    return this.http.get<ListadoCitas>(BASE, {
+      params: { medicoId, fecha, orden },
+    });
+  }
 
-    return this.http.get<Cita[]>(this.baseUrl, { params }).pipe(
-      catchError(() =>
-        of([
-          {
-            id: 'demo-1',
-            medicoId,
-            pacienteId: 'p-1',
-            inicio: `${desde}T09:00:00`,
-            fin: `${desde}T09:30:00`,
-            estado: EstadoCita.PROGRAMADA,
-            titulo: 'Cita demo (backend aún no disponible)',
-          } satisfies Cita,
-        ])
-      )
-    );
+  listarPorMedicoYRango(medicoId: number, desde: string, hasta: string): Observable<Cita[]> {
+    return this.http.get<Cita[]>(`${BASE}/rango`, {
+      params: { medicoId, desde, hasta },
+    });
+  }
+
+  listarPorPaciente(pacienteId: number): Observable<Cita[]> {
+    return this.http.get<Cita[]>(`${BASE}/paciente/${pacienteId}`);
+  }
+
+  agendar(comando: AgendarCitaCommand): Observable<Cita> {
+    return this.http.post<Cita>(BASE, comando);
+  }
+
+  cancelar(citaId: number): Observable<Cita> {
+    return this.http.put<Cita>(`${BASE}/${citaId}/cancelacion`, {});
+  }
+
+  reagendar(citaId: number, comando: ReagendarCitaCommand): Observable<Cita> {
+    return this.http.put<Cita>(`${BASE}/${citaId}/reagendamiento`, comando);
+  }
+
+  marcarAtendida(citaId: number, observaciones: string): Observable<Consulta> {
+    return this.http.put<Consulta>(`${BASE}/${citaId}/atencion`, { observaciones });
+  }
+
+  historialPorPaciente(pacienteId: number): Observable<Consulta[]> {
+    return this.http.get<Consulta[]>(`${BASE}/historial/paciente/${pacienteId}`);
+  }
+
+  historialPorMedico(medicoId: number): Observable<Consulta[]> {
+    return this.http.get<Consulta[]>(`${BASE}/historial/medico/${medicoId}`);
   }
 }

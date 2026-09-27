@@ -31,9 +31,16 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // El módulo Identidad (02) todavía no expone /api/auth/login, así que
+                        // no hay forma de obtener un JWT. Hasta que exista, los módulos de
+                        // negocio quedan abiertos y la restricción por rol (ADMINISTRADOR y
+                        // AGENDADOR configuran, MEDICO atiende, PACIENTE agenda) se documenta
+                        // en docs/seguridad.md como pendiente de cablear aquí.
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/personas/**",
+                                "/api/disponibilidad/**",
+                                "/api/citas/**",
                                 "/h2-console/**",
                                 "/actuator/health"
                         ).permitAll()
