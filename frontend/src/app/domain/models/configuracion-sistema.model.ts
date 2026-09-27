@@ -1,6 +1,6 @@
 /**
- * Configuración global de agendamiento (RF3). El backend calcula los límites
- * de fecha para que el formulario pueda acotar el selector de día.
+ * Configuración global de agendamiento. Incluye límites de fecha calculados
+ * por el backend.
  */
 export interface ConfiguracionSistema {
   readonly id: number;

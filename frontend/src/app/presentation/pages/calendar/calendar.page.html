@@ -10,18 +10,30 @@
 
   <div class="pz-tarjeta calendario__filtros">
     <div class="calendario__medico">
-      <ui-field etiqueta="Médico / terapista" controlId="calendario-medico" [requerido]="true">
-        <select
-          id="calendario-medico"
-          class="pz-control"
-          [(ngModel)]="medicoId"
-          (ngModelChange)="cargar()"
-        >
-          @for (medico of medicos(); track medico.id) {
-            <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
-          }
-        </select>
-      </ui-field>
+      @if (medicoFijado()) {
+        <ui-field etiqueta="Médico / terapista" controlId="calendario-medico">
+          <input
+            id="calendario-medico"
+            class="pz-control"
+            type="text"
+            [value]="medicoSesionNombre()"
+            readonly
+          />
+        </ui-field>
+      } @else {
+        <ui-field etiqueta="Médico / terapista" controlId="calendario-medico" [requerido]="true">
+          <select
+            id="calendario-medico"
+            class="pz-control"
+            [(ngModel)]="medicoId"
+            (ngModelChange)="cargar()"
+          >
+            @for (medico of medicos(); track medico.id) {
+              <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
+            }
+          </select>
+        </ui-field>
+      }
 
       <p class="calendario__conteo">
         @if (cargando()) {

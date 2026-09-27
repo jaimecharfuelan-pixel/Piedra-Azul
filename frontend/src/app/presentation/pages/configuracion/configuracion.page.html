@@ -2,8 +2,13 @@
   <header class="pz-encabezado-pagina">
     <h1>Configuración</h1>
     <p>
-      Indica hasta cuántas semanas adelante se pueden reservar citas y, para cada médico, en qué
-      días y horario atiende.
+      @if (puedeVentana()) {
+        Indica hasta cuántas semanas adelante se pueden reservar citas y, para cada médico, en qué
+        días y horario atiende.
+      } @else {
+        Define los días y el horario en que atiendes. Un horario vigente es necesario para ofrecer
+        franjas libres al agendar.
+      }
     </p>
   </header>
 
@@ -14,73 +19,109 @@
     <ui-alert tipo="exito" [mensaje]="aviso()!" />
   }
 
-  <form class="pz-tarjeta" [formGroup]="formVentana" (ngSubmit)="guardarVentana()">
-    <h2 class="pz-tarjeta__titulo">Ventana de agendamiento</h2>
-    <p class="pz-tarjeta__ayuda">
-      Cuántas semanas hacia adelante puede reservar un paciente. Aplica a todos los médicos.
-    </p>
+  @if (puedeVentana()) {
+    <form class="pz-tarjeta" [formGroup]="formVentana" (ngSubmit)="guardarVentana()">
+      <h2 class="pz-tarjeta__titulo">Ventana de agendamiento</h2>
+      <p class="pz-tarjeta__ayuda">
+        Cuántas semanas hacia adelante puede reservar un paciente. Aplica a todos los médicos.
+      </p>
 
-    <div class="configuracion__ventana">
-      <ui-field
-        etiqueta="Semanas habilitadas"
-        controlId="ventana-semanas"
-        [requerido]="true"
-        ayuda="Entre 1 y 52 semanas."
-        [error]="
-          formVentana.controls.semanas.touched && formVentana.controls.semanas.invalid
-            ? 'Indica un número entre 1 y 52'
-            : null
-        "
-      >
-        <input
-          id="ventana-semanas"
-          type="number"
-          class="pz-control"
-          min="1"
-          max="52"
-          formControlName="semanas"
-        />
-      </ui-field>
+      <div class="configuracion__ventana">
+        <ui-field
+          etiqueta="Semanas habilitadas"
+          controlId="ventana-semanas"
+          [requerido]="true"
+          ayuda="Entre 1 y 52 semanas."
+          [error]="
+            formVentana.controls.semanas.touched && formVentana.controls.semanas.invalid
+              ? 'Indica un número entre 1 y 52'
+              : null
+          "
+        >
+          <input
+            id="ventana-semanas"
+            type="number"
+            class="pz-control"
+            min="1"
+            max="52"
+            formControlName="semanas"
+          />
+        </ui-field>
 
-      @if (configuracion(); as config) {
-        <p class="configuracion__vigencia">
-          Hoy se puede agendar del <strong>{{ config.agendamientoDesde }}</strong> al
+        @if (configuracion(); as config) {
+          <p class="configuracion__vigencia">
+            Hoy se puede agendar del <strong>{{ config.agendamientoDesde }}</strong> al
+            <strong>{{ config.agendamientoHasta }}</strong>.
+          </p>
+        }
+
+        <ui-button type="submit" [cargando]="guardandoVentana()">Guardar ventana</ui-button>
+      </div>
+    </form>
+  } @else {
+    @if (configuracion(); as config) {
+      <div class="pz-tarjeta">
+        <h2 class="pz-tarjeta__titulo">Ventana de agendamiento</h2>
+        <p class="pz-tarjeta__ayuda">
+          Solo el administrador puede cambiar esta ventana. Hoy se puede agendar del
+          <strong>{{ config.agendamientoDesde }}</strong> al
           <strong>{{ config.agendamientoHasta }}</strong>.
         </p>
-      }
-
-      <ui-button type="submit" [cargando]="guardandoVentana()">Guardar ventana</ui-button>
-    </div>
-  </form>
+      </div>
+    }
+  }
 
   <form class="pz-tarjeta" [formGroup]="formPeriodo" (ngSubmit)="guardarPeriodo()">
-    <h2 class="pz-tarjeta__titulo">Horario de un médico</h2>
+    <h2 class="pz-tarjeta__titulo">
+      @if (medicoFijado()) {
+        Tu horario
+      } @else {
+        Horario de un médico
+      }
+    </h2>
     <p class="pz-tarjeta__ayuda">
-      Elige el médico, desde cuándo aplica el horario, la franja del día, cuánto dura cada cita y
-      los días en que atiende. Si ya tenía un horario, el anterior se cierra el día previo y este
-      pasa a ser el vigente. Un médico nuevo necesita este paso para que los pacientes vean franjas
-      libres.
+      @if (medicoFijado()) {
+        Indica desde cuándo aplica, la franja del día, cuánto dura cada cita y los días en que
+        atiendes.
+      } @else {
+        Elige el médico, desde cuándo aplica el horario, la franja del día, cuánto dura cada cita y
+        los días en que atiende. Si ya tenía un horario, el anterior se cierra el día previo y este
+        pasa a ser el vigente. Un médico nuevo necesita este paso para que los pacientes vean franjas
+        libres.
+      }
     </p>
 
     <div class="configuracion__rejilla">
-      <ui-field
-        etiqueta="Médico / terapista"
-        controlId="periodo-medico"
-        [requerido]="true"
-        [error]="errorDe('medicoId', 'Selecciona un médico')"
-      >
-        <select
-          id="periodo-medico"
-          class="pz-control"
-          formControlName="medicoId"
-          (change)="onMedicoCambiado()"
+      @if (medicoFijado()) {
+        <ui-field etiqueta="Médico / terapista" controlId="periodo-medico">
+          <input
+            id="periodo-medico"
+            class="pz-control"
+            type="text"
+            [value]="medicoSesionNombre()"
+            readonly
+          />
+        </ui-field>
+      } @else {
+        <ui-field
+          etiqueta="Médico / terapista"
+          controlId="periodo-medico"
+          [requerido]="true"
+          [error]="errorDe('medicoId', 'Selecciona un médico')"
         >
-          <option [ngValue]="null" disabled>Selecciona…</option>
-          @for (medico of medicos(); track medico.id) {
-            <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
-          }
-        </select>
-      </ui-field>
+          <select
+            id="periodo-medico"
+            class="pz-control"
+            formControlName="medicoId"
+            (change)="onMedicoCambiado()"
+          >
+            <option [ngValue]="null" disabled>Selecciona…</option>
+            @for (medico of medicos(); track medico.id) {
+              <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
+            }
+          </select>
+        </ui-field>
+      }
 
       <ui-field
         etiqueta="Rige desde"

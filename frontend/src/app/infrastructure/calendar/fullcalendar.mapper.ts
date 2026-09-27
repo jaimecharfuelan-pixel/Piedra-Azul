@@ -114,10 +114,7 @@ function etiquetaEstado(estado: EstadoCita | string | undefined): string {
   }
 }
 
-/**
- * Las franjas libres se pintan como eventos para que el paciente las vea en el
- * mismo calendario donde elegiría la hora; la seleccionada se resalta.
- */
+/** Convierte slots libres en eventos de FullCalendar. */
 export function slotsToFullCalendarEvents(
   slots: readonly SlotDisponible[],
   seleccionada: string | null

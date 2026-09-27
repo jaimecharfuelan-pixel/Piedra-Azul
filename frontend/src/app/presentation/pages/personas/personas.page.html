@@ -19,18 +19,20 @@
       <h2 class="pz-tarjeta__titulo">Especialidades activas</h2>
       <p class="pz-tarjeta__ayuda">Cada médico pertenece a una especialidad.</p>
 
-      <form class="personas__form" (ngSubmit)="onCrearEspecialidad()">
-        <ui-field etiqueta="Nombre de la especialidad" controlId="personas-especialidad">
-          <input
-            id="personas-especialidad"
-            class="pz-control"
-            [(ngModel)]="nuevaEspecialidad"
-            name="esp"
-            placeholder="Ej. Fisioterapia"
-          />
-        </ui-field>
-        <ui-button type="submit">Crear</ui-button>
-      </form>
+      @if (puedeCrearCatalogo()) {
+        <form class="personas__form" (ngSubmit)="onCrearEspecialidad()">
+          <ui-field etiqueta="Nombre de la especialidad" controlId="personas-especialidad">
+            <input
+              id="personas-especialidad"
+              class="pz-control"
+              [(ngModel)]="nuevaEspecialidad"
+              name="esp"
+              placeholder="Ej. Fisioterapia"
+            />
+          </ui-field>
+          <ui-button type="submit">Crear</ui-button>
+        </form>
+      }
 
       <ul class="personas__lista">
         @for (e of especialidades(); track e.id) {
@@ -45,31 +47,33 @@
       <h2 class="pz-tarjeta__titulo">Médicos y terapistas activos</h2>
       <p class="pz-tarjeta__ayuda">Los que aparecen en los filtros de agenda y agendamiento.</p>
 
-      <form class="personas__form" (ngSubmit)="onCrearMedico()">
-        <ui-field etiqueta="Nombre completo" controlId="personas-medico">
-          <input
-            id="personas-medico"
-            class="pz-control"
-            [(ngModel)]="nuevoMedicoNombre"
-            name="med"
-            placeholder="Ej. Dra. Ana Pérez"
-          />
-        </ui-field>
-        <ui-field etiqueta="Especialidad" controlId="personas-medico-especialidad">
-          <select
-            id="personas-medico-especialidad"
-            class="pz-control"
-            [(ngModel)]="nuevoMedicoEspecialidadId"
-            name="espId"
-          >
-            <option [ngValue]="null">Selecciona…</option>
-            @for (e of especialidades(); track e.id) {
-              <option [ngValue]="e.id">{{ e.nombre }}</option>
-            }
-          </select>
-        </ui-field>
-        <ui-button type="submit">Crear</ui-button>
-      </form>
+      @if (puedeCrearCatalogo()) {
+        <form class="personas__form" (ngSubmit)="onCrearMedico()">
+          <ui-field etiqueta="Nombre completo" controlId="personas-medico">
+            <input
+              id="personas-medico"
+              class="pz-control"
+              [(ngModel)]="nuevoMedicoNombre"
+              name="med"
+              placeholder="Ej. Dra. Ana Pérez"
+            />
+          </ui-field>
+          <ui-field etiqueta="Especialidad" controlId="personas-medico-especialidad">
+            <select
+              id="personas-medico-especialidad"
+              class="pz-control"
+              [(ngModel)]="nuevoMedicoEspecialidadId"
+              name="espId"
+            >
+              <option [ngValue]="null">Selecciona…</option>
+              @for (e of especialidades(); track e.id) {
+                <option [ngValue]="e.id">{{ e.nombre }}</option>
+              }
+            </select>
+          </ui-field>
+          <ui-button type="submit">Crear</ui-button>
+        </form>
+      }
 
       <div class="pz-tabla-scroll">
         <table class="pz-tabla">
@@ -98,41 +102,47 @@
     <article class="pz-tarjeta">
       <h2 class="pz-tarjeta__titulo">Pacientes</h2>
       <p class="pz-tarjeta__ayuda">
-        El paciente se registra aquí o al agendar, con nombre y teléfono.
+        @if (puedeRegistrarPaciente()) {
+          El paciente se registra aquí o al agendar, con nombre y teléfono.
+        } @else {
+          Pacientes registrados en el centro.
+        }
       </p>
 
-      <form class="personas__form" [formGroup]="formPaciente" (ngSubmit)="onRegistrarPaciente()">
-        <ui-field
-          etiqueta="Nombre completo"
-          controlId="personas-paciente-nombre"
-          [requerido]="true"
-          [error]="errorPaciente('nombreCompleto', 'Escribe el nombre (mínimo 3 caracteres)')"
-        >
-          <input
-            id="personas-paciente-nombre"
-            class="pz-control"
-            type="text"
-            formControlName="nombreCompleto"
-            placeholder="Ej. Juan Ramírez"
-          />
-        </ui-field>
-        <ui-field
-          etiqueta="Teléfono"
-          controlId="personas-paciente-telefono"
-          [requerido]="true"
-          [error]="errorPaciente('telefono', 'Indica un teléfono de 7 a 15 dígitos')"
-        >
-          <input
-            id="personas-paciente-telefono"
-            class="pz-control"
-            type="tel"
-            inputmode="numeric"
-            formControlName="telefono"
-            placeholder="3001234567"
-          />
-        </ui-field>
-        <ui-button type="submit" [cargando]="registrando()">Registrar paciente</ui-button>
-      </form>
+      @if (puedeRegistrarPaciente()) {
+        <form class="personas__form" [formGroup]="formPaciente" (ngSubmit)="onRegistrarPaciente()">
+          <ui-field
+            etiqueta="Nombre completo"
+            controlId="personas-paciente-nombre"
+            [requerido]="true"
+            [error]="errorPaciente('nombreCompleto', 'Escribe el nombre (mínimo 3 caracteres)')"
+          >
+            <input
+              id="personas-paciente-nombre"
+              class="pz-control"
+              type="text"
+              formControlName="nombreCompleto"
+              placeholder="Ej. Juan Ramírez"
+            />
+          </ui-field>
+          <ui-field
+            etiqueta="Teléfono"
+            controlId="personas-paciente-telefono"
+            [requerido]="true"
+            [error]="errorPaciente('telefono', 'Indica un teléfono de 7 a 15 dígitos')"
+          >
+            <input
+              id="personas-paciente-telefono"
+              class="pz-control"
+              type="tel"
+              inputmode="numeric"
+              formControlName="telefono"
+              placeholder="3001234567"
+            />
+          </ui-field>
+          <ui-button type="submit" [cargando]="registrando()">Registrar paciente</ui-button>
+        </form>
+      }
 
       <ul class="personas__lista">
         @for (p of pacientes(); track p.id) {

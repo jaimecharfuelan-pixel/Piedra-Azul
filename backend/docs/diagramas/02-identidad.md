@@ -1,0 +1,200 @@
+# Identidad
+
+Usuarios, roles, JWT y seguridad (`com.piedraazul.identidad`).
+
+Diagrama PlantUML de **implementación** (fuente usada para el código).
+
+Archivo: [`puml/02_modulo_identidad.puml`](puml/02_modulo_identidad.puml)
+
+```plantuml
+@startuml 02_modulo_identidad
+title Modulo Identidad y Acceso (JWT + CRUD de Usuario)
+
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor<<Entity>> #FEF6E4
+  BackgroundColor<<interface>> #E4F0FE
+  BorderColor<<interface>> #2E5C8A
+  BackgroundColor<<RestController>> #EDEDED
+  BackgroundColor<<Adapter>> #EDEDED
+  BackgroundColor<<JPA>> #EDEDED
+  BackgroundColor<<puerto externo>> #F0E4FE
+}
+hide empty members
+
+' -- copiado de 01_nucleo_comun.puml --
+enum RolUsuario {
+  ADMINISTRADOR
+  AGENDADOR
+  MEDICO
+  PACIENTE
+}
+abstract class DomainException {
+  #codigo: String
+  #mensaje: String
+}
+class ReglaDeNegocioException extends DomainException {
+  +{static} de(codigo: String, mensaje: String): ReglaDeNegocioException
+}
+
+' =====================================================================
+' DOMINIO
+' =====================================================================
+class Usuario <<Entity>> {
+  -id: Long
+  -username: String
+  -passwordHash: String
+  -rol: RolUsuario
+  -personaId: Long
+  -activo: boolean
+  +Usuario(username: String, passwordHash: String, rol: RolUsuario, personaId: Long)
+  +coincideCon(passwordPlano: String, encoder: PasswordEncoderPort): boolean
+  +activar(): void
+  +desactivar(): void
+  +getId(): Long
+  +getUsername(): String
+  +getRol(): RolUsuario
+  +getPersonaId(): Long
+}
+Usuario --> RolUsuario
+
+' =====================================================================
+' PUERTOS DE SALIDA
+' =====================================================================
+interface UsuarioRepository {
+  +guardar(usuario: Usuario): Usuario
+  +buscarPorId(id: Long): Optional<Usuario>
+  +buscarPorUsername(username: String): Optional<Usuario>
+  +existePorUsername(username: String): boolean
+  +listarTodos(): List<Usuario>
+}
+interface PasswordEncoderPort {
+  +codificar(passwordPlano: String): String
+  +coincide(passwordPlano: String, hash: String): boolean
+}
+interface JwtTokenPort {
+  +generarToken(usuario: Usuario): String
+  +extraerUsername(token: String): String
+  +esTokenValido(token: String, usuario: Usuario): boolean
+}
+
+' -- puerto EXTERNO: implementado por el Modulo Personas.
+'    Un solo puerto crea la Persona (Medico o Paciente) segun el rol,
+'    para no duplicar CrearMedicoPort / CrearPacientePort --
+interface RegistrarPersonaPort <<puerto externo>> {
+  +crearPersonaParaUsuario(rol: RolUsuario, datos: DatosPersonaDTO): Long
+}
+note right of RegistrarPersonaPort
+  Implementado en 03_modulo_personas.puml
+  (crea un Medico si rol=MEDICO, un Paciente
+  si rol=PACIENTE; si rol=ADMINISTRADOR o
+  AGENDADOR no crea nada y retorna null).
+end note
+
+' =====================================================================
+' PUERTOS DE ENTRADA - CRUD consolidado en UNA sola interfaz
+' =====================================================================
+interface GestionarUsuarioUseCase {
+  +crear(comando: CrearUsuarioCommand): UsuarioResponseDTO
+  +cambiarEstado(id: Long, activo: boolean): UsuarioResponseDTO
+  +buscarPorId(id: Long): UsuarioResponseDTO
+  +listar(): List<UsuarioResponseDTO>
+}
+interface AutenticarUsuarioUseCase {
+  +ejecutar(username: String, passwordPlano: String): TokenResponseDTO
+}
+
+' =====================================================================
+' SERVICIOS DE APLICACION (nucleo desacoplado)
+' =====================================================================
+class GestionarUsuarioService implements GestionarUsuarioUseCase {
+  -usuarioRepository: UsuarioRepository
+  -passwordEncoder: PasswordEncoderPort
+  -registrarPersonaPort: RegistrarPersonaPort
+  +crear(comando: CrearUsuarioCommand): UsuarioResponseDTO
+  +cambiarEstado(id: Long, activo: boolean): UsuarioResponseDTO
+  +buscarPorId(id: Long): UsuarioResponseDTO
+  +listar(): List<UsuarioResponseDTO>
+  -validarUsernameDisponible(username: String): void
+}
+GestionarUsuarioService --> UsuarioRepository
+GestionarUsuarioService --> PasswordEncoderPort
+GestionarUsuarioService --> RegistrarPersonaPort
+GestionarUsuarioService ..> Usuario : crea
+GestionarUsuarioService ..> ReglaDeNegocioException : lanza (codigo=USERNAME_YA_REGISTRADO)
+note bottom of GestionarUsuarioService
+  El registro publico del paciente (RF2) y la
+  creacion de Medico/Agendador/Admin por el
+  administrador usan el MISMO metodo crear():
+  solo cambia el rol en el comando y quien
+  tiene permiso de invocar el endpoint.
+end note
+
+class AutenticarUsuarioService implements AutenticarUsuarioUseCase {
+  -usuarioRepository: UsuarioRepository
+  -passwordEncoder: PasswordEncoderPort
+  -jwtTokenPort: JwtTokenPort
+  +ejecutar(username: String, passwordPlano: String): TokenResponseDTO
+}
+AutenticarUsuarioService --> UsuarioRepository
+AutenticarUsuarioService --> PasswordEncoderPort
+AutenticarUsuarioService --> JwtTokenPort
+AutenticarUsuarioService ..> ReglaDeNegocioException : lanza (codigo=CREDENCIALES_INVALIDAS)
+
+' =====================================================================
+' INFRAESTRUCTURA - referencia
+' =====================================================================
+class AuthController <<RestController>> {
+  -autenticarUsuarioUseCase: AutenticarUsuarioUseCase
+  -gestionarUsuarioUseCase: GestionarUsuarioUseCase
+  +login(request: LoginRequestDTO): ResponseEntity
+  +registrarPaciente(request: RegistrarPacienteRequestDTO): ResponseEntity
+}
+class UsuarioController <<RestController>> {
+  -gestionarUsuarioUseCase: GestionarUsuarioUseCase
+  +crear(request): ResponseEntity
+  +cambiarEstado(id: Long, activo: boolean): ResponseEntity
+  +listar(): ResponseEntity
+}
+class JwtAuthenticationFilter <<Adapter>>
+class BCryptPasswordEncoderAdapter <<Adapter>> implements PasswordEncoderPort
+class JwtServiceAdapter <<Adapter>> implements JwtTokenPort
+class UsuarioRepositoryAdapter <<Adapter>> implements UsuarioRepository
+class UsuarioJpaEntity <<JPA>>
+UsuarioRepositoryAdapter ..> UsuarioJpaEntity : mapea
+
+' =====================================================================
+' DTOs
+' =====================================================================
+class CrearUsuarioCommand <<DTO>> {
+  +username: String
+  +password: String
+  +rol: RolUsuario
+  +datosPersona: DatosPersonaDTO
+}
+class DatosPersonaDTO <<DTO>> {
+  +nombreCompleto: String
+  +telefono: String
+  +especialidadId: Long
+}
+class RegistrarPacienteRequestDTO <<DTO>>
+class LoginRequestDTO <<DTO>> {
+  +username: String
+  +password: String
+}
+class TokenResponseDTO <<DTO>> {
+  +accessToken: String
+  +tokenType: String
+  +expiresIn: long
+  +rol: RolUsuario
+}
+class UsuarioResponseDTO <<DTO>> {
+  +id: Long
+  +username: String
+  +rol: RolUsuario
+  +personaId: Long
+  +activo: boolean
+}
+
+@enduml
+```

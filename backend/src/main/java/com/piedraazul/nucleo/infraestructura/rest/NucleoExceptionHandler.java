@@ -65,10 +65,7 @@ public class NucleoExceptionHandler {
         return problem(status, ex);
     }
 
-    /**
-     * Errores de Bean Validation en los @RequestBody: se devuelve el detalle campo a campo
-     * para que el formulario de Angular pueda marcar el control exacto.
-     */
+    /** Errores de validación Bean Validation: detalle por campo en {@code extra}. */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidacion(MethodArgumentNotValidException ex) {
         Map<String, String> errores = new LinkedHashMap<>();

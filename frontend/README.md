@@ -1,38 +1,16 @@
 # PiedraAzul — Frontend
 
-Angular 19 con **arquitectura hexagonal** y **FullCalendar** para la agenda.
-
-## Stack
-
-| Tecnología | Rol |
-|---|---|
-| Angular 19 (standalone) | UI |
-| Arquitectura hexagonal | Dominio / aplicación / adaptadores |
-| FullCalendar 7 (`@fullcalendar/angular`) | Calendario de citas |
-| HttpClient | Adaptador hacia el backend Spring Boot |
-
-## Capas
+Angular 19 (standalone), arquitectura hexagonal y FullCalendar.
 
 ```
 src/app/
-├── domain/           # Modelos y puertos (sin Angular HTTP ni UI)
-│   ├── models/
-│   └── ports/
-├── application/      # Casos de uso
-│   └── use-cases/
-├── infrastructure/   # Adaptadores secundarios
-│   ├── http/         # REST → backend
-│   └── calendar/     # Mapeo a eventos FullCalendar
-├── presentation/     # Adaptadores primarios (páginas / componentes)
-│   └── pages/
-└── shared/
+├── domain/            # modelos y puertos
+├── application/       # casos de uso
+├── infrastructure/    # HTTP, auth, calendario
+└── presentation/      # páginas y componentes
 ```
 
-La inversión de dependencias se cablea en `app.config.ts`:
-
-```ts
-{ provide: CitaRepositoryPort, useClass: CitaHttpAdapter }
-```
+Los puertos se enlazan en `app.config.ts`.
 
 ## Ejecutar
 
@@ -41,17 +19,14 @@ npm install
 npm start
 ```
 
-Abre http://localhost:4200.
+http://localhost:4200 — el API debe estar en http://localhost:8080.
 
-| Ruta | Qué hace |
+| Ruta | Uso |
 |---|---|
-| `/agenda` | Listado del día con filtros, cantidad y orden |
-| `/agendar` | Registro, franjas libres y confirmación |
-| `/configuracion` | Ventana de reservas, días, franja, duración y descanso |
-| `/calendario` | Vista semanal o mensual de las citas |
-
-El backend esperado: `http://localhost:8080`. Documentación MkDocs: `cd backend && mkdocs serve`.
-
-## Git
-
-Esta carpeta es un repositorio independiente listo para `git init` / push.
+| `/login`, `/registro` | Autenticación JWT |
+| `/agenda` | Citas del día |
+| `/agendar` | Reserva de franjas |
+| `/calendario` | Vista calendario |
+| `/configuracion` | Ventana y horarios |
+| `/historial` | Consultas atendidas |
+| `/personas` | Catálogo |

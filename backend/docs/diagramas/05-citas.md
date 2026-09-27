@@ -1,0 +1,265 @@
+# Citas
+
+Agendar, cancelar, reagendar, atender e historial (`com.piedraazul.citas`).
+
+Diagrama PlantUML de **implementación** (fuente usada para el código).
+
+Archivo: [`puml/05_modulo_citas.puml`](puml/05_modulo_citas.puml)
+
+```plantuml
+@startuml 05_modulo_citas
+title Modulo Citas (RF1, RF2, ciclo de vida completo y historial de consultas)
+
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor<<Entity>> #FEF6E4
+  BackgroundColor<<interface>> #E4F0FE
+  BorderColor<<interface>> #2E5C8A
+  BackgroundColor<<RestController>> #EDEDED
+  BackgroundColor<<Adapter>> #EDEDED
+  BackgroundColor<<JPA>> #EDEDED
+  BackgroundColor<<puerto externo>> #F0E4FE
+}
+hide empty members
+
+' -- copiados de 01_nucleo_comun.puml --
+enum EstadoCita {
+  PROGRAMADA
+  CANCELADA
+  ATENDIDA
+}
+class TimeRange <<ValueObject>> {
+  -horaInicio: LocalTime
+  -horaFin: LocalTime
+  +solapaCon(otro: TimeRange): boolean
+}
+abstract class DomainException {
+  #codigo: String
+  #mensaje: String
+}
+class ReglaDeNegocioException extends DomainException {
+  +{static} de(codigo: String, mensaje: String): ReglaDeNegocioException
+}
+
+' -- puertos EXTERNOS: implementados en otros modulos --
+interface CatalogoMedicosPort <<puerto externo>> {
+  +existeMedicoActivo(medicoId: Long): boolean
+}
+interface ConsultarConfiguracionPort <<puerto externo>> {
+  +obtenerPeriodoVigente(medicoId: Long, fecha: LocalDate): PeriodoDisponibilidadRef
+}
+class PeriodoDisponibilidadRef <<puerto externo>> {
+  +incluyeFecha(fecha: LocalDate): boolean
+  +atiendeEnDia(dia): boolean
+  +getFranjaHoraria(): TimeRange
+}
+note right of CatalogoMedicosPort
+  Implementado en 03_modulo_personas.puml
+end note
+note right of ConsultarConfiguracionPort
+  Implementado en 04_modulo_disponibilidad.puml
+  (PeriodoDisponibilidadRef = la clase real
+  PeriodoDisponibilidad de ese modulo)
+end note
+
+' =====================================================================
+' DOMINIO
+' =====================================================================
+class Cita <<Entity>> {
+  -id: Long
+  -pacienteId: Long
+  -medicoId: Long
+  -fecha: LocalDate
+  -rango: TimeRange
+  -estado: EstadoCita
+  +{static} crear(pacienteId: Long, medicoId: Long, fecha: LocalDate, rango: TimeRange): Cita
+  +cancelar(): void
+  +reagendar(nuevaFecha: LocalDate, nuevoRango: TimeRange): void
+  +marcarComoAtendida(): void
+  +estaProgramada(): boolean
+  +getMedicoId(): Long
+  +getPacienteId(): Long
+  +getFecha(): LocalDate
+  +getRango(): TimeRange
+  +getEstado(): EstadoCita
+}
+Cita --> EstadoCita
+Cita *-- TimeRange
+Cita ..> ReglaDeNegocioException : lanza (codigo=CITA_NO_MODIFICABLE, si ya esta CANCELADA o ATENDIDA)
+
+' Se crea SOLO cuando una Cita se marca como atendida.
+' Es el registro de historial clinico/administrativo.
+class Consulta <<Entity>> {
+  -id: Long
+  -citaId: Long
+  -medicoId: Long
+  -pacienteId: Long
+  -fecha: LocalDate
+  -observaciones: String
+  -fechaRegistro: LocalDateTime
+  +{static} desdeCita(cita: Cita, observaciones: String): Consulta
+}
+note bottom of Consulta
+  La Cita NO se borra al atenderse: queda con
+  estado ATENDIDA (para trazabilidad) y ademas
+  se crea esta Consulta, que es lo que se
+  muestra en el historial del paciente/medico.
+end note
+
+' =====================================================================
+' PUERTOS DE SALIDA
+' =====================================================================
+interface CitaRepository {
+  +guardar(cita: Cita): Cita
+  +buscarPorId(id: Long): Optional<Cita>
+  +buscarPorMedicoYFecha(medicoId: Long, fecha: LocalDate): List<Cita>
+  +existeSolapamiento(medicoId: Long, fecha: LocalDate, rango: TimeRange): boolean
+}
+interface ConsultaRepository {
+  +guardar(consulta: Consulta): Consulta
+  +listarPorPaciente(pacienteId: Long): List<Consulta>
+  +listarPorMedico(medicoId: Long): List<Consulta>
+}
+CitaRepository ..> Cita
+ConsultaRepository ..> Consulta
+
+' =====================================================================
+' PUERTO PUBLICO (lo consume Disponibilidad para saber que horas ya
+' estan ocupadas al calcular los slots libres)
+' =====================================================================
+interface ConsultarCitasPort {
+  +obtenerRangosOcupados(medicoId: Long, fecha: LocalDate): List<TimeRange>
+}
+note right of ConsultarCitasPort
+  Consumido por: Disponibilidad
+end note
+
+' =====================================================================
+' CASOS DE USO - agrupados por proposito, no uno por operacion
+' =====================================================================
+' RF2 + ciclo de vida de la cita (agendar/cancelar/reagendar/atender)
+interface GestionarCitaUseCase {
+  +agendar(comando: AgendarCitaCommand): CitaResponseDTO
+  +cancelar(citaId: Long): CitaResponseDTO
+  +reagendar(citaId: Long, comando: ReagendarCitaCommand): CitaResponseDTO
+  +marcarAtendida(citaId: Long, observaciones: String): ConsultaResponseDTO
+}
+' RF1: listar citas de un medico en una fecha, CON cantidad
+interface ListarCitasPorMedicoUseCase {
+  +ejecutar(medicoId: Long, fecha: LocalDate): ListadoCitasResponseDTO
+}
+' Historial de consultas (lo que queda despues de "atender" una cita)
+interface ConsultarHistorialUseCase {
+  +porPaciente(pacienteId: Long): List<ConsultaResponseDTO>
+  +porMedico(medicoId: Long): List<ConsultaResponseDTO>
+}
+
+class GestionarCitaService implements GestionarCitaUseCase {
+  -citaRepository: CitaRepository
+  -consultaRepository: ConsultaRepository
+  -catalogoMedicosPort: CatalogoMedicosPort
+  -consultarConfiguracionPort: ConsultarConfiguracionPort
+  +agendar(comando: AgendarCitaCommand): CitaResponseDTO
+  +cancelar(citaId: Long): CitaResponseDTO
+  +reagendar(citaId: Long, comando: ReagendarCitaCommand): CitaResponseDTO
+  +marcarAtendida(citaId: Long, observaciones: String): ConsultaResponseDTO
+  -validarMedicoActivo(medicoId: Long): void
+  -validarDentroDePeriodoVigente(medicoId: Long, fecha: LocalDate, rango: TimeRange): void
+  -validarSinSolapamiento(medicoId: Long, fecha: LocalDate, rango: TimeRange): void
+}
+GestionarCitaService --> CitaRepository
+GestionarCitaService --> ConsultaRepository
+GestionarCitaService --> CatalogoMedicosPort
+GestionarCitaService --> ConsultarConfiguracionPort
+GestionarCitaService ..> Cita : crea / actualiza
+GestionarCitaService ..> Consulta : crea al atender
+GestionarCitaService ..> ReglaDeNegocioException : lanza (codigo=SLOT_NO_DISPONIBLE | MEDICO_NO_DISPONIBLE | CITA_NO_MODIFICABLE)
+note bottom of GestionarCitaService
+  agendar() y reagendar() reutilizan las MISMAS
+  validaciones privadas (medico activo, dentro
+  del periodo vigente, sin solapamiento).
+
+  Roles (se validan en el Controller/JWT, el
+  caso de uso no sabe de roles):
+  - agendar(): Paciente (para si mismo) o
+    Agendador (para cualquier paciente, ej.
+    si el paciente llama por telefono).
+  - cancelar() / reagendar(): el Paciente
+    dueño de la cita, el Agendador o el
+    Admin.
+  - marcarAtendida(): solo el Medico.
+end note
+
+class ListarCitasPorMedicoService implements ListarCitasPorMedicoUseCase {
+  -citaRepository: CitaRepository
+}
+ListarCitasPorMedicoService --> CitaRepository
+
+class ConsultarHistorialService implements ConsultarHistorialUseCase {
+  -consultaRepository: ConsultaRepository
+}
+ConsultarHistorialService --> ConsultaRepository
+
+class CitasModuleFacade implements ConsultarCitasPort {
+  -citaRepository: CitaRepository
+}
+CitasModuleFacade --> CitaRepository
+
+' =====================================================================
+' INFRAESTRUCTURA - referencia
+' =====================================================================
+class CitaController <<RestController>> {
+  -gestionarCitaUseCase: GestionarCitaUseCase
+  -listarCitasPorMedicoUseCase: ListarCitasPorMedicoUseCase
+  -consultarHistorialUseCase: ConsultarHistorialUseCase
+  +agendar(request): ResponseEntity
+  +cancelar(citaId: Long): ResponseEntity
+  +reagendar(citaId: Long, request): ResponseEntity
+  +marcarAtendida(citaId: Long, request): ResponseEntity
+  +listarPorMedicoYFecha(medicoId: Long, fecha: LocalDate): ResponseEntity
+  +historialPorPaciente(pacienteId: Long): ResponseEntity
+}
+class CitaRepositoryAdapter <<Adapter>> implements CitaRepository
+class ConsultaRepositoryAdapter <<Adapter>> implements ConsultaRepository
+class CitaJpaEntity <<JPA>>
+class ConsultaJpaEntity <<JPA>>
+
+' =====================================================================
+' DTOs
+' =====================================================================
+class AgendarCitaCommand <<DTO>> {
+  +pacienteId: Long
+  +medicoId: Long
+  +fecha: LocalDate
+  +horaInicio: LocalTime
+  +horaFin: LocalTime
+}
+class ReagendarCitaCommand <<DTO>> {
+  +fecha: LocalDate
+  +horaInicio: LocalTime
+  +horaFin: LocalTime
+}
+class CitaResponseDTO <<DTO>> {
+  +id: Long
+  +medicoId: Long
+  +pacienteId: Long
+  +fecha: LocalDate
+  +horaInicio: LocalTime
+  +horaFin: LocalTime
+  +estado: EstadoCita
+}
+class ListadoCitasResponseDTO <<DTO>> {
+  +citas: List<CitaResponseDTO>
+  +cantidad: int
+}
+class ConsultaResponseDTO <<DTO>> {
+  +id: Long
+  +medicoId: Long
+  +pacienteId: Long
+  +fecha: LocalDate
+  +observaciones: String
+}
+ListadoCitasResponseDTO *-- CitaResponseDTO
+
+@enduml
+```

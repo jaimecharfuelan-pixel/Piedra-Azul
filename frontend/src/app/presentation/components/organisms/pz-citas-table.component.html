@@ -44,30 +44,39 @@
             <td>
               @if (esProgramada(cita)) {
                 <div class="pz-citas-tabla__acciones">
-                  <ui-button
-                    tamano="sm"
-                    variante="secundario"
-                    [ariaLabel]="'Reagendar la cita de ' + cita.pacienteNombre"
-                    (pulsado)="reagendarPulsado.emit(cita)"
-                  >
-                    Reagendar
-                  </ui-button>
-                  <ui-button
-                    tamano="sm"
-                    variante="secundario"
-                    [ariaLabel]="'Marcar como atendida la cita de ' + cita.pacienteNombre"
-                    (pulsado)="atenderPulsado.emit(cita)"
-                  >
-                    Atender
-                  </ui-button>
-                  <ui-button
-                    tamano="sm"
-                    variante="peligro"
-                    [ariaLabel]="'Cancelar la cita de ' + cita.pacienteNombre"
-                    (pulsado)="cancelarPulsado.emit(cita)"
-                  >
-                    Cancelar
-                  </ui-button>
+                  @if (mostrarCancelarReagendar) {
+                    <ui-button
+                      tamano="sm"
+                      variante="secundario"
+                      [ariaLabel]="'Reagendar la cita de ' + cita.pacienteNombre"
+                      (pulsado)="reagendarPulsado.emit(cita)"
+                    >
+                      Reagendar
+                    </ui-button>
+                  }
+                  @if (mostrarAtender) {
+                    <ui-button
+                      tamano="sm"
+                      variante="secundario"
+                      [ariaLabel]="'Marcar como atendida la cita de ' + cita.pacienteNombre"
+                      (pulsado)="atenderPulsado.emit(cita)"
+                    >
+                      Atender
+                    </ui-button>
+                  }
+                  @if (mostrarCancelarReagendar) {
+                    <ui-button
+                      tamano="sm"
+                      variante="peligro"
+                      [ariaLabel]="'Cancelar la cita de ' + cita.pacienteNombre"
+                      (pulsado)="cancelarPulsado.emit(cita)"
+                    >
+                      Cancelar
+                    </ui-button>
+                  }
+                  @if (!mostrarAtender && !mostrarCancelarReagendar) {
+                    <span class="pz-citas-tabla__sin-acciones">Sin acciones</span>
+                  }
                 </div>
               } @else {
                 <span class="pz-citas-tabla__sin-acciones">Sin acciones</span>

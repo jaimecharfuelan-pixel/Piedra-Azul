@@ -19,39 +19,46 @@
       <form class="pz-tarjeta" [formGroup]="formulario">
         <h2 class="pz-tarjeta__titulo">1. ¿Quién y con quién?</h2>
         <p class="pz-tarjeta__ayuda">
-          Debes estar registrado para agendar. Si ya lo estás, elígete en la lista; si no, crea tu
-          registro en un minuto.
+          @if (esPaciente()) {
+            La cita se reserva a tu nombre. Elige el profesional y la fecha.
+          } @else {
+            Selecciona el paciente (o regístralo si es nuevo) y el profesional.
+          }
         </p>
 
         <div class="agendar__rejilla">
-          <ui-field
-            etiqueta="Paciente"
-            controlId="agendar-paciente"
-            [requerido]="true"
-            [error]="
-              formulario.controls.pacienteId.touched && formulario.controls.pacienteId.invalid
-                ? 'Selecciona el paciente o regístrate'
-                : null
-            "
-          >
-            <select
-              id="agendar-paciente"
-              class="pz-control"
-              formControlName="pacienteId"
-              (change)="cambiarPaciente()"
+          @if (!esPaciente()) {
+            <ui-field
+              etiqueta="Paciente"
+              controlId="agendar-paciente"
+              [requerido]="true"
+              [error]="
+                formulario.controls.pacienteId.touched && formulario.controls.pacienteId.invalid
+                  ? 'Selecciona el paciente o regístrate'
+                  : null
+              "
             >
-              <option [ngValue]="null" disabled>Selecciona…</option>
-              @for (paciente of pacientes(); track paciente.id) {
-                <option [ngValue]="paciente.id">{{ paciente.nombreCompleto }}</option>
-              }
-            </select>
-          </ui-field>
+              <select
+                id="agendar-paciente"
+                class="pz-control"
+                formControlName="pacienteId"
+                (change)="cambiarPaciente()"
+              >
+                <option [ngValue]="null" disabled>Selecciona…</option>
+                @for (paciente of pacientes(); track paciente.id) {
+                  <option [ngValue]="paciente.id">{{ paciente.nombreCompleto }}</option>
+                }
+              </select>
+            </ui-field>
 
-          <div class="agendar__registro-atajo">
-            <ui-button variante="secundario" (pulsado)="abrirRegistro()">
-              Soy un paciente nuevo
-            </ui-button>
-          </div>
+            @if (puedeRegistrarWalkIn()) {
+              <div class="agendar__registro-atajo">
+                <ui-button variante="secundario" (pulsado)="abrirRegistro()">
+                  Registrar paciente nuevo
+                </ui-button>
+              </div>
+            }
+          }
 
           <ui-field
             etiqueta="Médico / terapista"

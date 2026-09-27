@@ -2,10 +2,6 @@ import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { PzNavComponent } from './presentation/components/organisms/pz-nav.component';
 
-/**
- * Cascarón de la aplicación: navegación fija arriba y el contenido de la ruta
- * debajo. El enlace de salto permite llegar al contenido sin recorrer el menú.
- */
 @Component({
   selector: 'app-root',
   standalone: true,

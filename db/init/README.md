@@ -1,9 +1,7 @@
-# Base de datos — scripts de inicialización
+# db/init
 
-Coloca archivos `.sql` en esta carpeta (`db/init/`).
+Scripts SQL montados en `/docker-entrypoint-initdb.d`. Postgres solo los
+ejecuta al crear el volumen por primera vez.
 
-Docker Postgres los ejecuta **solo la primera vez** que se crea el volumen
-(`postgres_data`), en orden alfabético.
-
-- `01-datos-prueba.sql` — plantilla vacía para INSERTs de prueba
-- El esquema de tablas lo genera **JPA/Hibernate** desde el backend
+En este proyecto el esquema lo crea JPA y los datos de demo los carga el
+backend (`SeedDatosDemo`). Los `.sql` de esta carpeta no insertan la demo.

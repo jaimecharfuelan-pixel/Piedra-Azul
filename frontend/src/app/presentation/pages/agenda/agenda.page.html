@@ -12,24 +12,36 @@
     <p class="pz-tarjeta__ayuda">El médico y la fecha son obligatorios; el resto afina el resultado.</p>
 
     <div class="agenda__filtros-rejilla">
-      <ui-field
-        etiqueta="Médico / terapista"
-        controlId="filtro-medico"
-        [requerido]="true"
-        [error]="filtros.controls.medicoId.touched && filtros.controls.medicoId.invalid ? 'Selecciona un médico' : null"
-      >
-        <select id="filtro-medico" class="pz-control" formControlName="medicoId">
-          <option [ngValue]="null" disabled>Selecciona…</option>
-          @for (medico of medicos(); track medico.id) {
-            <option [ngValue]="medico.id">
-              {{ medico.nombreCompleto }}
-              @if (medico.especialidad) {
-                — {{ medico.especialidad.nombre }}
-              }
-            </option>
-          }
-        </select>
-      </ui-field>
+      @if (medicoFijado()) {
+        <ui-field etiqueta="Médico / terapista" controlId="filtro-medico">
+          <input
+            id="filtro-medico"
+            class="pz-control"
+            type="text"
+            [value]="medicoSesionNombre()"
+            readonly
+          />
+        </ui-field>
+      } @else {
+        <ui-field
+          etiqueta="Médico / terapista"
+          controlId="filtro-medico"
+          [requerido]="true"
+          [error]="filtros.controls.medicoId.touched && filtros.controls.medicoId.invalid ? 'Selecciona un médico' : null"
+        >
+          <select id="filtro-medico" class="pz-control" formControlName="medicoId">
+            <option [ngValue]="null" disabled>Selecciona…</option>
+            @for (medico of medicos(); track medico.id) {
+              <option [ngValue]="medico.id">
+                {{ medico.nombreCompleto }}
+                @if (medico.especialidad) {
+                  — {{ medico.especialidad.nombre }}
+                }
+              </option>
+            }
+          </select>
+        </ui-field>
+      }
 
       <ui-field
         etiqueta="Fecha"
@@ -115,6 +127,8 @@
         <pz-citas-table
           [citas]="citasVisibles()"
           [orden]="orden()"
+          [mostrarAtender]="mostrarAtender()"
+          [mostrarCancelarReagendar]="mostrarCancelarReagendar()"
           [leyenda]="
             'Mostrando ' + citasVisibles().length + ' de ' + resultado.cantidad +
             ' citas. Pulsa un encabezado para cambiar el orden.'

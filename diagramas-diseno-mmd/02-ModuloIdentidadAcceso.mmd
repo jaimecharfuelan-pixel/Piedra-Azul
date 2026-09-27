@@ -1,0 +1,379 @@
+%% =====================================================================
+%% PIEDRAZUL - MONOLITO MODULAR 2026.2
+%% Modulo Identidad y Acceso (RF2: registro de usuario del paciente)
+%%
+%% Parte del diagrama de clases completo (DiagramaDeClasesMonolito2026-2.mmd),
+%% dividida para respetar el limite maxTextSize de Mermaid en Draw.io.
+%% Draw.io: Extras > Editar diagrama, o Insertar > Avanzado > Mermaid
+%%
+%% Clases incluidas: 36
+%% =====================================================================
+
+classDiagram
+    direction TB
+
+    namespace SharedKernel {
+        class DomainEvent {
+            <<interface>>
+            +eventId() UUID
+            +ocurridoEn() LocalDateTime
+            +tipoEvento() String
+        }
+        class DomainEventPublisher {
+            <<interface>>
+            +publicar(evento: DomainEvent) void
+            +publicarTodos(eventos: List~DomainEvent~) void
+        }
+        %% adaptado de UsuarioId en citas-service
+        class UsuarioId {
+            <<ValueObject adaptado de UsuarioId>>
+            -value: UUID
+            +of(value: UUID) UsuarioId
+            +getValue() UUID
+        }
+        class PersonaId {
+            <<ValueObject>>
+            -value: Long
+            +of(value: Long) PersonaId
+            +getValue() Long
+        }
+    }
+
+    namespace ModuloIdentidadAcceso {
+        %% adaptado de UsuarioController en usuarios-service
+        class UsuarioController {
+            <<RestController adaptado de UsuarioController>>
+            -registrarUsuarioUseCase: RegistrarUsuarioUseCase
+            -consultarUsuarioUseCase: ConsultarUsuarioUseCase
+            +registrar(request: RegistrarUsuarioRequestDTO) ResponseEntity~UsuarioResponseDTO~
+            +obtenerPorId(id: UUID) ResponseEntity~UsuarioResponseDTO~
+            +obtenerPorUsername(username: String) ResponseEntity~UsuarioResponseDTO~
+            +listar() ResponseEntity~List~UsuarioResponseDTO~~
+        }
+        class AutenticacionController {
+            <<RestController>>
+            -autenticarUsuarioUseCase: AutenticarUsuarioUseCase
+            +login(request: LoginRequestDTO) ResponseEntity~TokenResponseDTO~
+            +perfilActual(authentication: Authentication) ResponseEntity~UsuarioResponseDTO~
+        }
+        class RegistrarUsuarioUseCase {
+            <<interface>>
+            +ejecutar(comando: RegistrarUsuarioCommand) UsuarioResponseDTO
+        }
+        class AutenticarUsuarioUseCase {
+            <<interface>>
+            +ejecutar(username: String, password: String) TokenResponseDTO
+        }
+        class ConsultarUsuarioUseCase {
+            <<interface>>
+            +porId(id: UsuarioId) UsuarioResponseDTO
+            +porUsername(username: String) UsuarioResponseDTO
+            +porPersonaId(personaId: PersonaId) UsuarioResponseDTO
+            +listarTodos() List~UsuarioResponseDTO~
+        }
+        %% adaptado de RegistrarUsuarioService en usuarios-service
+        class RegistrarUsuarioService {
+            <<Service adaptado de RegistrarUsuarioService>>
+            -usuarioRepository: UsuarioRepository
+            -proveedorIdentidad: ProveedorIdentidadPort
+            -registroPacientePort: RegistroPacientePort
+            -usuarioMapper: UsuarioApplicationMapper
+            +ejecutar(comando: RegistrarUsuarioCommand) UsuarioResponseDTO
+            -validarUsernameDisponible(username: String) void
+            -validarEmail(email: String) void
+        }
+        class AutenticarUsuarioService {
+            <<Service adaptado de AutenticarUsuarioServiceTest>>
+            -usuarioRepository: UsuarioRepository
+            -proveedorIdentidad: ProveedorIdentidadPort
+            +ejecutar(username: String, password: String) TokenResponseDTO
+        }
+        %% adaptado de ConsultarUsuarioService en usuarios-service
+        class ConsultarUsuarioService {
+            <<Service adaptado de ConsultarUsuarioService>>
+            -usuarioRepository: UsuarioRepository
+            -usuarioMapper: UsuarioApplicationMapper
+            +porId(id: UsuarioId) UsuarioResponseDTO
+            +porUsername(username: String) UsuarioResponseDTO
+            +porPersonaId(personaId: PersonaId) UsuarioResponseDTO
+            +listarTodos() List~UsuarioResponseDTO~
+        }
+        %% adaptado de Usuario en usuarios-service (domain.model)
+        class Usuario {
+            <<Entity adaptado de Usuario>>
+            -id: UsuarioId
+            -identidadExternaId: UUID
+            -username: String
+            -personaId: PersonaId
+            -roles: Set~RolUsuario~
+            -activo: boolean
+            -fechaCreacion: Instant
+            -fechaActualizacion: Instant
+            +crear(username: String, personaId: PersonaId, roles: Set~RolUsuario~) Usuario
+            +reconstruir(id: UsuarioId, identidadExternaId: UUID, username: String, personaId: PersonaId, roles: Set~RolUsuario~, activo: boolean, fechaCreacion: Instant, fechaActualizacion: Instant) Usuario
+            +vincularIdentidadExterna(identidadExternaId: UUID) void
+            +asignarRol(rol: RolUsuario) void
+            +revocarRol(rol: RolUsuario) void
+            +tieneRol(rol: RolUsuario) boolean
+            +esPaciente() boolean
+            +desactivar() void
+            +activar() void
+            +estaActivo() boolean
+            +getId() UsuarioId
+            +getIdentidadExternaId() UUID
+            +getUsername() String
+            +getPersonaId() PersonaId
+            +getRoles() Set~RolUsuario~
+        }
+        %% reemplaza la clase Rol eliminada en la migracion a Keycloak
+        class RolUsuario {
+            <<enumeration>>
+            ADMINISTRADOR
+            AGENDADOR
+            MEDICO_TERAPISTA
+            PACIENTE
+            +getAuthority() String
+            +desdeTexto(valor: String) RolUsuario
+        }
+        %% adaptado de IUsuarioRepository en usuarios-service
+        class UsuarioRepository {
+            <<interface>>
+            +guardar(usuario: Usuario) Usuario
+            +buscarPorId(id: UsuarioId) Optional~Usuario~
+            +buscarPorIdentidadExternaId(identidadExternaId: UUID) Optional~Usuario~
+            +buscarPorUsername(username: String) Optional~Usuario~
+            +buscarPorPersonaId(personaId: PersonaId) Optional~Usuario~
+            +existePorUsername(username: String) boolean
+            +existePorPersonaId(personaId: PersonaId) boolean
+            +listarTodos() List~Usuario~
+            +eliminarPorId(id: UsuarioId) void
+        }
+        class ProveedorIdentidadPort {
+            <<interface>>
+            +crearIdentidad(username: String, email: String, nombre: String, apellido: String, password: String, roles: Set~RolUsuario~) UUID
+            +autenticar(username: String, password: String) TokenResponseDTO
+            +asignarRoles(identidadExternaId: UUID, roles: Set~RolUsuario~) void
+            +eliminarIdentidad(identidadExternaId: UUID) void
+        }
+        class RegistroPacientePort {
+            <<interface>>
+            +registrarPacienteDeAutoServicio(datos: DatosPacienteAutoRegistroDTO) PersonaId
+        }
+        %% adaptado de KeycloakAdminClient en usuarios-service (infrastructure.keycloak)
+        class KeycloakIdentidadAdapter {
+            <<Adapter adaptado de KeycloakAdminClient>>
+            -restTemplate: RestTemplate
+            -propiedades: KeycloakAdminProperties
+            -cachedAccessToken: String
+            -cachedTokenExpiresAt: Instant
+            +crearIdentidad(username: String, email: String, nombre: String, apellido: String, password: String, roles: Set~RolUsuario~) UUID
+            +autenticar(username: String, password: String) TokenResponseDTO
+            +asignarRoles(identidadExternaId: UUID, roles: Set~RolUsuario~) void
+            +eliminarIdentidad(identidadExternaId: UUID) void
+            -obtenerTokenAdmin() String
+            -setPasswordPermanente(identidadExternaId: UUID, password: String) void
+        }
+        class IdentidadLocalAdapter {
+            <<Adapter>>
+            -credencialRepository: CredencialRepository
+            -passwordHasher: PasswordHasherPort
+            -tokenProvider: TokenProviderPort
+            +crearIdentidad(username: String, email: String, nombre: String, apellido: String, password: String, roles: Set~RolUsuario~) UUID
+            +autenticar(username: String, password: String) TokenResponseDTO
+            +asignarRoles(identidadExternaId: UUID, roles: Set~RolUsuario~) void
+            +eliminarIdentidad(identidadExternaId: UUID) void
+        }
+        class PasswordHasherPort {
+            <<interface>>
+            +hashear(passwordPlano: String) String
+            +coincide(passwordPlano: String, hash: String) boolean
+        }
+        class BCryptPasswordHasherAdapter {
+            <<Adapter>>
+            -encoder: PasswordEncoder
+            +hashear(passwordPlano: String) String
+            +coincide(passwordPlano: String, hash: String) boolean
+        }
+        class TokenProviderPort {
+            <<interface>>
+            +generar(usuario: Usuario) TokenResponseDTO
+            +validar(token: String) boolean
+            +extraerUsuarioId(token: String) UsuarioId
+        }
+        class JwtTokenProviderAdapter {
+            <<Adapter>>
+            -secreto: String
+            -expiracionSegundos: long
+            +generar(usuario: Usuario) TokenResponseDTO
+            +validar(token: String) boolean
+            +extraerUsuarioId(token: String) UsuarioId
+        }
+        class CredencialRepository {
+            <<interface>>
+            +guardar(identidadExternaId: UUID, username: String, passwordHash: String, roles: Set~RolUsuario~) void
+            +buscarHashPorUsername(username: String) Optional~String~
+            +eliminar(identidadExternaId: UUID) void
+        }
+        %% adaptado de KeycloakAdminProperties en usuarios-service
+        class KeycloakAdminProperties {
+            <<ConfigurationProperties adaptado de KeycloakAdminProperties>>
+            -url: String
+            -realm: String
+            -clientId: String
+            -clientSecret: String
+            +tokenEndpoint() String
+            +adminUsersEndpoint() String
+            +adminRolesEndpoint() String
+        }
+        %% adaptado de UsuarioEntity en usuarios-service
+        class UsuarioJpaEntity {
+            <<Entity adaptado de UsuarioEntity>>
+            -id: UUID
+            -identidadExternaId: UUID
+            -username: String
+            -personaId: Long
+            -roles: Set~RolUsuario~
+            -activo: boolean
+            -fechaCreacion: Instant
+            -fechaActualizacion: Instant
+            #onCreate() void
+            #onUpdate() void
+        }
+        %% adaptado de UsuarioMapper en usuarios-service
+        class UsuarioPersistenceMapper {
+            <<Mapper adaptado de UsuarioMapper>>
+            +toDomain(entity: UsuarioJpaEntity) Usuario
+            +toEntity(usuario: Usuario) UsuarioJpaEntity
+        }
+        %% adaptado de UsuarioRestMapper en usuarios-service
+        class UsuarioApplicationMapper {
+            <<Mapper adaptado de UsuarioRestMapper>>
+            +toResponse(usuario: Usuario) UsuarioResponseDTO
+        }
+        %% adaptado de SpringDataUsuarioRepository en usuarios-service
+        class SpringDataUsuarioRepository {
+            <<interface>>
+            +findByUsername(username: String) Optional~UsuarioJpaEntity~
+            +findByIdentidadExternaId(identidadExternaId: UUID) Optional~UsuarioJpaEntity~
+            +findByPersonaId(personaId: Long) Optional~UsuarioJpaEntity~
+            +existsByUsername(username: String) boolean
+            +existsByPersonaId(personaId: Long) boolean
+        }
+        %% adaptado de UsuarioRepositoryImpl en usuarios-service
+        class UsuarioRepositoryAdapter {
+            <<Repository adaptado de UsuarioRepositoryImpl>>
+            -springDataRepository: SpringDataUsuarioRepository
+            -mapper: UsuarioPersistenceMapper
+            +guardar(usuario: Usuario) Usuario
+            +buscarPorId(id: UsuarioId) Optional~Usuario~
+            +buscarPorIdentidadExternaId(identidadExternaId: UUID) Optional~Usuario~
+            +buscarPorUsername(username: String) Optional~Usuario~
+            +buscarPorPersonaId(personaId: PersonaId) Optional~Usuario~
+            +existePorUsername(username: String) boolean
+            +existePorPersonaId(personaId: PersonaId) boolean
+            +listarTodos() List~Usuario~
+            +eliminarPorId(id: UsuarioId) void
+        }
+        %% adaptado de CrearUsuarioRequest en usuarios-service
+        class RegistrarUsuarioRequestDTO {
+            <<DTO adaptado de CrearUsuarioRequest>>
+            +personaId: Long
+            +username: String
+            +password: String
+            +email: String
+            +firstName: String
+            +lastName: String
+            +roles: Set~RolUsuario~
+        }
+        class RegistrarUsuarioCommand {
+            <<DTO>>
+            +personaId: Long
+            +username: String
+            +password: String
+            +email: String
+            +firstName: String
+            +lastName: String
+            +roles: Set~RolUsuario~
+            +datosAutoRegistro: DatosPacienteAutoRegistroDTO
+        }
+        class DatosPacienteAutoRegistroDTO {
+            <<DTO>>
+            +primerNombre: String
+            +segundoNombre: String
+            +primerApellido: String
+            +segundoApellido: String
+            +genero: Genero
+            +fechaNacimiento: LocalDate
+            +telefono: String
+            +dni: String
+            +correo: String
+        }
+        class LoginRequestDTO {
+            <<DTO>>
+            +username: String
+            +password: String
+        }
+        class TokenResponseDTO {
+            <<DTO>>
+            +accessToken: String
+            +tokenType: String
+            +expiresIn: long
+            +refreshToken: String
+            +roles: Set~RolUsuario~
+        }
+        %% adaptado de UsuarioResponse en usuarios-service
+        class UsuarioResponseDTO {
+            <<DTO adaptado de UsuarioResponse>>
+            +id: UUID
+            +identidadExternaId: UUID
+            +username: String
+            +personaId: Long
+            +roles: Set~RolUsuario~
+            +activo: boolean
+            +fechaCreacion: Instant
+            +fechaActualizacion: Instant
+        }
+    }
+
+%% --------------------- RELACIONES ---------------------
+    UsuarioController ..> RegistrarUsuarioUseCase : invoca
+    UsuarioController ..> ConsultarUsuarioUseCase : invoca
+    AutenticacionController ..> AutenticarUsuarioUseCase : invoca
+    RegistrarUsuarioService ..|> RegistrarUsuarioUseCase
+    AutenticarUsuarioService ..|> AutenticarUsuarioUseCase
+    ConsultarUsuarioService ..|> ConsultarUsuarioUseCase
+    RegistrarUsuarioService --> UsuarioRepository : depende
+    RegistrarUsuarioService --> ProveedorIdentidadPort : depende
+    RegistrarUsuarioService --> RegistroPacientePort : depende
+    RegistrarUsuarioService ..> UsuarioApplicationMapper : usa
+    AutenticarUsuarioService --> UsuarioRepository : depende
+    AutenticarUsuarioService --> ProveedorIdentidadPort : depende
+    ConsultarUsuarioService --> UsuarioRepository : depende
+    RegistrarUsuarioService ..> RegistrarUsuarioCommand : recibe
+    RegistrarUsuarioService ..> Usuario : crea
+    RegistrarUsuarioService ..> UsuarioResponseDTO : retorna
+    Usuario "1" o-- "1..*" RolUsuario : posee
+    Usuario "1" --> "1" UsuarioId : identificado por
+    Usuario "1" --> "1" PersonaId : referencia
+    KeycloakIdentidadAdapter ..|> ProveedorIdentidadPort
+    IdentidadLocalAdapter ..|> ProveedorIdentidadPort
+    KeycloakIdentidadAdapter *-- KeycloakAdminProperties
+    IdentidadLocalAdapter --> PasswordHasherPort : depende
+    IdentidadLocalAdapter --> TokenProviderPort : depende
+    IdentidadLocalAdapter --> CredencialRepository : depende
+    BCryptPasswordHasherAdapter ..|> PasswordHasherPort
+    JwtTokenProviderAdapter ..|> TokenProviderPort
+    JwtTokenProviderAdapter ..> TokenResponseDTO : produce
+    UsuarioRepositoryAdapter ..|> UsuarioRepository
+    UsuarioRepositoryAdapter --> SpringDataUsuarioRepository : delega
+    UsuarioRepositoryAdapter *-- UsuarioPersistenceMapper
+    UsuarioPersistenceMapper ..> UsuarioJpaEntity : mapea
+    UsuarioPersistenceMapper ..> Usuario : mapea
+    SpringDataUsuarioRepository ..> UsuarioJpaEntity : gestiona
+    UsuarioApplicationMapper ..> UsuarioResponseDTO : produce
+    RegistrarUsuarioRequestDTO ..> RegistrarUsuarioCommand : se transforma en
+    RegistrarUsuarioCommand *-- DatosPacienteAutoRegistroDTO
+    RegistrarUsuarioCommand ..> RolUsuario : referencia
+    UsuarioResponseDTO ..> RolUsuario : referencia
+    TokenResponseDTO ..> RolUsuario : referencia
+    AutenticacionController ..> LoginRequestDTO : recibe

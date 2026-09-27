@@ -1,10 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ErrorDominio } from '../../domain/models/error-dominio.model';
 
-/**
- * Mensajes de apoyo por código de negocio: explican qué hacer, no sólo qué falló
- * (heurística de Nielsen "ayuda a reconocer, diagnosticar y recuperarse de errores").
- */
+/** Sugerencias asociadas a códigos de error de dominio. */
 const SUGERENCIAS: Readonly<Record<string, string>> = {
   SLOT_NO_DISPONIBLE: 'Vuelve a cargar las franjas y elige otra hora.',
   MEDICO_NO_DISPONIBLE: 'Configura el horario del médico en la pantalla de Configuración.',
@@ -13,7 +10,10 @@ const SUGERENCIAS: Readonly<Record<string, string>> = {
   PERIODO_SOLAPADO: 'Usa una fecha de inicio posterior al horario que ya está vigente.',
   DURACION_CITA_INVALIDA: 'La duración debe ser de al menos 30 minutos y caber en la franja.',
   DATOS_INVALIDOS: 'Revisa los campos marcados del formulario.',
-  SIN_CONEXION: 'Comprueba que el backend esté arriba en el puerto 8080.',
+  CREDENCIALES_INVALIDAS: 'Verifica usuario y contraseña e inténtalo de nuevo.',
+  USERNAME_YA_REGISTRADO: 'Elige otro nombre de usuario.',
+  ACCESO_DENEGADO: 'Tu rol no tiene permiso para esta acción.',
+  SIN_CONEXION: 'Comprueba que el backend esté arriba en el puerto 8080',
 };
 
 const GENERICO: ErrorDominio = {
@@ -22,7 +22,7 @@ const GENERICO: ErrorDominio = {
 };
 
 /**
- * Traduce cualquier fallo HTTP al ErrorDominio que consumen las páginas.
+ * Traduce un fallo HTTP a {@link ErrorDominio} para las páginas.
  */
 export function aErrorDominio(error: unknown): ErrorDominio {
   if (!(error instanceof HttpErrorResponse)) {

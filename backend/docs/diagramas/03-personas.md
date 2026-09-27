@@ -1,0 +1,197 @@
+# Personas
+
+Médicos, pacientes y especialidades (`com.piedraazul.personas`).
+
+Diagrama PlantUML de **implementación** (fuente usada para el código).
+
+Archivo: [`puml/03_modulo_personas.puml`](puml/03_modulo_personas.puml)
+
+```plantuml
+@startuml 03_modulo_personas
+title Modulo Gestion de Personas (CRUD Medico, Paciente, Especialidad - base del sistema)
+
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor<<Entity>> #FEF6E4
+  BackgroundColor<<interface>> #E4F0FE
+  BorderColor<<interface>> #2E5C8A
+  BackgroundColor<<RestController>> #EDEDED
+  BackgroundColor<<Adapter>> #EDEDED
+  BackgroundColor<<JPA>> #EDEDED
+  BackgroundColor<<puerto externo>> #F0E4FE
+}
+hide empty members
+
+' -- copiado de 01_nucleo_comun.puml --
+enum RolUsuario {
+  ADMINISTRADOR
+  AGENDADOR
+  MEDICO
+  PACIENTE
+}
+
+' =====================================================================
+' DOMINIO
+' =====================================================================
+class Especialidad <<Entity>> {
+  -id: Long
+  -nombre: String
+  -activa: boolean
+  +activar(): void
+  +desactivar(): void
+}
+
+class Medico <<Entity>> {
+  -id: Long
+  -nombreCompleto: String
+  -especialidadId: Long
+  -activo: boolean
+  +activar(): void
+  +desactivar(): void
+  +estaActivo(): boolean
+}
+
+class Paciente <<Entity>> {
+  -id: Long
+  -usuarioId: Long
+  -nombreCompleto: String
+  -telefono: String
+}
+
+Medico --> Especialidad : tiene
+
+' =====================================================================
+' PUERTOS DE SALIDA
+' =====================================================================
+interface EspecialidadRepository {
+  +guardar(especialidad: Especialidad): Especialidad
+  +buscarPorId(id: Long): Optional<Especialidad>
+  +listarActivas(): List<Especialidad>
+}
+interface MedicoRepository {
+  +guardar(medico: Medico): Medico
+  +buscarPorId(id: Long): Optional<Medico>
+  +listarActivos(): List<Medico>
+}
+interface PacienteRepository {
+  +guardar(paciente: Paciente): Paciente
+  +buscarPorId(id: Long): Optional<Paciente>
+  +buscarPorUsuarioId(usuarioId: Long): Optional<Paciente>
+  +listarTodos(): List<Paciente>
+}
+
+' =====================================================================
+' PUERTOS PUBLICOS (consumidos por otros modulos)
+' =====================================================================
+interface CatalogoMedicosPort {
+  +existeMedicoActivo(medicoId: Long): boolean
+  +obtenerResumen(medicoId: Long): MedicoResumenDTO
+}
+note right of CatalogoMedicosPort
+  Consumido por: Disponibilidad y Citas.
+end note
+
+interface RegistrarPersonaPort {
+  +crearPersonaParaUsuario(rol: RolUsuario, datos: DatosPersonaDTO): Long
+}
+class DatosPersonaDTO <<puerto externo>>
+note right of RegistrarPersonaPort
+  Consumido por: Identidad, cuando se crea
+  un Usuario con rol MEDICO o PACIENTE.
+end note
+
+' =====================================================================
+' CASOS DE USO - CRUD consolidado (una interfaz por entidad, no por operacion)
+' =====================================================================
+interface GestionarEspecialidadUseCase {
+  +crear(comando: CrearEspecialidadCommand): EspecialidadResponseDTO
+  +cambiarEstado(id: Long, activa: boolean): EspecialidadResponseDTO
+  +listarActivas(): List<EspecialidadResponseDTO>
+}
+interface GestionarMedicoUseCase {
+  +crear(comando: CrearMedicoCommand): MedicoResponseDTO
+  +actualizar(id: Long, comando: ActualizarMedicoCommand): MedicoResponseDTO
+  +cambiarEstado(id: Long, activo: boolean): MedicoResponseDTO
+  +buscarPorId(id: Long): MedicoResponseDTO
+  +listarActivos(): List<MedicoResponseDTO>
+}
+interface ConsultarPacienteUseCase {
+  +buscarPorId(id: Long): PacienteResponseDTO
+  +listarTodos(): List<PacienteResponseDTO>
+}
+
+class GestionarEspecialidadService implements GestionarEspecialidadUseCase {
+  -especialidadRepository: EspecialidadRepository
+}
+GestionarEspecialidadService --> EspecialidadRepository
+
+class GestionarMedicoService implements GestionarMedicoUseCase {
+  -medicoRepository: MedicoRepository
+  -especialidadRepository: EspecialidadRepository
+}
+GestionarMedicoService --> MedicoRepository
+GestionarMedicoService --> EspecialidadRepository
+
+class ConsultarPacienteService implements ConsultarPacienteUseCase {
+  -pacienteRepository: PacienteRepository
+}
+ConsultarPacienteService --> PacienteRepository
+
+' -- Facade: implementa los puertos publicos que otros modulos consumen --
+class PersonasModuleFacade implements CatalogoMedicosPort, RegistrarPersonaPort {
+  -medicoRepository: MedicoRepository
+  -pacienteRepository: PacienteRepository
+  +existeMedicoActivo(medicoId: Long): boolean
+  +obtenerResumen(medicoId: Long): MedicoResumenDTO
+  +crearPersonaParaUsuario(rol: RolUsuario, datos: DatosPersonaDTO): Long
+}
+PersonasModuleFacade --> MedicoRepository
+PersonasModuleFacade --> PacienteRepository
+PersonasModuleFacade ..> Medico : crea si rol=MEDICO
+PersonasModuleFacade ..> Paciente : crea si rol=PACIENTE
+
+' =====================================================================
+' INFRAESTRUCTURA - referencia
+' =====================================================================
+class EspecialidadController <<RestController>>
+class MedicoController <<RestController>>
+class PacienteController <<RestController>>
+class EspecialidadRepositoryAdapter <<Adapter>> implements EspecialidadRepository
+class MedicoRepositoryAdapter <<Adapter>> implements MedicoRepository
+class PacienteRepositoryAdapter <<Adapter>> implements PacienteRepository
+class EspecialidadJpaEntity <<JPA>>
+class MedicoJpaEntity <<JPA>>
+class PacienteJpaEntity <<JPA>>
+
+' =====================================================================
+' DTOs
+' =====================================================================
+class CrearEspecialidadCommand <<DTO>>
+class EspecialidadResponseDTO <<DTO>> {
+  +id: Long
+  +nombre: String
+  +activa: boolean
+}
+class CrearMedicoCommand <<DTO>> {
+  +nombreCompleto: String
+  +especialidadId: Long
+}
+class ActualizarMedicoCommand <<DTO>>
+class MedicoResponseDTO <<DTO>> {
+  +id: Long
+  +nombreCompleto: String
+  +especialidad: EspecialidadResponseDTO
+  +activo: boolean
+}
+class MedicoResumenDTO <<DTO>> {
+  +id: Long
+  +nombreCompleto: String
+}
+class PacienteResponseDTO <<DTO>> {
+  +id: Long
+  +nombreCompleto: String
+  +telefono: String
+}
+
+@enduml
+```

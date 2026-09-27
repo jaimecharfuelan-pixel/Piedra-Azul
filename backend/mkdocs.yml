@@ -1,13 +1,21 @@
-site_name: PiedraAzul Backend
-site_description: Documentación del monolito modular PiedraAzul (Spring Boot)
-site_url: https://example.com/piedraazul/
+site_name: PiedraAzul
+site_description: Documentación del monolito modular PiedraAzul (Spring Boot + Angular)
+site_url: http://localhost:8000/
 
-repo_name: piedra-azul-backend
+repo_name: piedra-azul
 # repo_url: https://github.com/...
 
 theme:
   name: material
   language: es
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+    - toc.follow
   palette:
     - scheme: default
       primary: indigo
@@ -26,6 +34,7 @@ nav:
   - Módulos:
       - Vista general: modulos.md
       - Núcleo común: nucleo.md
+      - Identidad y acceso: identidad.md
       - Personas: personas.md
       - Disponibilidad: disponibilidad.md
       - Citas: citas.md
@@ -33,8 +42,13 @@ nav:
   - Frontend (Angular): frontend.md
   - API: api/index.md
   - Pruebas: pruebas.md
-  - Diagramas: diagramas/index.md
-  - Referencia (mkdocstrings): referencia.md
+  - Diagramas de clases:
+      - Índice: diagramas/index.md
+      - Núcleo: diagramas/01-nucleo.md
+      - Identidad: diagramas/02-identidad.md
+      - Personas: diagramas/03-personas.md
+      - Disponibilidad: diagramas/04-disponibilidad.md
+      - Citas: diagramas/05-citas.md
 
 plugins:
   - search
@@ -48,13 +62,29 @@ plugins:
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
-  - toc:
-      permalink: true
+  - plantuml_markdown:
+      server: https://www.plantuml.com/plantuml
+      format: svg
+      classes: plantuml-diagrama
+
+extra_javascript:
+  - javascripts/mermaid-config.js
+
+extra_css:
+  - stylesheets/extra.css
 
 docs_dir: docs
 site_dir: site

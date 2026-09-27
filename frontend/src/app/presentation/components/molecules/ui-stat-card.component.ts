@@ -2,10 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
 import { TonoBadge } from '../atoms/ui-badge.component';
 
-/**
- * Molécula: tarjeta con una cifra destacada.
- * Es la que responde "¿cuántas citas hay?" del RF1 de un solo vistazo.
- */
+/** Tarjeta con cifra destacada (resúmenes de agenda). */
 @Component({
   selector: 'ui-stat-card',
   standalone: true,

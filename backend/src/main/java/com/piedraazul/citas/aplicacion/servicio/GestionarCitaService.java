@@ -87,8 +87,7 @@ public class GestionarCitaService implements GestionarCitaUseCase {
     @Override
     public CitaResponseDTO reagendar(Long citaId, ReagendarCitaCommand comando) {
         Cita cita = requerirCita(citaId);
-        // Se comprueba antes que las reglas de agenda para que el mensaje de error
-        // hable del estado de la cita y no de la franja.
+        // Validar estado antes que reglas de agenda.
         if (!cita.estaProgramada()) {
             throw ReglaDeNegocioException.de(
                     "CITA_NO_MODIFICABLE",

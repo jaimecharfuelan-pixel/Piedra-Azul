@@ -9,12 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Fija el formato de las horas en la API: siempre {@code HH:mm}.
- *
- * <p>Sin esto Jackson alterna entre "08:00" y "08:00:00" según si los segundos
- * son cero, lo que obliga al frontend a normalizar antes de pintar la hora o de
- * cargarla en un {@code <input type="time">}. A la entrada se siguen aceptando
- * ambas formas.</p>
+ * Serializa {@link java.time.LocalTime} como {@code HH:mm} en la API JSON.
  */
 @Configuration
 public class JacksonTiempoConfig {

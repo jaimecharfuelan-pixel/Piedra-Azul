@@ -1,0 +1,44 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pz-esp-5);
+}
+
+.panel__acciones {
+  display: grid;
+  gap: var(--pz-esp-4);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.panel__tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pz-esp-2);
+  text-decoration: none;
+  color: inherit;
+  transition: transform var(--pz-transicion), box-shadow var(--pz-transicion);
+}
+
+.panel__tarjeta:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pz-sombra);
+}
+
+.panel__tarjeta h2 {
+  margin: 0;
+  font-size: var(--pz-texto-lg);
+  color: var(--pz-azul-900);
+}
+
+.panel__tarjeta p {
+  margin: 0;
+  flex: 1;
+  color: var(--pz-gris-700);
+  font-size: var(--pz-texto-sm);
+}
+
+.panel__tarjeta span {
+  font-size: var(--pz-texto-sm);
+  font-weight: 700;
+  color: var(--pz-azul-700);
+}

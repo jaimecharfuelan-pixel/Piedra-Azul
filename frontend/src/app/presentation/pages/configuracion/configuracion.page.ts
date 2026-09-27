@@ -16,6 +16,10 @@ import {
 } from '../../../application/use-cases/configurar-disponibilidad.use-case';
 import { ListarMedicosUseCase } from '../../../application/use-cases/gestionar-medico.use-case';
 import { hoyIso, sumarDiasIso } from '../../../application/shared/fecha.util';
+import {
+  debeFijarMedicoPropio,
+  puedeEditarVentana,
+} from '../../../domain/auth/permisos';
 import { ConfiguracionSistema, VENTANA_MAXIMA_SEMANAS, VENTANA_MINIMA_SEMANAS } from '../../../domain/models/configuracion-sistema.model';
 import { DIAS_SEMANA, DiaSemana, abreviaturaDia, etiquetaDia } from '../../../domain/models/dia-semana.enum';
 import { ErrorDominio } from '../../../domain/models/error-dominio.model';
@@ -25,6 +29,7 @@ import {
   DURACION_CITA_MINIMA_MINUTOS,
   PeriodoDisponibilidad,
 } from '../../../domain/models/periodo-disponibilidad.model';
+import { AuthSessionStore } from '../../../infrastructure/auth/auth-session.store';
 import { aErrorDominio } from '../../../infrastructure/http/error-dominio.mapper';
 import { UiAlertComponent } from '../../components/atoms/ui-alert.component';
 import { UiBadgeComponent } from '../../components/atoms/ui-badge.component';
@@ -33,10 +38,7 @@ import { UiSpinnerComponent } from '../../components/atoms/ui-spinner.component'
 import { UiEmptyStateComponent } from '../../components/molecules/ui-empty-state.component';
 import { UiFieldComponent } from '../../components/molecules/ui-field.component';
 
-/**
- * Comprueba que la franja horaria tenga sentido y que quepa al menos una cita
- * completa; el backend valida lo mismo, esto evita el viaje al servidor.
- */
+/** Valida que la franja permita al menos una cita completa. */
 function franjaCoherente(grupo: AbstractControl): ValidationErrors | null {
   const horaInicio = grupo.get('horaInicio')?.value as string | null;
   const horaFin = grupo.get('horaFin')?.value as string | null;
@@ -63,10 +65,7 @@ function normalizarHora(hora: string): string {
   return hora && hora.length >= 5 ? hora.slice(0, 5) : hora;
 }
 
-/**
- * El administrador define hasta cuándo se puede agendar y, por cada médico,
- * los días que atiende, su franja, la duración de la cita y el descanso entre citas.
- */
+/** Configuración de ventana de agendamiento y horarios por médico. */
 @Component({
   selector: 'app-configuracion-page',
   standalone: true,
@@ -86,6 +85,7 @@ function normalizarHora(hora: string): string {
 export class ConfiguracionPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly sesion = inject(AuthSessionStore);
   private readonly listarMedicos = inject(ListarMedicosUseCase);
   private readonly obtenerConfiguracion = inject(ObtenerConfiguracionUseCase);
   private readonly actualizarVentana = inject(ActualizarVentanaAgendamientoUseCase);
@@ -101,6 +101,13 @@ export class ConfiguracionPageComponent implements OnInit {
   readonly cargandoPeriodos = signal(false);
   readonly error = signal<ErrorDominio | null>(null);
   readonly aviso = signal<string | null>(null);
+
+  readonly puedeVentana = computed(() => puedeEditarVentana(this.sesion.rol()));
+  readonly medicoFijado = computed(() => debeFijarMedicoPropio(this.sesion.rol()));
+  readonly medicoSesionNombre = computed(() => {
+    const id = this.sesion.personaId();
+    return this.medicos().find((m) => m.id === id)?.nombreCompleto ?? 'Tu horario';
+  });
 
   readonly dias = DIAS_SEMANA;
   readonly duracionMinima = DURACION_CITA_MINIMA_MINUTOS;
@@ -135,7 +142,7 @@ export class ConfiguracionPageComponent implements OnInit {
     { validators: franjaCoherente }
   );
 
-  /** Los días se manejan aparte del formGroup porque son un conjunto, no un control. */
+  /** Días de atención seleccionados (fuera del FormGroup). */
   readonly diasElegidos = signal<ReadonlySet<DiaSemana>>(
     new Set([
       DiaSemana.LUNES,
@@ -151,14 +158,11 @@ export class ConfiguracionPageComponent implements OnInit {
   /** El horario abierto (sin fecha de fin) es el que se cierra al guardar uno nuevo. */
   readonly periodoAbierto = computed(() => this.periodos().find((periodo) => periodo.fechaFin === null));
 
-  /**
-   * Copia de los valores del formulario en un signal: sin esto, los computed no
-   * se enteran cuando el usuario cambia médico, horas o duración.
-   */
+  /** Snapshot del formulario de periodo para computed reactivos. */
   readonly valoresPeriodo = signal(this.formPeriodo.getRawValue());
   readonly periodoFormularioValido = signal(this.formPeriodo.valid);
 
-  /** Cuántas citas ofrecerá cada día con la configuración actual del formulario. */
+  /** Citas por día según franja, duración y descanso del formulario. */
   readonly citasPorDia = computed(() => {
     const { horaInicio, horaFin, duracionCitaMinutos, descansoEntreCitasMinutos } =
       this.valoresPeriodo();
@@ -239,6 +243,14 @@ export class ConfiguracionPageComponent implements OnInit {
     this.listarMedicos.execute().subscribe({
       next: (medicos) => {
         this.medicos.set(medicos);
+        if (this.medicoFijado()) {
+          const propio = this.sesion.personaId();
+          if (propio != null) {
+            this.formPeriodo.patchValue({ medicoId: propio });
+            this.cargarPeriodos();
+          }
+          return;
+        }
         const primero = medicos[0];
         if (primero) {
           this.formPeriodo.patchValue({ medicoId: primero.id });
@@ -289,7 +301,7 @@ export class ConfiguracionPageComponent implements OnInit {
   }
 
   guardarVentana(): void {
-    if (this.formVentana.invalid) {
+    if (!this.puedeVentana() || this.formVentana.invalid) {
       this.formVentana.markAllAsTouched();
       return;
     }

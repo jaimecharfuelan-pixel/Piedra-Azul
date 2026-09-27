@@ -55,7 +55,17 @@ interfaz de puerto público:
 
 ## Datos de demostración
 
-Al arrancar, `SeedDatosDemo` (en Identidad) siembra especialidades, usuarios
-demo (`admin`, `agendador`, `ana.medico`, `carlos.medico`, `juan.paciente`,
-`maria.paciente` — password `demo1234`), horarios y citas de ejemplo — **sólo
-si la base está vacía**. Se apaga con `app.seed.enabled=false`.
+**Clase:** `com.piedraazul.bootstrap.SeedDatosDemo` (paquete de arranque de la
+app, **no** un módulo de negocio).
+
+Al arrancar Spring Boot, si `app.seed.enabled=true` / `APP_SEED_ENABLED=true` y
+aún no existe el usuario `admin`, un `ApplicationRunner` llama a los casos de
+uso de Identidad, Personas, Disponibilidad y Citas y siembra:
+
+- Especialidades, usuarios demo (password `demo1234`)
+- Pacientes walk-in adicionales
+- Horarios de Ana (mañana) y Carlos (tarde)
+- Varias citas (programadas, atendidas y canceladas)
+
+`db/init/*.sql` en Docker **no inserta** la demo. Para regenerar:
+`docker compose down -v` y volver a levantar.

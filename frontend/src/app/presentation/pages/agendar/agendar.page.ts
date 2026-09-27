@@ -37,6 +37,8 @@ import { Medico } from '../../../domain/models/medico.model';
 import { Paciente } from '../../../domain/models/paciente.model';
 import { SlotDisponible, claveSlot } from '../../../domain/models/slot-disponible.model';
 import { slotsToFullCalendarEvents } from '../../../infrastructure/calendar/fullcalendar.mapper';
+import { AuthSessionStore } from '../../../infrastructure/auth/auth-session.store';
+import { RolUsuario } from '../../../domain/models/rol-usuario.enum';
 import { aErrorDominio } from '../../../infrastructure/http/error-dominio.mapper';
 import { UiAlertComponent } from '../../components/atoms/ui-alert.component';
 import { UiBadgeComponent } from '../../components/atoms/ui-badge.component';
@@ -47,13 +49,7 @@ import { UiFieldComponent } from '../../components/molecules/ui-field.component'
 import { PzConfirmDialogComponent } from '../../components/organisms/pz-confirm-dialog.component';
 import { PzSlotPickerComponent } from '../../components/organisms/pz-slot-picker.component';
 
-/**
- * RF2 — El paciente reserva su cita desde la web: elige médico y día, ve las
- * franjas realmente disponibles y confirma.
- *
- * Mientras el módulo Identidad no exista, el paciente se selecciona de una lista
- * en lugar de tomarse de la sesión.
- */
+/** Reserva de cita: paciente autenticado o selección de paciente por staff. */
 @Component({
   selector: 'app-agendar-page',
   standalone: true,
@@ -75,6 +71,7 @@ import { PzSlotPickerComponent } from '../../components/organisms/pz-slot-picker
 })
 export class AgendarPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
+  private readonly sesion = inject(AuthSessionStore);
   private readonly listarMedicos = inject(ListarMedicosUseCase);
   private readonly listarPacientes = inject(ListarPacientesUseCase);
   private readonly registrarPaciente = inject(RegistrarPacienteUseCase);
@@ -84,6 +81,16 @@ export class AgendarPageComponent implements OnInit {
   private readonly agendarCita = inject(AgendarCitaUseCase);
   private readonly cancelarCita = inject(CancelarCitaUseCase);
   private readonly listarMisCitas = inject(ListarCitasPacienteUseCase);
+
+  readonly esPaciente = computed(() => this.sesion.rol() === RolUsuario.PACIENTE);
+  readonly puedeRegistrarWalkIn = computed(
+    () =>
+      this.sesion.tieneRol(
+        RolUsuario.ADMINISTRADOR,
+        RolUsuario.AGENDADOR,
+        RolUsuario.MEDICO
+      )
+  );
 
   readonly medicos = signal<readonly Medico[]>([]);
   readonly pacientes = signal<readonly Paciente[]>([]);
@@ -107,7 +114,7 @@ export class AgendarPageComponent implements OnInit {
     fecha: [hoyIso(), Validators.required],
   });
 
-  /** RF2: el paciente se registra aquí si todavía no está en el sistema. */
+  /** Registro walk-in de paciente desde esta pantalla. */
   readonly formRegistro = this.fb.nonNullable.group({
     nombreCompleto: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(180)]],
     telefono: ['', [Validators.required, Validators.pattern(/^\d{7,15}$/)]],
@@ -135,11 +142,7 @@ export class AgendarPageComponent implements OnInit {
     return slot ? claveSlot(slot) : null;
   });
 
-  /**
-   * El FormGroup no es un signal: si esto vive solo en un computed, Angular no
-   * vuelve a evaluarlo cuando el formulario pasa a válido. Se lee en el
-   * template para que el change detection lo recalcule.
-   */
+  /** Indica si el formulario y la franja elegida permiten confirmar. */
   puedeConfirmar(): boolean {
     return this.formulario.valid && this.slotElegido() !== null;
   }
@@ -154,17 +157,25 @@ export class AgendarPageComponent implements OnInit {
       error: (err) => this.error.set(aErrorDominio(err)),
     });
 
-    this.listarPacientes.execute().subscribe({
-      next: (pacientes) => {
-        this.pacientes.set(pacientes);
-        const primero = pacientes[0];
-        if (primero) {
-          this.formulario.patchValue({ pacienteId: primero.id });
-          this.cargarMisCitas();
-        }
-      },
-      error: (err) => this.error.set(aErrorDominio(err)),
-    });
+    if (this.esPaciente()) {
+      const personaId = this.sesion.personaId();
+      if (personaId != null) {
+        this.formulario.patchValue({ pacienteId: personaId });
+        this.cargarMisCitas();
+      }
+    } else {
+      this.listarPacientes.execute().subscribe({
+        next: (pacientes) => {
+          this.pacientes.set(pacientes);
+          const primero = pacientes[0];
+          if (primero) {
+            this.formulario.patchValue({ pacienteId: primero.id });
+            this.cargarMisCitas();
+          }
+        },
+        error: (err) => this.error.set(aErrorDominio(err)),
+      });
+    }
 
     this.listarMedicos.execute().subscribe({
       next: (medicos) => {
