@@ -9,18 +9,28 @@
   }
 
   <div class="pz-tarjeta calendario__filtros">
-    <ui-field etiqueta="Médico / terapista" controlId="calendario-medico" [requerido]="true">
-      <select
-        id="calendario-medico"
-        class="pz-control"
-        [(ngModel)]="medicoId"
-        (ngModelChange)="cargar()"
-      >
-        @for (medico of medicos(); track medico.id) {
-          <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
+    <div class="calendario__medico">
+      <ui-field etiqueta="Médico / terapista" controlId="calendario-medico" [requerido]="true">
+        <select
+          id="calendario-medico"
+          class="pz-control"
+          [(ngModel)]="medicoId"
+          (ngModelChange)="cargar()"
+        >
+          @for (medico of medicos(); track medico.id) {
+            <option [ngValue]="medico.id">{{ medico.nombreCompleto }}</option>
+          }
+        </select>
+      </ui-field>
+
+      <p class="calendario__conteo">
+        @if (cargando()) {
+          <ui-spinner texto="Cargando citas…" />
+        } @else {
+          {{ totalCitas() }} cita(s) en el rango cargado.
         }
-      </select>
-    </ui-field>
+      </p>
+    </div>
 
     <ui-field
       etiqueta="Semana de"
@@ -35,14 +45,6 @@
         (ngModelChange)="cargar()"
       />
     </ui-field>
-
-    <p class="calendario__conteo">
-      @if (cargando()) {
-        <ui-spinner texto="Cargando citas…" />
-      } @else {
-        {{ totalCitas() }} cita(s) en el rango cargado.
-      }
-    </p>
   </div>
 
   <ul class="calendario__leyenda" aria-label="Significado de los colores">

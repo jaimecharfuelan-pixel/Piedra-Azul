@@ -16,6 +16,8 @@ export interface PeriodoDisponibilidad {
   readonly duracionCitaMinutos: number;
   readonly descansoEntreCitasMinutos: number;
   readonly vigente: boolean;
+  /** VIGENTE cubre hoy, FUTURO todavía no empieza, HISTORICO ya cerró. */
+  readonly estado: 'VIGENTE' | 'FUTURO' | 'HISTORICO';
 }
 
 export interface ConfigurarPeriodoCommand {

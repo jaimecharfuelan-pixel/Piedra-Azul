@@ -90,6 +90,21 @@ class PeriodoDisponibilidadTest {
     }
 
     @Test
+    @DisplayName("un inicio posterior a hoy es vigencia futura, no histórico")
+    void clasificaVigenciaRespectoAHoy() {
+        PeriodoDisponibilidad periodo = periodoAbierto();
+
+        assertEquals(EstadoVigenciaPeriodo.FUTURO, periodo.vigenciaEn(LUNES_5_ENERO_2026.minusDays(1)));
+        assertEquals(EstadoVigenciaPeriodo.VIGENTE, periodo.vigenciaEn(LUNES_5_ENERO_2026));
+        assertEquals(EstadoVigenciaPeriodo.VIGENTE, periodo.vigenciaEn(LUNES_5_ENERO_2026.plusYears(1)));
+
+        periodo.cerrarEn(LUNES_5_ENERO_2026.plusDays(13));
+
+        assertEquals(EstadoVigenciaPeriodo.VIGENTE, periodo.vigenciaEn(LUNES_5_ENERO_2026.plusDays(13)));
+        assertEquals(EstadoVigenciaPeriodo.HISTORICO, periodo.vigenciaEn(LUNES_5_ENERO_2026.plusDays(14)));
+    }
+
+    @Test
     @DisplayName("cerrarEn deja de incluir las fechas posteriores al cierre")
     void cerrarEnLimitaLaVigencia() {
         PeriodoDisponibilidad periodo = periodoAbierto();

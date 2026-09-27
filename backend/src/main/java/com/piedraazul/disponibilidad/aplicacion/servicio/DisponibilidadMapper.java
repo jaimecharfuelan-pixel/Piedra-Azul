@@ -1,6 +1,7 @@
 package com.piedraazul.disponibilidad.aplicacion.servicio;
 
 import com.piedraazul.disponibilidad.dominio.ConfiguracionSistema;
+import com.piedraazul.disponibilidad.dominio.EstadoVigenciaPeriodo;
 import com.piedraazul.disponibilidad.dominio.PeriodoDisponibilidad;
 import com.piedraazul.disponibilidad.dominio.SlotDisponible;
 import com.piedraazul.disponibilidad.infraestructura.dto.ConfiguracionSistemaResponseDTO;
@@ -33,6 +34,7 @@ final class DisponibilidadMapper {
         List<DiaSemana> dias = periodo.getDiasAtencion().stream()
                 .sorted(Comparator.comparingInt(DiaSemana::ordinal))
                 .toList();
+        EstadoVigenciaPeriodo estado = periodo.vigenciaEn(hoy);
         return new PeriodoDisponibilidadResponseDTO(
                 periodo.getId(),
                 periodo.getMedicoId(),
@@ -44,7 +46,8 @@ final class DisponibilidadMapper {
                 periodo.getFranjaHoraria().getHoraFin(),
                 periodo.getDuracionCitaMinutos(),
                 periodo.getDescansoEntreCitasMinutos(),
-                periodo.incluyeFecha(hoy)
+                estado == EstadoVigenciaPeriodo.VIGENTE,
+                estado
         );
     }
 

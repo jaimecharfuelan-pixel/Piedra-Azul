@@ -1,5 +1,6 @@
 package com.piedraazul.disponibilidad.infraestructura.dto;
 
+import com.piedraazul.disponibilidad.dominio.EstadoVigenciaPeriodo;
 import com.piedraazul.nucleo.dominio.DiaSemana;
 
 import java.time.LocalDate;
@@ -21,6 +22,7 @@ public record PeriodoDisponibilidadResponseDTO(
         LocalTime horaFin,
         int duracionCitaMinutos,
         int descansoEntreCitasMinutos,
-        boolean vigente
+        boolean vigente,
+        EstadoVigenciaPeriodo estado
 ) {
 }

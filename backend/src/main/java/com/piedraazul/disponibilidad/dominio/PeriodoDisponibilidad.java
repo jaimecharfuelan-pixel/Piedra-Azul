@@ -113,6 +113,21 @@ public class PeriodoDisponibilidad implements PeriodoDisponibilidadRef {
     }
 
     /**
+     * Clasifica el periodo respecto a una fecha: todavía no empieza, cubre ese
+     * día, o ya cerró. Un inicio futuro no es histórico.
+     */
+    public EstadoVigenciaPeriodo vigenciaEn(LocalDate fecha) {
+        Objects.requireNonNull(fecha, "fecha es obligatoria");
+        if (fecha.isBefore(fechaInicio)) {
+            return EstadoVigenciaPeriodo.FUTURO;
+        }
+        if (fechaFin != null && fecha.isAfter(fechaFin)) {
+            return EstadoVigenciaPeriodo.HISTORICO;
+        }
+        return EstadoVigenciaPeriodo.VIGENTE;
+    }
+
+    /**
      * Detecta el choque de calendarios entre este periodo y otro rango de fechas
      * (usado para impedir dos horarios simultáneos del mismo médico).
      */

@@ -207,7 +207,8 @@
   <div class="pz-tarjeta">
     <h2 class="pz-tarjeta__titulo">Horarios guardados</h2>
     <p class="pz-tarjeta__ayuda">
-      Del más reciente al más antiguo. El vigente es el que se usa al agendar.
+      Del más reciente al más antiguo. Vigente hoy es el que aplica en la fecha de hoy.
+      Vigencia futura es un horario que todavía no empieza. Histórico es uno que ya cerró.
     </p>
 
     @if (cargandoPeriodos()) {
@@ -242,10 +243,16 @@
                 <td>{{ periodo.duracionCitaMinutos }} min</td>
                 <td>{{ periodo.descansoEntreCitasMinutos }} min</td>
                 <td>
-                  @if (periodo.vigente) {
-                    <ui-badge tono="exito" texto="Vigente hoy" />
-                  } @else {
-                    <ui-badge tono="neutro" texto="Histórico" />
+                  @switch (periodo.estado) {
+                    @case ('VIGENTE') {
+                      <ui-badge tono="exito" texto="Vigente hoy" />
+                    }
+                    @case ('FUTURO') {
+                      <ui-badge tono="info" texto="Vigencia futura" />
+                    }
+                    @default {
+                      <ui-badge tono="neutro" texto="Histórico" />
+                    }
                   }
                 </td>
               </tr>

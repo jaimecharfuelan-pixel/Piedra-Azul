@@ -6,17 +6,24 @@
   &__filtros {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: var(--pz-esp-4);
 
-    ui-field {
+    > ui-field,
+    > .calendario__medico {
       flex: 1 1 16rem;
     }
   }
 
+  &__medico {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pz-esp-1);
+    min-width: 0;
+  }
+
   &__conteo {
-    margin: 0 0 var(--pz-esp-1);
-    flex: 1 1 12rem;
+    margin: 0;
     font-size: var(--pz-texto-sm);
     color: var(--pz-gris-500);
   }
