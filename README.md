@@ -46,6 +46,5 @@ docker compose down -v && docker compose up --build -d
 cd backend && mvn test
 ```
 
-Humo HTTP (opcional, PowerShell): `scripts/smoke-test.ps1` con el stack en Docker.
 
 Documentación detallada (MkDocs): ver sección *Pruebas* en el sitio de docs.
