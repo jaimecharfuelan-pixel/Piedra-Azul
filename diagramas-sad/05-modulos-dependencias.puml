@@ -1,0 +1,31 @@
+@startuml 05-modulos-dependencias
+title Piedra Azul — Figura 5 — Dependencias entre módulos (puertos)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+package "Backend — monolito modular" {
+  component "nucleo" as N
+  component "identidad" as I
+  component "personas" as P
+  component "disponibilidad" as D
+  component "citas" as C
+}
+
+I --> N
+P --> N
+D --> N
+C --> N
+
+I --> P : RegistrarPersonaPort
+D --> P : CatalogoMedicosPort
+C --> P : CatalogoMedicosPort\nCatalogoPacientesPort
+C --> D : ConsultarConfiguracionPort
+D --> C : ConsultarCitasPort
+
+note right of I
+  JWT + SecurityConfig\nviven en Identidad
+end note
+
+@enduml

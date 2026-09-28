@@ -1,0 +1,29 @@
+@startuml 07-secuencia-agendar-cita
+title Piedra Azul — Figura 7 — Secuencia agendar cita (RF2 / CU06)
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor "Actor" as A
+participant "SPA" as FE
+participant "CitaController" as CC
+participant "GestionarCitaService" as G
+participant "Personas\n(ports)" as P
+participant "Disponibilidad\n(port)" as D
+database "BD" as DB
+
+A -> FE : elige médico, fecha, slot
+FE -> CC : POST /api/citas + JWT
+CC -> G : agendar
+G -> P : validar paciente / médico
+G -> G : TimeRange (≥30 min)
+G -> D : ventana + periodo / slot en rejilla
+G -> G : sin solape con PROGRAMADA
+alt ok
+  G -> DB : persistir Cita PROGRAMADA
+  G --> FE : 201 Created
+else error de negocio
+  G --> FE : 4xx ProblemDetail\n(código de dominio)
+end
+
+@enduml

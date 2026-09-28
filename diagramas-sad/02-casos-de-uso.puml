@@ -1,0 +1,85 @@
+@startuml
+title Piedra Azul — Figura 2 — Modelo de casos de uso
+top to bottom direction
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #E3EEFB
+  BorderColor #14487F
+}
+
+' Actor genérico: evita 8 flechas a CU01/CU10
+actor "Usuario" as U
+actor "Administrador" as Adm
+actor "Agendador" as Age
+actor "Médico" as Med
+actor "Paciente" as Pac
+
+' Herencia
+Adm --|> U
+Age --|> U
+Med --|> U
+Pac --|> U
+
+' Alineación vertical forzada de actores
+Adm -[hidden]down-> Age
+Age -[hidden]down-> Med
+Med -[hidden]down-> Pac
+Pac -[hidden]down-> U
+
+rectangle "Sistema Piedra Azul" {
+  usecase "CU01 Autenticar" as CU01
+  usecase "CU10 Historial" as CU10
+  usecase "CU03 Configurar ventana" as CU03
+  usecase "CU04 Configurar periodo\n(RF3)" as CU04
+  usecase "CU08 Listar agenda\n(RF1)" as CU08
+  usecase "CU06 Agendar cita\n(RF2)" as CU06
+  usecase "CU07 Cancelar cita" as CU07
+  usecase "CU05 Consultar slots" as CU05
+  usecase "CU02 Registrar paciente" as CU02
+  usecase "CU09 Marcar atendida" as CU09
+
+  ' Alineación vertical forzada de casos de uso
+  CU01 -[hidden]down-> CU10
+  CU10 -[hidden]down-> CU03
+  CU03 -[hidden]down-> CU04
+  CU04 -[hidden]down-> CU08
+  CU08 -[hidden]down-> CU06
+  CU06 -[hidden]down-> CU07
+  CU07 -[hidden]down-> CU05
+  CU05 -[hidden]down-> CU02
+  CU02 -[hidden]down-> CU09
+}
+
+U --> CU01
+U --> CU10
+
+Adm --> CU03
+Adm --> CU04
+
+Age --> CU08
+Age --> CU06
+Age --> CU07
+
+Med --> CU08
+Med --> CU09
+
+Pac --> CU02
+Pac --> CU05
+Pac --> CU06
+Pac --> CU07
+
+note right of CU08
+  RF1
+end note
+
+note right of CU06
+  RF2
+end note
+
+note right of CU04
+  RF3
+end note
+@enduml

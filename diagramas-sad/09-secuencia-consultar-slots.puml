@@ -1,0 +1,23 @@
+@startuml 09-secuencia-consultar-slots
+title Piedra Azul — Figura 9 — Secuencia consultar slots (CU05)
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor "Usuario" as U
+participant "SPA /agendar" as FE
+participant "DisponibilidadController" as DC
+participant "ConsultarDisponibilidadService" as S
+participant "CalculadorSlotsStrategy" as ST
+participant "Citas\nConsultarCitasPort" as C
+
+U -> FE : médico + rango fechas
+FE -> DC : GET /api/disponibilidad/slots
+DC -> S : consultar
+S -> S : obtener periodo vigente
+S -> ST : generar rejilla completa
+S -> C : citas ocupadas (PROGRAMADA)
+S -> S : descartar ocupados / pasados
+S --> FE : slots disponibles
+
+@enduml

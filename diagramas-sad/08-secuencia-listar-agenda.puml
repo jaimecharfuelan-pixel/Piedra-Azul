@@ -1,0 +1,26 @@
+@startuml 08-secuencia-listar-agenda
+title Piedra Azul — Figura 8 — Secuencia listar agenda del día (RF1 / CU08)
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor "Agendador / Médico" as A
+participant "SPA /agenda" as FE
+participant "CitaController" as CC
+participant "ListarCitasService" as L
+participant "Personas\nCatalogoPacientesPort" as P
+database "BD" as DB
+
+A -> FE : médico + fecha + orden
+FE -> CC : GET /api/citas?medicoId&fecha&orden
+CC -> L : listar
+L -> DB : citas del día\n(Sort HORA/ESTADO)
+alt orden = PACIENTE
+  L -> P : enriquecer nombres
+  L -> L : Collator es-CO en memoria
+else
+  L -> P : enriquecer nombres/teléfono
+end
+L --> FE : cantidad + listado
+
+@enduml

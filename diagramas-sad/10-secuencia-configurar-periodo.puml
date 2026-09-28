@@ -1,0 +1,25 @@
+@startuml 10-secuencia-configurar-periodo
+title Piedra Azul — Figura 10 — Secuencia configurar periodo (RF3 / CU04)
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor "Admin / Agendador / Médico" as A
+participant "SPA /configuracion" as FE
+participant "DisponibilidadController" as DC
+participant "PeriodoService" as PS
+database "BD" as DB
+
+A -> FE : días, horario, duración, descanso
+FE -> DC : POST /api/disponibilidad/periodos
+DC -> PS : crear periodo
+PS -> PS : validar duración ≥30\ndescanso 0–120
+alt solape con periodo existente
+  PS --> FE : 409 PERIODO_SOLAPADO
+else ok
+  PS -> DB : cerrar periodo abierto anterior
+  PS -> DB : persistir nuevo periodo\n(VIGENTE/FUTURO)
+  PS --> FE : 201 Created
+end
+
+@enduml

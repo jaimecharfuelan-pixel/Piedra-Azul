@@ -1,0 +1,31 @@
+@startuml 03-estados-cita
+title Piedra Azul — Figura 3 — Ciclo de vida de la entidad Cita
+skinparam backgroundColor white
+skinparam shadowing false
+
+[*] --> PROGRAMADA : crear cita (CU06)
+
+PROGRAMADA --> PROGRAMADA : reagendar (CU07b)
+PROGRAMADA --> CANCELADA : cancelar (CU07)
+PROGRAMADA --> ATENDIDA : marcar atención (CU09)\ncrea Consulta
+
+CANCELADA --> [*]
+ATENDIDA --> [*]
+
+note right of PROGRAMADA
+  Solo PROGRAMADA ocupa
+  la agenda (solapes / slots).
+end note
+
+note right of CANCELADA
+  Estado final.
+  Código CITA_NO_MODIFICABLE
+  si se intenta otra transición.
+end note
+
+note right of ATENDIDA
+  Estado final.
+  Genera historial Consulta.
+end note
+
+@enduml

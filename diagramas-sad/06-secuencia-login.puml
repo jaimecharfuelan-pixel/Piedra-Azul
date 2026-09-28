@@ -1,0 +1,27 @@
+@startuml 06-secuencia-login
+title Piedra Azul — Figura 6 — Secuencia de autenticación (login)
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor "Usuario" as U
+participant "SPA Angular" as FE
+participant "AuthController" as AC
+participant "AutenticarUsuarioService" as S
+participant "PasswordEncoderPort" as PE
+participant "JwtTokenPort" as JWT
+
+U -> FE : usuario / contraseña
+FE -> AC : POST /api/auth/login
+AC -> S : autenticar
+S -> PE : validar contraseña (BCrypt)
+alt credenciales inválidas
+  S --> FE : 401 Unauthorized
+else ok
+  S -> JWT : generar token
+  JWT --> S : JWT
+  S --> FE : 200 + token
+  FE -> FE : AuthSessionStore\n+ interceptor Bearer
+end
+
+@enduml

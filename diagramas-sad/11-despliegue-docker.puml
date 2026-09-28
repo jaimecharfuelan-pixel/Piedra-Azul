@@ -1,0 +1,29 @@
+@startuml 11-despliegue-docker
+title Piedra Azul — Figura 11 — Vista de despliegue (Docker Compose)
+skinparam backgroundColor white
+skinparam shadowing false
+
+node "Host Docker" {
+  node "piedraazul-frontend" as FE {
+    artifact "nginx 1.27\nSPA Angular" as NGX
+  }
+  node "piedraazul-backend" as BE {
+    artifact "Spring Boot\nJRE 17 :8080" as APP
+  }
+  node "piedraazul-db" as DBN {
+    database "PostgreSQL 16\n:5432" as DB
+  }
+  node "piedraazul-docs\n(opcional)" as DOC {
+    artifact "MkDocs :8000" as MK
+  }
+}
+
+actor "Navegador" as U
+U --> FE : :4200 → 80
+FE --> BE : /api proxy
+BE --> DB : JDBC
+note right of APP
+  APP_SEED_ENABLED=true\nSeedDatosDemo\n(sin SQL db/init)
+end note
+
+@enduml

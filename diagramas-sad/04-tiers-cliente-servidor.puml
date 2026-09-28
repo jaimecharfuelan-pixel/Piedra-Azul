@@ -1,0 +1,28 @@
+@startuml 04-tiers-cliente-servidor
+title Piedra Azul — Figura 4 — Cliente/servidor y tiers
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam componentStyle rectangle
+
+node "Cliente" {
+  actor "Usuario\n(navegador)" as U
+  component "SPA Angular\nnginx :4200→80" as FE
+}
+
+node "Servidor de aplicación" {
+  component "API Spring Boot\n:8080" as BE
+}
+
+node "Datos" {
+  database "PostgreSQL 16\n:5432" as DB
+}
+
+U --> FE : HTTPS
+FE --> BE : /api/*\nBearer JWT
+BE --> DB : JDBC
+
+note bottom of FE
+  Perfil local: proxy a :8080\nProducción: nginx proxy_pass /api
+end note
+
+@enduml

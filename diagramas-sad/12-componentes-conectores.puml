@@ -1,0 +1,45 @@
+@startuml 12-componentes-conectores
+title Piedra Azul — Figura 12 — Componentes y conectores (overview)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam componentStyle rectangle
+
+package "Frontend" {
+  [Presentation\npáginas + guards] as UI
+  [Application\nuse-cases] as APPF
+  [Infrastructure\nHTTP adapters\n+ JWT interceptor] as INF
+}
+
+package "Backend" {
+  [Identidad\nAuth + JWT + Security] as ID
+  [Personas\nFachada + REST] as PE
+  [Disponibilidad\nStrategy slots] as DI
+  [Citas\nAgenda + ciclo vida] as CI
+  [Núcleo] as NU
+}
+
+database "PostgreSQL" as DB
+
+UI --> APPF
+APPF --> INF
+INF --> ID : HTTP + Bearer
+INF --> PE
+INF --> DI
+INF --> CI
+
+ID --> NU
+PE --> NU
+DI --> NU
+CI --> NU
+ID --> PE : RegistrarPersonaPort
+DI --> PE : CatalogoMedicosPort
+CI --> PE : catálogos
+CI --> DI : ConsultarConfiguracionPort
+DI --> CI : ConsultarCitasPort
+
+ID --> DB
+PE --> DB
+DI --> DB
+CI --> DB
+
+@enduml

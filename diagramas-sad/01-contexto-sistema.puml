@@ -1,0 +1,33 @@
+@startuml 01-contexto-sistema
+title Piedra Azul — Figura 1 — Diagrama de contexto del sistema
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam componentStyle rectangle
+
+actor "Paciente" as Pac
+actor "Agendador" as Age
+actor "Médico" as Med
+actor "Administrador" as Adm
+
+rectangle "Piedra Azul" {
+  component "SPA Angular\n(frontend :4200)" as FE
+  component "API REST Spring Boot\n(backend :8080)" as BE
+  database "PostgreSQL\n(:5432)" as DB
+}
+
+Pac --> FE : agenda / consulta citas
+Age --> FE : lista agenda del día\ny gestiona citas
+Med --> FE : agenda propia /\natención
+Adm --> FE : ventana y\nconfiguración
+
+FE --> BE : HTTPS JSON\n/api/* + JWT
+BE --> DB : JDBC
+
+note right of BE
+  Monolito modular:
+  identidad, personas,
+  disponibilidad, citas
+end note
+
+@enduml
