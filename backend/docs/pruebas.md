@@ -4,7 +4,8 @@
 
 | Tipo | Dónde | Qué comprueba |
 |---|---|---|
-| Unitarias de dominio | `src/test/java/.../dominio/` | Reglas de negocio sin Spring ni base de datos |
+| Unitarias de dominio | `src/test/java/.../dominio/` | Entidades y reglas de negocio, sin Spring ni base de datos |
+| Unitarias de servicio | `src/test/java/.../aplicacion/servicio/` | Casos de uso y fachadas con puertos simulados (Mockito) |
 | Integración por HTTP | `src/test/java/com/piedraazul/citas/FlujoAgendamientoTest.java` | El flujo RF3 → RF2 → RF1 completo con MockMvc y H2 |
 | Humo contra el sistema real | `scripts/smoke-test.ps1` | Los tres RF y todos los códigos de error contra el backend en Docker |
 
@@ -14,7 +15,7 @@ cd backend
 mvn test
 ```
 
-Resultado esperado: **44 pruebas, 0 fallos**.
+Resultado esperado: la suite termina con **0 fallos**.
 
 ### Detalle de las unitarias
 
@@ -26,6 +27,9 @@ Resultado esperado: **44 pruebas, 0 fallos**.
 | `CalculadorSlotsPorIntervaloFijoTest` | 7 — generación de franjas, descanso, ocupadas, no desbordar medianoche |
 | `CitaTest` | 7 — ciclo de vida y estados finales |
 | `ConsultaTest` | 4 — sólo nace de una cita atendida |
+| `MedicoTest`, `PacienteTest`, `EspecialidadTest`, `UsuarioTest` | Alta, validación y estado |
+| `DiaSemanaTest`, `OrdenCitasTest`, `SlotDisponibleTest`, `ExcepcionesDeDominioTest` | Traducción de días, orden del listado y códigos de error |
+| `*ServiceTest` y `*FacadeTest` | Cada caso de uso con repositorios simulados: éxito y rechazo de la regla |
 
 ### Detalle de la integración
 
