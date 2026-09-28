@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AccionUi, accionesParaRol, rutaPanelPorRol } from '../../../domain/auth/permisos';
 import { AuthSessionStore } from '../../../infrastructure/auth/auth-session.store';
 import { UiButtonComponent } from '../atoms/ui-button.component';
+import { PzMarcaPiedrazulComponent } from '../atoms/pz-marca-piedrazul.component';
 
 interface EnlaceNav {
   readonly accion: AccionUi;
@@ -14,18 +15,16 @@ interface EnlaceNav {
 @Component({
   selector: 'pz-nav',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, UiButtonComponent],
+  imports: [RouterLink, RouterLinkActive, UiButtonComponent, PzMarcaPiedrazulComponent],
   template: `
     @if (visible()) {
       <header class="pz-nav">
         <div class="pz-nav__interior">
-          <a class="pz-nav__marca" [routerLink]="rutaInicio()">
-            <span class="pz-nav__logo" aria-hidden="true">PZ</span>
-            <span>
-              <strong>PiedraAzul</strong>
-              <small>{{ etiquetaRol() }}</small>
-            </span>
-          </a>
+          <pz-marca-piedrazul
+            variante="nav"
+            [enlace]="rutaInicio()"
+            [subtitulo]="etiquetaRol()"
+          />
 
           <nav class="pz-nav__enlaces" aria-label="Secciones principales">
             @for (enlace of enlacesVisibles(); track enlace.ruta) {
@@ -66,33 +65,6 @@ interface EnlaceNav {
         align-items: center;
         justify-content: space-between;
         gap: var(--pz-esp-4);
-      }
-
-      .pz-nav__marca {
-        display: flex;
-        align-items: center;
-        gap: var(--pz-esp-3);
-        text-decoration: none;
-        color: var(--pz-azul-900);
-      }
-
-      .pz-nav__marca small {
-        display: block;
-        font-size: var(--pz-texto-xs);
-        color: var(--pz-gris-500);
-        font-weight: 400;
-      }
-
-      .pz-nav__logo {
-        display: grid;
-        place-items: center;
-        width: 2.25rem;
-        height: 2.25rem;
-        border-radius: var(--pz-radio);
-        background: var(--pz-azul-700);
-        color: var(--pz-blanco);
-        font-weight: 700;
-        font-size: var(--pz-texto-sm);
       }
 
       .pz-nav__enlaces {

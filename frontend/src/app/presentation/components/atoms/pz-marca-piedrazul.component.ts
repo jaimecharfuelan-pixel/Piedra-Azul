@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-export type VarianteMarcaPiedrazul = 'barra' | 'auth' | 'pie';
+export type VarianteMarcaPiedrazul = 'barra' | 'auth' | 'pie' | 'nav';
 
 /**
  * Marca de Piedra Azul: piedra azulada con cruz médica, no solo iniciales.
@@ -15,7 +15,8 @@ export type VarianteMarcaPiedrazul = 'barra' | 'auth' | 'pie';
       class="pz-marca-pz"
       [class.pz-marca-pz--auth]="variante === 'auth'"
       [class.pz-marca-pz--pie]="variante === 'pie'"
-      routerLink="/"
+      [class.pz-marca-pz--nav]="variante === 'nav'"
+      [routerLink]="enlace"
       aria-label="Piedra Azul, centro de salud"
     >
       <img
@@ -27,7 +28,9 @@ export type VarianteMarcaPiedrazul = 'barra' | 'auth' | 'pie';
       />
       <span class="pz-marca-pz__texto">
         <strong>Piedra Azul</strong>
-        <small>Centro de salud</small>
+        @if (subtitulo) {
+          <small>{{ subtitulo }}</small>
+        }
       </span>
     </a>
   `,
@@ -80,9 +83,21 @@ export type VarianteMarcaPiedrazul = 'barra' | 'auth' | 'pie';
       .pz-marca-pz--pie .pz-marca-pz__texto small {
         color: var(--pz-azul-300);
       }
+
+      .pz-marca-pz--nav .pz-marca-pz__icono {
+        width: 40px;
+        height: 40px;
+      }
+
+      .pz-marca-pz--nav .pz-marca-pz__texto small {
+        color: var(--pz-gris-500);
+        font-weight: 400;
+      }
     `,
   ],
 })
 export class PzMarcaPiedrazulComponent {
   @Input() variante: VarianteMarcaPiedrazul = 'barra';
+  @Input() enlace = '/';
+  @Input() subtitulo = 'Centro de salud';
 }
