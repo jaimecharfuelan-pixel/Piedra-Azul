@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RF1 · Listar citas · PiedraAzul</title>
+  <link rel="stylesheet" href="css/estilo.css" />
+</head>
+<body>
+  <header class="barra">
+    <a class="marca" href="index.html">
+      <span class="marca-logo">PA</span>
+      PiedraAzul
+    </a>
+    <nav class="nav-links">
+      <a class="activo" href="rf1-listar-citas.html">RF1 Listar</a>
+      <a href="rf2-agendar-cita.html">RF2 Agendar</a>
+      <a href="rf3-configurar.html">RF3 Config</a>
+    </nav>
+    <span class="badge-proto">Prototipo</span>
+  </header>
+
+  <main class="contenido">
+    <section class="hero-mini">
+      <h1>Listado de citas</h1>
+      <p>Consulta las citas de un médico o terapista en una fecha determinada.</p>
+      <div class="rf">RF1 · Rol: agendador de citas</div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Filtros de búsqueda</h2>
+      <div class="rejilla rejilla-3">
+        <div class="campo">
+          <label for="medico">Médico / terapista</label>
+          <select id="medico"></select>
+        </div>
+        <div class="campo">
+          <label for="fecha">Fecha</label>
+          <input type="date" id="fecha" value="2026-09-28" />
+        </div>
+        <div class="campo">
+          <label for="estado">Estado (opcional)</label>
+          <select id="estado">
+            <option value="">Todos</option>
+            <option value="programada">Programada</option>
+            <option value="atendida">Atendida</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+        </div>
+      </div>
+      <div class="acciones">
+        <button type="button" class="btn btn-primario" id="btnBuscar">Buscar</button>
+        <button type="button" class="btn btn-fantasma" id="btnLimpiar">Limpiar</button>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Resultados</h2>
+      <div class="resumen">
+        <div class="kpi">
+          <strong id="kpiTotal">0</strong>
+          <span>Citas encontradas</span>
+        </div>
+        <div class="kpi">
+          <strong id="kpiProg">0</strong>
+          <span>Programadas</span>
+        </div>
+        <div class="kpi">
+          <strong id="kpiMedico">—</strong>
+          <span>Profesional</span>
+        </div>
+      </div>
+
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Paciente</th>
+              <th>Documento</th>
+              <th>Especialidad</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <p id="vacio" class="alerta alerta-info oculto">No hay citas para ese filtro.</p>
+    </section>
+  </main>
+
+  <script src="js/datos.js"></script>
+  <script>
+    const sel = document.getElementById("medico");
+    const fecha = document.getElementById("fecha");
+    const estado = document.getElementById("estado");
+    const tbody = document.getElementById("tbody");
+    const vacio = document.getElementById("vacio");
+
+    PZ.medicos.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = `${m.nombre} · ${m.especialidad}`;
+      sel.appendChild(opt);
+    });
+
+    function buscar() {
+      const med = PZ.medicoPorId(sel.value);
+      let rows = PZ.citas.filter(
+        (c) => c.medicoId === sel.value && c.fecha === fecha.value
+      );
+      if (estado.value) rows = rows.filter((c) => c.estado === estado.value);
+      rows.sort((a, b) => a.hora.localeCompare(b.hora));
+
+      document.getElementById("kpiTotal").textContent = rows.length;
+      document.getElementById("kpiProg").textContent = rows.filter((c) => c.estado === "programada").length;
+      document.getElementById("kpiMedico").textContent = med ? med.nombre.split(" ").slice(0, 2).join(" ") : "—";
+      document.getElementById("kpiMedico").style.fontSize = "1rem";
+
+      tbody.innerHTML = "";
+      vacio.classList.toggle("oculto", rows.length > 0);
+
+      rows.forEach((c) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${c.hora}</td>
+          <td>${c.paciente}</td>
+          <td>${c.documento}</td>
+          <td>${med.especialidad}</td>
+          <td><span class="estado estado-${c.estado}">${c.estado}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("btnBuscar").addEventListener("click", buscar);
+    document.getElementById("btnLimpiar").addEventListener("click", () => {
+      sel.selectedIndex = 0;
+      fecha.value = "2026-09-28";
+      estado.value = "";
+      buscar();
+    });
+
+    buscar();
+  </script>
+</body>
+</html>

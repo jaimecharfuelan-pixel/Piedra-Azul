@@ -6,8 +6,9 @@ Agendamiento de citas médicas y de terapia (Ingeniería de Software III).
 |---|---|
 | [`backend/`](backend/) | API Spring Boot (monolito modular + JWT) |
 | [`frontend/`](frontend/) | SPA Angular 19 |
-| [`db/init/`](db/init/) | Scripts opcionales al crear el volumen Postgres |
+| [`prototipos/`](prototipos/) | Prototipo HTML/CSS/JS de RF1–RF3 (usabilidad) |
 | [`diagramas-por-modulo/`](diagramas-por-modulo/) | PlantUML de implementación |
+| [`scripts/`](scripts/) | Smoke test opcional contra la API (`smoke-test.ps1`) |
 
 ## Arranque
 
@@ -45,5 +46,7 @@ docker compose down -v && docker compose up --build -d
 ```bash
 cd backend && mvn test
 ```
+
+Humo HTTP (opcional, PowerShell): `scripts/smoke-test.ps1` con el stack en Docker.
 
 Documentación detallada (MkDocs): ver sección *Pruebas* en el sitio de docs.
