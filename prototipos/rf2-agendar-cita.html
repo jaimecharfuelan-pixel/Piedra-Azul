@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RF2 · Agendar cita · PiedraAzul</title>
+  <link rel="stylesheet" href="css/estilo.css" />
+</head>
+<body>
+  <header class="barra">
+    <a class="marca" href="index.html">
+      <span class="marca-logo">PA</span>
+      PiedraAzul
+    </a>
+    <nav class="nav-links">
+      <a href="rf1-listar-citas.html">RF1 Listar</a>
+      <a class="activo" href="rf2-agendar-cita.html">RF2 Agendar</a>
+      <a href="rf3-configurar.html">RF3 Config</a>
+    </nav>
+    <span class="badge-proto">Prototipo</span>
+  </header>
+
+  <main class="contenido">
+    <section class="hero-mini">
+      <h1>Agendar cita por la web</h1>
+      <p>
+        Regístrate (si aún no tienes cuenta) y elige profesional, fecha y franja
+        disponible. Sin WhatsApp.
+      </p>
+      <div class="rf">RF2 · Rol: paciente</div>
+    </section>
+
+    <div class="pasos" id="pasos">
+      <span class="paso activo" data-paso="1">1. Sesión</span>
+      <span class="paso" data-paso="2">2. Elegir cita</span>
+      <span class="paso" data-paso="3">3. Confirmación</span>
+    </div>
+
+    <!-- Paso 1: login / registro simulado -->
+    <section class="tarjeta" id="paso1">
+      <h2>Acceso del paciente</h2>
+      <p class="nota" style="margin-bottom: 1rem;">
+        Demo: usa cualquier correo o registra uno nuevo. No se guarda en servidor.
+      </p>
+
+      <div class="rejilla rejilla-2">
+        <div>
+          <h3 style="margin:0 0 0.75rem;font-size:1rem;color:var(--pz-azul-900);">Iniciar sesión</h3>
+          <div class="campo">
+            <label for="loginEmail">Correo</label>
+            <input id="loginEmail" type="email" value="paciente@demo.com" />
+          </div>
+          <div class="campo">
+            <label for="loginPass">Contraseña</label>
+            <input id="loginPass" type="password" value="demo1234" />
+          </div>
+          <button type="button" class="btn btn-primario" id="btnLogin">Entrar</button>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 0.75rem;font-size:1rem;color:var(--pz-azul-900);">Registrarme</h3>
+          <div class="campo">
+            <label for="regNombre">Nombre completo</label>
+            <input id="regNombre" type="text" placeholder="Ej. María Gómez" />
+          </div>
+          <div class="campo">
+            <label for="regDoc">Documento</label>
+            <input id="regDoc" type="text" placeholder="Cédula" />
+          </div>
+          <div class="campo">
+            <label for="regEmail">Correo</label>
+            <input id="regEmail" type="email" placeholder="correo@ejemplo.com" />
+          </div>
+          <div class="campo">
+            <label for="regPass">Contraseña</label>
+            <input id="regPass" type="password" placeholder="Mínimo 6 caracteres" />
+          </div>
+          <button type="button" class="btn btn-secundario" id="btnRegistro">Crear cuenta</button>
+        </div>
+      </div>
+      <div id="msgAuth" class="alerta alerta-error oculto"></div>
+    </section>
+
+    <!-- Paso 2: agendar -->
+    <section class="tarjeta oculto" id="paso2">
+      <h2>Nueva cita</h2>
+      <p id="saludo" class="alerta alerta-ok"></p>
+
+      <div class="rejilla rejilla-2">
+        <div class="campo">
+          <label for="medico">Médico / terapista</label>
+          <select id="medico"></select>
+        </div>
+        <div class="campo">
+          <label for="fecha">Fecha</label>
+          <input type="date" id="fecha" value="2026-09-28" />
+          <p class="nota" id="notaVentana"></p>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label>Franjas disponibles</label>
+        <div class="franjas" id="franjas"></div>
+        <p class="nota" id="msgFranjas"></p>
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="btn btn-primario" id="btnConfirmar" disabled>Confirmar cita</button>
+        <button type="button" class="btn btn-fantasma" id="btnSalir">Cerrar sesión</button>
+      </div>
+    </section>
+
+    <!-- Paso 3: éxito -->
+    <section class="tarjeta oculto" id="paso3">
+      <h2>Cita agendada</h2>
+      <div class="alerta alerta-ok" id="resumenCita"></div>
+      <div class="acciones">
+        <button type="button" class="btn btn-primario" id="btnOtra">Agendar otra</button>
+        <a class="btn btn-secundario" href="rf1-listar-citas.html" style="display:inline-block;">Ver listado (RF1)</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/datos.js"></script>
+  <script>
+    let sesion = null;
+    let franjaSel = null;
+
+    const paso1 = document.getElementById("paso1");
+    const paso2 = document.getElementById("paso2");
+    const paso3 = document.getElementById("paso3");
+    const msgAuth = document.getElementById("msgAuth");
+    const sel = document.getElementById("medico");
+    const fecha = document.getElementById("fecha");
+    const franjasEl = document.getElementById("franjas");
+    const btnConfirmar = document.getElementById("btnConfirmar");
+
+    PZ.medicos.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = `${m.nombre} · ${m.especialidad}`;
+      sel.appendChild(opt);
+    });
+
+    document.getElementById("notaVentana").textContent =
+      `Ventana de agendamiento: próximas ${PZ.configGlobal.ventanaSemanas} semanas (configurable en RF3).`;
+
+    function setPaso(n) {
+      document.querySelectorAll(".paso").forEach((p) => {
+        const num = Number(p.dataset.paso);
+        p.classList.toggle("activo", num === n);
+        p.classList.toggle("hecho", num < n);
+      });
+      paso1.classList.toggle("oculto", n !== 1);
+      paso2.classList.toggle("oculto", n !== 2);
+      paso3.classList.toggle("oculto", n !== 3);
+    }
+
+    function entrar(nombre, email) {
+      sesion = { nombre, email };
+      msgAuth.classList.add("oculto");
+      document.getElementById("saludo").textContent =
+        `Sesión iniciada como ${nombre} (${email}). Elige tu cita.`;
+      setPaso(2);
+      pintarFranjas();
+    }
+
+    document.getElementById("btnLogin").addEventListener("click", () => {
+      const email = document.getElementById("loginEmail").value.trim();
+      const pass = document.getElementById("loginPass").value;
+      if (!email || pass.length < 4) {
+        msgAuth.textContent = "Ingresa correo y contraseña válidos.";
+        msgAuth.classList.remove("oculto");
+        return;
+      }
+      entrar(email.split("@")[0], email);
+    });
+
+    document.getElementById("btnRegistro").addEventListener("click", () => {
+      const nombre = document.getElementById("regNombre").value.trim();
+      const doc = document.getElementById("regDoc").value.trim();
+      const email = document.getElementById("regEmail").value.trim();
+      const pass = document.getElementById("regPass").value;
+      if (!nombre || !doc || !email || pass.length < 6) {
+        msgAuth.textContent = "Completa nombre, documento, correo y contraseña (mín. 6).";
+        msgAuth.classList.remove("oculto");
+        return;
+      }
+      entrar(nombre, email);
+    });
+
+    function pintarFranjas() {
+      franjaSel = null;
+      btnConfirmar.disabled = true;
+      const slots = PZ.generarFranjas(sel.value, fecha.value);
+      franjasEl.innerHTML = "";
+      const msg = document.getElementById("msgFranjas");
+
+      if (!slots.length) {
+        msg.textContent = "Ese día el profesional no atiende o está fuera de horario. Prueba otra fecha.";
+        return;
+      }
+      msg.textContent = "Selecciona una franja libre (las tachadas ya están ocupadas).";
+
+      slots.forEach((s) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "franja" + (s.ocupada ? " ocupada" : "");
+        b.textContent = s.hora;
+        b.disabled = s.ocupada;
+        if (!s.ocupada) {
+          b.addEventListener("click", () => {
+            franjasEl.querySelectorAll(".franja").forEach((x) => x.classList.remove("seleccionada"));
+            b.classList.add("seleccionada");
+            franjaSel = s.hora;
+            btnConfirmar.disabled = false;
+          });
+        }
+        franjasEl.appendChild(b);
+      });
+    }
+
+    sel.addEventListener("change", pintarFranjas);
+    fecha.addEventListener("change", pintarFranjas);
+
+    btnConfirmar.addEventListener("click", () => {
+      if (!franjaSel || !sesion) return;
+      const med = PZ.medicoPorId(sel.value);
+      PZ.citas.push({
+        id: "c" + Date.now(),
+        medicoId: sel.value,
+        fecha: fecha.value,
+        hora: franjaSel,
+        paciente: sesion.nombre,
+        documento: "demo",
+        estado: "programada"
+      });
+      document.getElementById("resumenCita").innerHTML =
+        `<strong>${sesion.nombre}</strong>, tu cita quedó con <strong>${med.nombre}</strong>
+         el <strong>${fecha.value}</strong> a las <strong>${franjaSel}</strong>
+         (${med.especialidad}).`;
+      setPaso(3);
+    });
+
+    document.getElementById("btnSalir").addEventListener("click", () => {
+      sesion = null;
+      setPaso(1);
+    });
+
+    document.getElementById("btnOtra").addEventListener("click", () => {
+      setPaso(2);
+      pintarFranjas();
+    });
+  </script>
+</body>
+</html>
