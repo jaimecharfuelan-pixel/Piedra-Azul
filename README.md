@@ -8,7 +8,6 @@ Agendamiento de citas médicas y de terapia (Ingeniería de Software III).
 | [`frontend/`](frontend/) | SPA Angular 19 |
 | [`prototipos/`](prototipos/) | Prototipo HTML/CSS/JS de RF1–RF3 (usabilidad) |
 | [`diagramas-por-modulo/`](diagramas-por-modulo/) | PlantUML de implementación |
-| [`scripts/`](scripts/) | Smoke test opcional contra la API (`smoke-test.ps1`) |
 
 ## Arranque
 
