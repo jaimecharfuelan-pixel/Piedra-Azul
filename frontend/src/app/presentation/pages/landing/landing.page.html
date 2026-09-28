@@ -1,6 +1,6 @@
 <section class="landing">
   <header class="landing__barra">
-    <a class="landing__cta-izq" routerLink="/login">Agendar una cita</a>
+    <pz-marca-piedrazul />
     <div class="landing__barra-acciones">
       <a routerLink="/login">Iniciar sesión</a>
       <a class="landing__registro" routerLink="/registro">Regístrate</a>
@@ -10,11 +10,12 @@
   <div class="landing__hero">
     <div class="landing__hero-velo" aria-hidden="true"></div>
     <div class="landing__hero-contenido">
-      <p class="landing__marca">PiedraAzul</p>
-      <h1>Cuidado médico con agenda clara</h1>
+      <p class="landing__eyebrow">Centro de salud Piedra Azul</p>
+      <h1>Tu cita, en el momento que de verdad te queda</h1>
       <p class="landing__lede">
-        Reserva consultas y terapias en minutos: elige profesional, mira franjas libres y confirma
-        tu cita sin llamadas ni filas.
+        Reserva consultas y terapias sin llamadas ni filas: elige a tu profesional, mira los
+        horarios libres y confirma en minutos, con la tranquilidad de que tu espacio queda
+        guardado.
       </p>
       <div class="landing__hero-cta">
         <a routerLink="/login" class="landing__boton-principal">Agendar una cita</a>
@@ -25,10 +26,10 @@
 
   <section class="landing__intro">
     <div class="landing__intro-texto">
-      <h2>Una clínica pensada para atenderte a tiempo</h2>
+      <h2>Un centro pensado para atenderte a tiempo, y con calma</h2>
       <p>
-        En PiedraAzul coordinamos médicos, agendadores y pacientes en un solo flujo: horarios
-        reales, citas sin solapamientos y un historial ordenado de cada consulta.
+        En Piedra Azul coordinamos médicos, agendadores y pacientes sobre la misma agenda:
+        horarios reales, citas que no se pisan y un historial claro de cada consulta.
       </p>
       <ul>
         <li>Franjas disponibles según el horario de cada profesional</li>
@@ -37,19 +38,23 @@
       </ul>
       <a routerLink="/login" class="landing__boton-principal">Agendar cita</a>
     </div>
-    <div class="landing__intro-visual" role="img" aria-label="Sala de consulta médica luminosa"></div>
+    <div
+      class="landing__intro-visual"
+      role="img"
+      aria-label="Profesional de la salud sonriendo en consulta"
+    ></div>
   </section>
 
   <section class="landing__servicios">
-    <h2>Lo que encuentras en PiedraAzul</h2>
+    <h2>Así te acompañamos en Piedra Azul</h2>
     <div class="landing__rejilla">
       <article>
         <h3>Medicina general</h3>
-        <p>Consultas de control y seguimiento con disponibilidad semanal clara.</p>
+        <p>Consultas de control y seguimiento, con una disponibilidad semanal fácil de entender.</p>
       </article>
       <article>
         <h3>Terapias</h3>
-        <p>Fisioterapia y sesiones especializadas con duración definida por el profesional.</p>
+        <p>Fisioterapia y sesiones especializadas, con la duración que define cada profesional.</p>
       </article>
       <article>
         <h3>Agenda confiable</h3>
@@ -59,8 +64,21 @@
   </section>
 
   <footer class="landing__pie">
-    <strong>PiedraAzul</strong>
-    <span>Agendamiento de citas médicas</span>
-    <a routerLink="/login">Iniciar sesión</a>
+    <div class="landing__pie-interior">
+      <div class="landing__pie-clinica">
+        <pz-marca-piedrazul variante="pie" />
+        <p class="landing__pie-nota">
+          Atención cercana, agenda en orden y un espacio para cuidar tu salud sin complicarte el día.
+        </p>
+      </div>
+      <div class="landing__pie-estudio">
+        <pz-marca-systemicminds [clara]="true" />
+        <p class="landing__copyright">
+          © {{ anio }} SystemicMinds Solutions Inc. Todos los derechos reservados. Desarrollamos
+          software de calidad para organizaciones y empresas que necesitan hacer sus tareas más
+          sencillas con soluciones tecnológicas innovadoras.
+        </p>
+      </div>
+    </div>
   </footer>
 </section>

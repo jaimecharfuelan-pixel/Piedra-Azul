@@ -12,21 +12,21 @@ const R = RolUsuario;
 export const routes: Routes = [
   {
     path: '',
-    title: 'PiedraAzul — Clínica',
+    title: 'Piedra Azul — Centro de salud',
     canActivate: [guestGuard],
     loadComponent: () =>
       import('./presentation/pages/landing/landing.page').then((m) => m.LandingPageComponent),
   },
   {
     path: 'login',
-    title: 'Inicio de sesión — PiedraAzul',
+    title: 'Iniciar sesión — Piedra Azul',
     canActivate: [guestGuard],
     loadComponent: () =>
       import('./presentation/pages/login/login.page').then((m) => m.LoginPageComponent),
   },
   {
     path: 'registro',
-    title: 'Registro — PiedraAzul',
+    title: 'Crear cuenta — Piedra Azul',
     canActivate: [guestGuard],
     loadComponent: () =>
       import('./presentation/pages/registro/registro.page').then((m) => m.RegistroPageComponent),

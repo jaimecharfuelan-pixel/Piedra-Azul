@@ -5,6 +5,8 @@ import { RegistrarPacienteAuthUseCase } from '../../../application/use-cases/reg
 import { aErrorDominio } from '../../../infrastructure/http/error-dominio.mapper';
 import { UiAlertComponent } from '../../components/atoms/ui-alert.component';
 import { UiButtonComponent } from '../../components/atoms/ui-button.component';
+import { PzMarcaPiedrazulComponent } from '../../components/atoms/pz-marca-piedrazul.component';
+import { PzMarcaSystemicmindsComponent } from '../../components/atoms/pz-marca-systemicminds.component';
 import { UiFieldComponent } from '../../components/molecules/ui-field.component';
 
 type PasoRegistro = 1 | 2 | 3;
@@ -18,6 +20,8 @@ type PasoRegistro = 1 | 2 | 3;
     UiButtonComponent,
     UiFieldComponent,
     UiAlertComponent,
+    PzMarcaPiedrazulComponent,
+    PzMarcaSystemicmindsComponent,
   ],
   templateUrl: './registro.page.html',
   styleUrl: './registro.page.scss',
@@ -31,6 +35,7 @@ export class RegistroPageComponent {
   readonly cargando = signal(false);
   readonly error = signal<string | null>(null);
   readonly exito = signal(false);
+  readonly anio = new Date().getFullYear();
 
   readonly cuenta = this.fb.nonNullable.group({
     username: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
