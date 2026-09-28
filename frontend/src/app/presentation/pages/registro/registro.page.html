@@ -1,8 +1,11 @@
 <section class="auth-pagina">
   <div class="auth-tarjeta registro">
-    <p class="auth-marca">PiedraAzul</p>
-    <h1>Registro de paciente</h1>
-    <p class="auth-sub">Crea tu cuenta para agendar citas en línea.</p>
+    <pz-marca-piedrazul variante="auth" />
+    <h1>Crea tu cuenta de paciente</h1>
+    <p class="auth-sub">
+      En un par de pasos tendrás tu usuario listo para reservar citas cuando te quede bien, sin
+      filas ni llamadas.
+    </p>
 
     <div class="registro__progreso" aria-hidden="true">
       <div class="registro__barra" [style.width.%]="progreso()"></div>
@@ -77,10 +80,10 @@
         <div class="registro__panel registro__exito">
           <ui-alert
             tipo="exito"
-            titulo="Cuenta creada"
-            mensaje="Ya puedes iniciar sesión con tu usuario y contraseña."
+            titulo="Cuenta lista"
+            mensaje="Ya puedes entrar con tu usuario y contraseña para agendar cuando quieras."
           />
-          <ui-button type="button" (pulsado)="irALogin()">Ir a inicio de sesión</ui-button>
+          <ui-button type="button" (pulsado)="irALogin()">Ir a iniciar sesión</ui-button>
         </div>
       }
     </div>
@@ -91,4 +94,13 @@
     </p>
     <a class="auth-volver" routerLink="/">← Volver al inicio</a>
   </div>
+
+  <footer class="auth-firma">
+    <pz-marca-systemicminds [compacta]="true" />
+    <p>
+      © {{ anio }} SystemicMinds Solutions Inc. Todos los derechos reservados. Desarrollamos
+      software de calidad para organizaciones y empresas que necesitan hacer sus tareas más
+      sencillas con soluciones tecnológicas innovadoras.
+    </p>
+  </footer>
 </section>

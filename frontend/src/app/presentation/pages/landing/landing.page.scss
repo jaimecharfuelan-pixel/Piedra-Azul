@@ -22,12 +22,6 @@
   border-bottom: var(--pz-borde);
 }
 
-.landing__cta-izq {
-  font-weight: 700;
-  color: var(--pz-azul-700);
-  text-decoration: none;
-}
-
 .landing__barra-acciones {
   display: flex;
   gap: var(--pz-esp-4);
@@ -51,8 +45,8 @@
   display: grid;
   align-items: end;
   background:
-    linear-gradient(120deg, rgba(10, 43, 82, 0.88), rgba(20, 72, 127, 0.55)),
-    url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1800&q=80')
+    linear-gradient(90deg, rgba(10, 43, 82, 0.92) 0%, rgba(10, 43, 82, 0.62) 42%, rgba(16, 58, 102, 0.38) 100%),
+    url('/marca/hero-consulta.jpg')
       center/cover no-repeat;
   color: var(--pz-blanco);
   animation: landing-fade 700ms ease-out;
@@ -72,20 +66,22 @@
   padding: var(--pz-esp-7) var(--pz-esp-5);
 }
 
-.landing__marca {
+.landing__eyebrow {
   margin: 0 0 var(--pz-esp-3);
-  font-size: clamp(2rem, 5vw, 3.4rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  font-size: var(--pz-texto-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pz-azul-300);
 }
 
 .landing__hero h1 {
   margin: 0 0 var(--pz-esp-3);
-  max-width: 16ch;
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
-  font-weight: 600;
-  line-height: 1.2;
+  max-width: 18ch;
+  font-size: clamp(1.7rem, 3.4vw, 2.45rem);
+  font-weight: 700;
+  line-height: 1.18;
+  color: var(--pz-blanco);
 }
 
 .landing__lede {
@@ -129,6 +125,11 @@
   transform: translateY(-2px);
 }
 
+.landing__intro .landing__boton-principal {
+  background: var(--pz-azul-700);
+  color: var(--pz-blanco);
+}
+
 .landing__intro {
   max-width: var(--pz-ancho-contenido);
   margin: 0 auto;
@@ -162,8 +163,8 @@
   min-height: 280px;
   border-radius: var(--pz-radio-lg);
   background:
-    linear-gradient(160deg, rgba(33, 112, 196, 0.18), rgba(10, 43, 82, 0.35)),
-    url('https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=1200&q=80')
+    linear-gradient(160deg, rgba(33, 112, 196, 0.12), rgba(10, 43, 82, 0.22)),
+    url('/marca/intro-profesional.jpg')
       center/cover no-repeat;
   box-shadow: var(--pz-sombra);
   animation: landing-rise 800ms ease-out;
@@ -208,20 +209,34 @@
 }
 
 .landing__pie {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--pz-esp-4);
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--pz-esp-5);
   background: var(--pz-azul-900);
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.88);
 }
 
-.landing__pie a {
-  color: var(--pz-azul-300);
-  font-weight: 700;
-  text-decoration: none;
+.landing__pie-interior {
+  max-width: var(--pz-ancho-contenido);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--pz-esp-6);
+  grid-template-columns: 1fr 1fr;
+  padding: var(--pz-esp-6) var(--pz-esp-5);
+}
+
+.landing__pie-clinica,
+.landing__pie-estudio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--pz-esp-3);
+  max-width: 36rem;
+}
+
+.landing__pie-nota,
+.landing__copyright {
+  margin: 0;
+  font-size: var(--pz-texto-sm);
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 @keyframes landing-fade {
@@ -246,7 +261,8 @@
 
 @media (max-width: 900px) {
   .landing__intro,
-  .landing__rejilla {
+  .landing__rejilla,
+  .landing__pie-interior {
     grid-template-columns: 1fr;
   }
 }

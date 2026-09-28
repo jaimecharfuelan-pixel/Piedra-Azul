@@ -1,8 +1,11 @@
 <section class="auth-pagina">
   <div class="auth-tarjeta">
-    <p class="auth-marca">PiedraAzul</p>
-    <h1>Inicio de sesión</h1>
-    <p class="auth-sub">Ingresa con tu usuario para continuar al panel de tu rol.</p>
+    <pz-marca-piedrazul variante="auth" />
+    <h1>Qué bueno verte de nuevo</h1>
+    <p class="auth-sub">
+      Entra con tu usuario y contraseña para ver tus citas, tu historial o el panel que te
+      corresponde.
+    </p>
 
     @if (error()) {
       <ui-alert tipo="error" titulo="No se pudo iniciar sesión" [mensaje]="error()!" />
@@ -37,9 +40,18 @@
     </form>
 
     <p class="auth-pie">
-      ¿No tienes cuenta?
-      <a routerLink="/registro" class="auth-enlace">Regístrate aquí</a>
+      ¿Aún no tienes cuenta?
+      <a routerLink="/registro" class="auth-enlace">Crea tu registro de paciente</a>
     </p>
     <a class="auth-volver" routerLink="/">← Volver al inicio</a>
   </div>
+
+  <footer class="auth-firma">
+    <pz-marca-systemicminds [compacta]="true" />
+    <p>
+      © {{ anio }} SystemicMinds Solutions Inc. Todos los derechos reservados. Desarrollamos
+      software de calidad para organizaciones y empresas que necesitan hacer sus tareas más
+      sencillas con soluciones tecnológicas innovadoras.
+    </p>
+  </footer>
 </section>

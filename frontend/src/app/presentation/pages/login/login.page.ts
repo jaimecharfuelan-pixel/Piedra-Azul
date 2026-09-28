@@ -6,6 +6,8 @@ import { rutaPanelPorRol } from '../../../domain/auth/permisos';
 import { aErrorDominio } from '../../../infrastructure/http/error-dominio.mapper';
 import { UiAlertComponent } from '../../components/atoms/ui-alert.component';
 import { UiButtonComponent } from '../../components/atoms/ui-button.component';
+import { PzMarcaPiedrazulComponent } from '../../components/atoms/pz-marca-piedrazul.component';
+import { PzMarcaSystemicmindsComponent } from '../../components/atoms/pz-marca-systemicminds.component';
 import { UiFieldComponent } from '../../components/molecules/ui-field.component';
 
 @Component({
@@ -17,6 +19,8 @@ import { UiFieldComponent } from '../../components/molecules/ui-field.component'
     UiButtonComponent,
     UiFieldComponent,
     UiAlertComponent,
+    PzMarcaPiedrazulComponent,
+    PzMarcaSystemicmindsComponent,
   ],
   templateUrl: './login.page.html',
   styleUrl: './login.page.scss',
@@ -28,6 +32,7 @@ export class LoginPageComponent {
 
   readonly cargando = signal(false);
   readonly error = signal<string | null>(null);
+  readonly anio = new Date().getFullYear();
 
   readonly form = this.fb.nonNullable.group({
     username: ['', [Validators.required, Validators.minLength(3)]],
