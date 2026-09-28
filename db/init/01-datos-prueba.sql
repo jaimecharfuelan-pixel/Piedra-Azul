@@ -1,0 +1,18 @@
+-- =============================================================================
+-- PiedraAzul — scripts en docker-entrypoint-initdb.d
+-- =============================================================================
+-- Este archivo corre SOLO la primera vez que se crea el volumen de Postgres.
+-- En este proyecto NO se usan INSERTs aquí para la demo.
+--
+-- Motivo: JPA crea las tablas al arrancar el backend (ddl-auto=update). Cuando
+-- este script corre, las tablas aún no existen. Además las contraseñas deben
+-- ir hasheadas (BCrypt) y las citas deben respetar reglas de negocio.
+--
+-- La carga de datos demo la hace el backend:
+--   com.piedraazul.identidad.infraestructura.seed.SeedDatosDemo
+-- con APP_SEED_ENABLED=true (docker-compose).
+--
+-- Para regenerar datos desde cero:
+--   docker compose down -v
+--   docker compose up -d --build
+-- =============================================================================

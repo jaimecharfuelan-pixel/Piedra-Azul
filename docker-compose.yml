@@ -10,7 +10,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Datos de demo: SeedDatosDemo del backend (APP_SEED_ENABLED), no SQL en db/init
+      # Scripts SQL de datos de prueba (se ejecutan solo al crear el volumen por primera vez)
+      - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U piedraazul -d piedraazul"]
       interval: 5s
