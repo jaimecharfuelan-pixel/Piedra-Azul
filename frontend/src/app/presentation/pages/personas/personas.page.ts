@@ -64,6 +64,7 @@ export class PersonasPageComponent implements OnInit {
   nuevoMedicoEspecialidadId: number | null = null;
 
   readonly formPaciente = this.fb.nonNullable.group({
+    cedula: ['', [Validators.required, Validators.pattern(/^\d{6,15}$/)]],
     nombreCompleto: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(180)]],
     telefono: ['', [Validators.required, Validators.pattern(/^\d{7,15}$/)]],
   });
@@ -131,24 +132,30 @@ export class PersonasPageComponent implements OnInit {
       this.formPaciente.markAllAsTouched();
       return;
     }
-    const { nombreCompleto, telefono } = this.formPaciente.getRawValue();
+    const { cedula, nombreCompleto, telefono } = this.formPaciente.getRawValue();
     this.registrando.set(true);
     this.error.set(null);
     this.errorDominio.set(null);
-    this.registrarPaciente.execute({ nombreCompleto: nombreCompleto.trim(), telefono }).subscribe({
-      next: () => {
-        this.formPaciente.reset({ nombreCompleto: '', telefono: '' });
-        this.registrando.set(false);
-        this.recargar();
-      },
-      error: (err) => {
-        this.errorDominio.set(aErrorDominio(err));
-        this.registrando.set(false);
-      },
-    });
+    this.registrarPaciente
+      .execute({
+        cedula: cedula.trim().replace(/[.\s-]/g, ''),
+        nombreCompleto: nombreCompleto.trim(),
+        telefono,
+      })
+      .subscribe({
+        next: () => {
+          this.formPaciente.reset({ cedula: '', nombreCompleto: '', telefono: '' });
+          this.registrando.set(false);
+          this.recargar();
+        },
+        error: (err) => {
+          this.errorDominio.set(aErrorDominio(err));
+          this.registrando.set(false);
+        },
+      });
   }
 
-  errorPaciente(nombre: 'nombreCompleto' | 'telefono', mensaje: string): string | null {
+  errorPaciente(nombre: 'cedula' | 'nombreCompleto' | 'telefono', mensaje: string): string | null {
     const control = this.formPaciente.controls[nombre];
     return control.touched && control.invalid ? mensaje : null;
   }

@@ -2,6 +2,7 @@ package com.piedraazul.personas.aplicacion.servicio;
 
 import com.piedraazul.nucleo.dominio.RolUsuario;
 import com.piedraazul.nucleo.dominio.excepciones.RecursoNoEncontradoException;
+import com.piedraazul.nucleo.dominio.excepciones.ReglaDeNegocioException;
 import com.piedraazul.personas.aplicacion.puertos.salida.CatalogoMedicosPort;
 import com.piedraazul.personas.aplicacion.puertos.salida.CatalogoPacientesPort;
 import com.piedraazul.personas.aplicacion.puertos.salida.MedicoRepository;
@@ -74,9 +75,16 @@ public class PersonasModuleFacade implements CatalogoMedicosPort, CatalogoPacien
         return pacienteRepository.buscarPorId(pacienteId)
                 .map(paciente -> new PacienteResumenDTO(
                         paciente.getId(),
+                        paciente.getCedula(),
                         paciente.getNombreCompleto(),
                         paciente.getTelefono()
                 ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Long> buscarIdPorCedula(String cedula) {
+        return pacienteRepository.buscarPorCedula(cedula).map(Paciente::getId);
     }
 
     @Override
@@ -88,8 +96,14 @@ public class PersonasModuleFacade implements CatalogoMedicosPort, CatalogoPacien
             return medico.getId();
         }
         if (rol == RolUsuario.PACIENTE) {
+            if (datos.cedula() != null && pacienteRepository.buscarPorCedula(datos.cedula()).isPresent()) {
+                throw ReglaDeNegocioException.de(
+                        "CEDULA_DUPLICADA",
+                        "Ya existe un paciente con la cédula " + datos.cedula()
+                );
+            }
             Paciente paciente = pacienteRepository.guardar(
-                    new Paciente(datos.usuarioId(), datos.nombreCompleto(), datos.telefono())
+                    new Paciente(datos.usuarioId(), datos.cedula(), datos.nombreCompleto(), datos.telefono())
             );
             return paciente.getId();
         }

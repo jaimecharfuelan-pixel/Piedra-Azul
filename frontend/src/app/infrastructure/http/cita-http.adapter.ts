@@ -8,6 +8,7 @@ import {
   ReagendarCitaCommand,
 } from '../../domain/models/cita.model';
 import { Consulta } from '../../domain/models/consulta.model';
+import { HistorialCitasPorCedula } from '../../domain/models/historial-citas-cedula.model';
 import { OrdenCitas } from '../../domain/models/orden-citas.enum';
 import { CitaRepositoryPort } from '../../domain/ports/cita.repository.port';
 
@@ -39,6 +40,19 @@ export class CitaHttpAdapter extends CitaRepositoryPort {
 
   listarPorPaciente(pacienteId: number): Observable<Cita[]> {
     return this.http.get<Cita[]>(`${BASE}/paciente/${pacienteId}`);
+  }
+
+  exportarCsv(medicoId: number, fecha: string): Observable<Blob> {
+    return this.http.get(`${BASE}/exportacion`, {
+      params: { medicoId, fecha },
+      responseType: 'blob',
+    });
+  }
+
+  listarPorCedula(cedula: string): Observable<HistorialCitasPorCedula> {
+    return this.http.get<HistorialCitasPorCedula>(
+      `${BASE}/paciente/cedula/${encodeURIComponent(cedula)}`
+    );
   }
 
   agendar(comando: AgendarCitaCommand): Observable<Cita> {

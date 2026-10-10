@@ -44,7 +44,7 @@ class ConsultarHistorialServiceTest {
     void listaElHistorialDelPacienteConNombres() {
         when(catalogoMedicosPort.obtenerResumen(1L)).thenReturn(new MedicoResumenDTO(1L, "Ana"));
         when(catalogoPacientesPort.buscarResumenPaciente(2L))
-                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "Juan", "300")));
+                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "1001001001", "Juan", "300")));
         when(consultaRepository.listarPorPaciente(2L)).thenReturn(List.of(consulta()));
 
         var historial = servicio.porPaciente(2L);
@@ -58,7 +58,7 @@ class ConsultarHistorialServiceTest {
     void listaElHistorialDelMedico() {
         when(catalogoMedicosPort.obtenerResumen(1L)).thenReturn(new MedicoResumenDTO(1L, "Ana"));
         when(catalogoPacientesPort.buscarResumenPaciente(2L))
-                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "Juan", "300")));
+                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "1001001001", "Juan", "300")));
         when(consultaRepository.listarPorMedico(1L)).thenReturn(List.of(consulta()));
 
         assertEquals(2L, servicio.porMedico(1L).get(0).pacienteId());

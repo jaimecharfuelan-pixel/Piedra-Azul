@@ -53,9 +53,9 @@ class ListarCitasPorMedicoServiceTest {
     void resumeCantidadesPorEstado() {
         when(catalogoMedicosPort.obtenerResumen(1L)).thenReturn(new MedicoResumenDTO(1L, "Ana"));
         when(catalogoPacientesPort.buscarResumenPaciente(2L))
-                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "Juan", "300")));
+                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "1001001001", "Juan", "300")));
         when(catalogoPacientesPort.buscarResumenPaciente(3L))
-                .thenReturn(Optional.of(new PacienteResumenDTO(3L, "María", "301")));
+                .thenReturn(Optional.of(new PacienteResumenDTO(3L, "1001001001", "María", "301")));
         when(citaRepository.buscarPorMedicoYFecha(1L, FECHA, OrdenCitas.HORA_ASC)).thenReturn(List.of(
                 cita(1L, 2L, EstadoCita.PROGRAMADA),
                 cita(2L, 3L, EstadoCita.ATENDIDA),
@@ -75,9 +75,9 @@ class ListarCitasPorMedicoServiceTest {
     void ordenaPorNombreDePacienteCuandoElCriterioLoPide() {
         when(catalogoMedicosPort.obtenerResumen(1L)).thenReturn(new MedicoResumenDTO(1L, "Ana"));
         when(catalogoPacientesPort.buscarResumenPaciente(2L))
-                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "Zoe", "300")));
+                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "1001001001", "Zoe", "300")));
         when(catalogoPacientesPort.buscarResumenPaciente(3L))
-                .thenReturn(Optional.of(new PacienteResumenDTO(3L, "Ana", "301")));
+                .thenReturn(Optional.of(new PacienteResumenDTO(3L, "1001001001", "Ana", "301")));
         when(citaRepository.buscarPorMedicoYFecha(1L, FECHA, OrdenCitas.PACIENTE_ASC)).thenReturn(List.of(
                 cita(1L, 2L, EstadoCita.PROGRAMADA),
                 cita(2L, 3L, EstadoCita.PROGRAMADA)

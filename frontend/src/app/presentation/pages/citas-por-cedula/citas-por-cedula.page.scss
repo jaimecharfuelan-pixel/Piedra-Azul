@@ -1,0 +1,39 @@
+.citas-cedula {
+  &__filtros {
+    margin-bottom: var(--pz-esp-5);
+  }
+
+  &__fila {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--pz-esp-4);
+
+    ui-field {
+      flex: 1 1 16rem;
+      max-width: 22rem;
+    }
+  }
+
+  &__acciones {
+    display: flex;
+    gap: var(--pz-esp-2);
+    padding-bottom: 0.15rem;
+  }
+
+  &__mensaje {
+    display: block;
+    margin-bottom: var(--pz-esp-4);
+  }
+
+  &__resumen {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: var(--pz-esp-3);
+    margin-bottom: var(--pz-esp-5);
+  }
+
+  &__resultados {
+    margin-bottom: var(--pz-esp-6);
+  }
+}

@@ -188,7 +188,7 @@ class GestionarCitaServiceTest {
     private void nombres() {
         when(catalogoMedicosPort.obtenerResumen(1L)).thenReturn(new MedicoResumenDTO(1L, "Ana"));
         when(catalogoPacientesPort.buscarResumenPaciente(2L))
-                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "Juan", "300")));
+                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "1001001001", "Juan", "300")));
     }
 
     private static Cita conId(Long id, Cita cita) {

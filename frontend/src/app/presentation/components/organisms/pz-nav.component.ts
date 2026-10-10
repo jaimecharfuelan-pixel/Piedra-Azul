@@ -123,6 +123,12 @@ export class PzNavComponent {
     { accion: 'calendario', ruta: '/calendario', texto: 'Calendario', descripcion: 'Vista calendario' },
     { accion: 'configuracion', ruta: '/configuracion', texto: 'Configuración', descripcion: 'Horarios' },
     { accion: 'historial', ruta: '/historial', texto: 'Historial', descripcion: 'Consultas' },
+    {
+      accion: 'citas-cedula',
+      ruta: '/citas-por-cedula',
+      texto: 'Por cédula',
+      descripcion: 'Historial de citas por documento',
+    },
     { accion: 'personas', ruta: '/personas', texto: 'Personas', descripcion: 'Catálogo' },
   ];
 

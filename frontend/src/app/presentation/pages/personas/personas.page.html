@@ -103,7 +103,7 @@
       <h2 class="pz-tarjeta__titulo">Pacientes</h2>
       <p class="pz-tarjeta__ayuda">
         @if (puedeRegistrarPaciente()) {
-          El paciente se registra aquí o al agendar, con nombre y teléfono.
+          El paciente se registra aquí o al agendar, con cédula, nombre y teléfono.
         } @else {
           Pacientes registrados en el centro.
         }
@@ -111,6 +111,21 @@
 
       @if (puedeRegistrarPaciente()) {
         <form class="personas__form" [formGroup]="formPaciente" (ngSubmit)="onRegistrarPaciente()">
+          <ui-field
+            etiqueta="Cédula"
+            controlId="personas-paciente-cedula"
+            [requerido]="true"
+            [error]="errorPaciente('cedula', 'Indica una cédula de 6 a 15 dígitos')"
+          >
+            <input
+              id="personas-paciente-cedula"
+              class="pz-control"
+              type="text"
+              inputmode="numeric"
+              formControlName="cedula"
+              placeholder="1001001001"
+            />
+          </ui-field>
           <ui-field
             etiqueta="Nombre completo"
             controlId="personas-paciente-nombre"
@@ -146,7 +161,7 @@
 
       <ul class="personas__lista">
         @for (p of pacientes(); track p.id) {
-          <li>{{ p.nombreCompleto }} — {{ p.telefono || 'sin teléfono' }}</li>
+          <li>{{ p.nombreCompleto }} · CC {{ p.cedula || '—' }} — {{ p.telefono || 'sin teléfono' }}</li>
         } @empty {
           <li class="personas__vacio">Sin pacientes</li>
         }

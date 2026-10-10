@@ -1,0 +1,105 @@
+<section class="pz-pagina citas-cedula">
+  <header class="pz-encabezado-pagina">
+    <h1>Citas por cédula</h1>
+    <p>
+      Busca un paciente por su documento y revisa el historial completo de citas. Útil para
+      médicos, terapistas y agendadores durante la jornada.
+    </p>
+  </header>
+
+  <form class="pz-tarjeta citas-cedula__filtros" [formGroup]="formulario" (ngSubmit)="consultarPorCedula()">
+    <h2 class="pz-tarjeta__titulo">Consulta por documento</h2>
+    <p class="pz-tarjeta__ayuda">
+      Usa la cédula del paciente (solo dígitos). Esta consulta está preparada para autenticación
+      externa (Keycloak).
+    </p>
+
+    <div class="citas-cedula__fila">
+      <ui-field
+        etiqueta="Cédula"
+        controlId="cedula-consulta"
+        [requerido]="true"
+        ayuda="Entre 6 y 15 dígitos. Ejemplo: 1001001001"
+        [error]="
+          formulario.controls.cedula.touched && formulario.controls.cedula.invalid
+            ? 'Indica una cédula válida (6 a 15 dígitos)'
+            : null
+        "
+      >
+        <input
+          id="cedula-consulta"
+          class="pz-control"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          placeholder="Ej. 1001001001"
+          formControlName="cedula"
+        />
+      </ui-field>
+
+      <div class="citas-cedula__acciones">
+        <ui-button type="submit" [cargando]="cargando()">Buscar historial</ui-button>
+      </div>
+    </div>
+  </form>
+
+  @if (error()) {
+    <ui-alert class="citas-cedula__mensaje" tipo="error" [titulo]="error()!.codigo" [mensaje]="error()!.mensaje" />
+  }
+
+  @if (cargando()) {
+    <ui-spinner texto="Consultando paciente y citas…" />
+  }
+
+  @if (paciente(); as p) {
+    <div class="agenda__resumen citas-cedula__resumen">
+      <ui-stat-card etiqueta="Paciente" [valor]="p.nombreCompleto" tono="info" />
+      <ui-stat-card etiqueta="Cédula" [valor]="p.cedula" tono="neutro" />
+      <ui-stat-card etiqueta="Teléfono" [valor]="p.telefono || '—'" tono="neutro" />
+      <ui-stat-card etiqueta="Citas" [valor]="historial()?.cantidad ?? 0" tono="info" />
+    </div>
+  }
+
+  @if (historial(); as h) {
+    <div class="pz-tarjeta citas-cedula__resultados">
+      <h2 class="pz-tarjeta__titulo">Historial de citas</h2>
+      <p class="pz-tarjeta__ayuda">
+        {{ h.pacienteNombre }} · {{ h.cantidad }} cita{{ h.cantidad === 1 ? '' : 's' }}
+      </p>
+
+      @if (h.citas.length === 0) {
+        <ui-empty-state
+          titulo="Este paciente aún no tiene citas"
+          sugerencia="Puedes agendarle una desde Agendar cuando tenga franjas disponibles."
+        />
+      } @else {
+        <div class="pz-tabla-scroll">
+          <table class="pz-tabla">
+            <thead>
+              <tr>
+                <th scope="col">Fecha</th>
+                <th scope="col">Hora</th>
+                <th scope="col">Médico</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Duración</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (cita of h.citas; track cita.id) {
+                <tr>
+                  <td>{{ fechaTexto(cita.fecha) }}</td>
+                  <td>{{ cita.horaInicio }} – {{ cita.horaFin }}</td>
+                  <td>{{ cita.medicoNombre }}</td>
+                  <td>
+                    <ui-badge [tono]="tonoEstado(cita.estado)">{{ cita.estado }}</ui-badge>
+                  </td>
+                  <td>{{ cita.duracionMinutos }} min</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+</section>

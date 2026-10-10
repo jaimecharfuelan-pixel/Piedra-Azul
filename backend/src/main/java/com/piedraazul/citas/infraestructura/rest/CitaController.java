@@ -1,12 +1,15 @@
 package com.piedraazul.citas.infraestructura.rest;
 
+import com.piedraazul.citas.aplicacion.puertos.entrada.ConsultarCitasPorCedulaUseCase;
 import com.piedraazul.citas.aplicacion.puertos.entrada.ConsultarHistorialUseCase;
+import com.piedraazul.citas.aplicacion.puertos.entrada.ExportarCitasCsvUseCase;
 import com.piedraazul.citas.aplicacion.puertos.entrada.GestionarCitaUseCase;
 import com.piedraazul.citas.aplicacion.puertos.entrada.ListarCitasPorMedicoUseCase;
 import com.piedraazul.citas.dominio.OrdenCitas;
 import com.piedraazul.citas.infraestructura.dto.AgendarCitaCommand;
 import com.piedraazul.citas.infraestructura.dto.CitaResponseDTO;
 import com.piedraazul.citas.infraestructura.dto.ConsultaResponseDTO;
+import com.piedraazul.citas.infraestructura.dto.HistorialCitasPorCedulaResponseDTO;
 import com.piedraazul.citas.infraestructura.dto.ListadoCitasResponseDTO;
 import com.piedraazul.citas.infraestructura.dto.MarcarAtendidaCommand;
 import com.piedraazul.citas.infraestructura.dto.ReagendarCitaCommand;
@@ -14,7 +17,10 @@ import com.piedraazul.identidad.infraestructura.security.SesionActual;
 import com.piedraazul.nucleo.dominio.RolUsuario;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -40,17 +47,23 @@ public class CitaController {
     private final GestionarCitaUseCase gestionarCitaUseCase;
     private final ListarCitasPorMedicoUseCase listarCitasPorMedicoUseCase;
     private final ConsultarHistorialUseCase consultarHistorialUseCase;
+    private final ExportarCitasCsvUseCase exportarCitasCsvUseCase;
+    private final ConsultarCitasPorCedulaUseCase consultarCitasPorCedulaUseCase;
     private final SesionActual sesion;
 
     public CitaController(
             GestionarCitaUseCase gestionarCitaUseCase,
             ListarCitasPorMedicoUseCase listarCitasPorMedicoUseCase,
             ConsultarHistorialUseCase consultarHistorialUseCase,
+            ExportarCitasCsvUseCase exportarCitasCsvUseCase,
+            ConsultarCitasPorCedulaUseCase consultarCitasPorCedulaUseCase,
             SesionActual sesion
     ) {
         this.gestionarCitaUseCase = gestionarCitaUseCase;
         this.listarCitasPorMedicoUseCase = listarCitasPorMedicoUseCase;
         this.consultarHistorialUseCase = consultarHistorialUseCase;
+        this.exportarCitasCsvUseCase = exportarCitasCsvUseCase;
+        this.consultarCitasPorCedulaUseCase = consultarCitasPorCedulaUseCase;
         this.sesion = sesion;
     }
 
@@ -84,6 +97,30 @@ public class CitaController {
         CitaResponseDTO cita = gestionarCitaUseCase.buscarPorId(citaId);
         sesion.exigirPersonaId(cita.medicoId());
         return gestionarCitaUseCase.marcarAtendida(citaId, comando.observaciones());
+    }
+
+    @GetMapping("/exportacion")
+    public ResponseEntity<byte[]> exportarCsv(
+            @RequestParam Long medicoId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha
+    ) {
+        sesion.siEsMedicoExigirPersona(medicoId);
+        String csv = exportarCitasCsvUseCase.ejecutar(medicoId, fecha);
+        byte[] cuerpo = csv.getBytes(StandardCharsets.UTF_8);
+        String nombre = "agenda-" + medicoId + "-" + fecha + ".csv";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombre + "\"")
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(cuerpo);
+    }
+
+    /**
+     * Endpoint del par (2/2) sin JWT: historial de citas por cédula.
+     * Preparado para Keycloak; la seguridad se configura en SecurityConfig.
+     */
+    @GetMapping("/paciente/cedula/{cedula}")
+    public HistorialCitasPorCedulaResponseDTO listarPorCedula(@PathVariable String cedula) {
+        return consultarCitasPorCedulaUseCase.ejecutar(cedula);
     }
 
     @GetMapping("/{citaId}")

@@ -33,15 +33,36 @@ public class PacienteRepositoryAdapter implements PacienteRepository {
     }
 
     @Override
+    public Optional<Paciente> buscarPorCedula(String cedula) {
+        if (cedula == null || cedula.isBlank()) {
+            return Optional.empty();
+        }
+        String normalizada = cedula.trim().replaceAll("[.\\s-]", "");
+        return jpa.findByCedula(normalizada).map(this::toDomain);
+    }
+
+    @Override
     public List<Paciente> listarTodos() {
         return jpa.findAll().stream().map(this::toDomain).toList();
     }
 
     private Paciente toDomain(PacienteJpaEntity e) {
-        return Paciente.reconstituir(e.getId(), e.getUsuarioId(), e.getNombreCompleto(), e.getTelefono());
+        return Paciente.reconstituir(
+                e.getId(),
+                e.getUsuarioId(),
+                e.getCedula(),
+                e.getNombreCompleto(),
+                e.getTelefono()
+        );
     }
 
     private PacienteJpaEntity toJpa(Paciente p) {
-        return new PacienteJpaEntity(p.getId(), p.getUsuarioId(), p.getNombreCompleto(), p.getTelefono());
+        return new PacienteJpaEntity(
+                p.getId(),
+                p.getUsuarioId(),
+                p.getCedula(),
+                p.getNombreCompleto(),
+                p.getTelefono()
+        );
     }
 }

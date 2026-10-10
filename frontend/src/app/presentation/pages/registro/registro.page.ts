@@ -45,6 +45,7 @@ export class RegistroPageComponent {
 
   readonly datos = this.fb.nonNullable.group({
     nombreCompleto: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(180)]],
+    cedula: ['', [Validators.required, Validators.pattern(/^\d{6,15}$/)]],
     telefono: ['', [Validators.required, Validators.pattern(/^\d{7,15}$/)]],
   });
 
@@ -83,6 +84,7 @@ export class RegistroPageComponent {
         username: cuenta.username,
         password: cuenta.password,
         nombreCompleto: datos.nombreCompleto,
+        cedula: datos.cedula.trim().replace(/[.\s-]/g, ''),
         telefono: datos.telefono.replace(/[\s\-()]/g, ''),
       })
       .subscribe({

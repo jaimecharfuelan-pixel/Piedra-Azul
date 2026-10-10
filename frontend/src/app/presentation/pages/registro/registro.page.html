@@ -61,6 +61,14 @@
             <input id="reg-nombre" class="pz-control" formControlName="nombreCompleto" autocomplete="name" />
           </ui-field>
           <ui-field
+            etiqueta="Cédula"
+            controlId="reg-cedula"
+            [requerido]="true"
+            [error]="datos.controls.cedula.touched && datos.controls.cedula.invalid ? 'Cédula de 6 a 15 dígitos' : null"
+          >
+            <input id="reg-cedula" class="pz-control" formControlName="cedula" inputmode="numeric" />
+          </ui-field>
+          <ui-field
             etiqueta="Teléfono"
             controlId="reg-tel"
             [requerido]="true"

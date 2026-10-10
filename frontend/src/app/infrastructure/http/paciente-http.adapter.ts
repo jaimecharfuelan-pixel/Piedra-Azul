@@ -17,6 +17,10 @@ export class PacienteHttpAdapter extends PacienteRepositoryPort {
     return this.http.get<Paciente>(`${this.baseUrl}/${id}`);
   }
 
+  buscarPorCedula(cedula: string): Observable<Paciente> {
+    return this.http.get<Paciente>(`${this.baseUrl}/cedula/${encodeURIComponent(cedula)}`);
+  }
+
   registrar(comando: RegistrarPacienteCommand): Observable<Paciente> {
     return this.http.post<Paciente>(this.baseUrl, comando);
   }

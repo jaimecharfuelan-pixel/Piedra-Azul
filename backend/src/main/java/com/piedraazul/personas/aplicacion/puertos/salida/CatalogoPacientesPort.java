@@ -6,7 +6,8 @@ import java.util.Optional;
 
 /**
  * Puerto público consumido por Citas: valida que el paciente exista al agendar
- * (RF2) y resuelve su nombre para el listado del agendador (RF1).
+ * (RF2), resuelve su nombre para el listado del agendador (RF1) y localiza
+ * pacientes por cédula.
  */
 public interface CatalogoPacientesPort {
 
@@ -18,4 +19,6 @@ public interface CatalogoPacientesPort {
      * Variante tolerante para listados: si el paciente ya no existe no rompe la consulta.
      */
     Optional<PacienteResumenDTO> buscarResumenPaciente(Long pacienteId);
+
+    Optional<Long> buscarIdPorCedula(String cedula);
 }

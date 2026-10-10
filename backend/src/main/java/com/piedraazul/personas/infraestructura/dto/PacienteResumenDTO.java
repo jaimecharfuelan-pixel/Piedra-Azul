@@ -1,8 +1,7 @@
 package com.piedraazul.personas.infraestructura.dto;
 
 /**
- * Proyección mínima de un paciente para otros módulos (Citas la usa para
- * mostrar el nombre en el listado del RF1 sin exponer la entidad Paciente).
+ * Resumen ligero del paciente para listados de otros módulos (p. ej. Citas).
  */
-public record PacienteResumenDTO(Long id, String nombreCompleto, String telefono) {
+public record PacienteResumenDTO(Long id, String cedula, String nombreCompleto, String telefono) {
 }

@@ -7,5 +7,7 @@ import java.util.List;
 public interface ConsultarPacienteUseCase {
     PacienteResponseDTO buscarPorId(Long id);
 
+    PacienteResponseDTO buscarPorCedula(String cedula);
+
     List<PacienteResponseDTO> listarTodos();
 }

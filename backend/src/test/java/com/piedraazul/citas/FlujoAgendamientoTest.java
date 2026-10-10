@@ -55,6 +55,8 @@ class FlujoAgendamientoTest {
     @BeforeEach
     void prepararCatalogo() throws Exception {
         String sufijo = UUID.randomUUID().toString().substring(0, 8);
+        // Solo dígitos: la cédula no admite letras del UUID
+        String cedulaPaciente = String.format("1%09d", Math.floorMod(sufijo.hashCode(), 1_000_000_000));
         String adminUser = "admin_" + sufijo;
         String medicoUser = "medico_" + sufijo;
 
@@ -90,9 +92,10 @@ class FlujoAgendamientoTest {
         pacienteId = idDe(mvc.perform(post("/api/personas/pacientes")
                         .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombreCompleto\":\"Paciente " + sufijo + "\",\"telefono\":\"3001112233\"}"))
+                        .content("{\"cedula\":\"" + cedulaPaciente + "\",\"nombreCompleto\":\"Paciente " + sufijo + "\",\"telefono\":\"3001112233\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nombreCompleto").value("Paciente " + sufijo))
+                .andExpect(jsonPath("$.cedula").value(cedulaPaciente))
                 .andReturn());
 
         fecha = LocalDate.now().plusDays(3);
@@ -247,9 +250,10 @@ class FlujoAgendamientoTest {
         mvc.perform(post("/api/personas/pacientes")
                         .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombreCompleto\":\"\",\"telefono\":\"abc\"}"))
+                        .content("{\"cedula\":\"\",\"nombreCompleto\":\"\",\"telefono\":\"abc\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("DATOS_INVALIDOS"))
+                .andExpect(jsonPath("$.extra.cedula").exists())
                 .andExpect(jsonPath("$.extra.nombreCompleto").exists())
                 .andExpect(jsonPath("$.extra.telefono").exists());
     }

@@ -1,5 +1,6 @@
 package com.piedraazul.personas.aplicacion.servicio;
 
+import com.piedraazul.nucleo.dominio.excepciones.ReglaDeNegocioException;
 import com.piedraazul.personas.aplicacion.puertos.entrada.RegistrarPacienteUseCase;
 import com.piedraazul.personas.aplicacion.puertos.salida.PacienteRepository;
 import com.piedraazul.personas.dominio.Paciente;
@@ -29,10 +30,26 @@ public class RegistrarPacienteService implements RegistrarPacienteUseCase {
 
     @Override
     public PacienteResponseDTO ejecutar(RegistrarPacienteCommand comando) {
+        if (pacienteRepository.buscarPorCedula(comando.cedula()).isPresent()) {
+            throw ReglaDeNegocioException.de(
+                    "CEDULA_DUPLICADA",
+                    "Ya existe un paciente con la cédula " + comando.cedula()
+            );
+        }
         Paciente paciente = pacienteRepository.guardar(
-                new Paciente(nuevoUsuarioPlaceholder(), comando.nombreCompleto(), comando.telefono())
+                new Paciente(
+                        nuevoUsuarioPlaceholder(),
+                        comando.cedula(),
+                        comando.nombreCompleto(),
+                        comando.telefono()
+                )
         );
-        return new PacienteResponseDTO(paciente.getId(), paciente.getNombreCompleto(), paciente.getTelefono());
+        return new PacienteResponseDTO(
+                paciente.getId(),
+                paciente.getCedula(),
+                paciente.getNombreCompleto(),
+                paciente.getTelefono()
+        );
     }
 
     private long nuevoUsuarioPlaceholder() {

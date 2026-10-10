@@ -22,6 +22,7 @@ export interface RegistroPacienteAuthCommand {
   readonly username: string;
   readonly password: string;
   readonly nombreCompleto: string;
+  readonly cedula: string;
   readonly telefono: string;
 }
 

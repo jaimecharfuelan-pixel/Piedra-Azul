@@ -68,12 +68,15 @@ class PersonasModuleFacadeTest {
     @Test
     void creaMedicoOPacienteSegunElRolYNadaParaElAdministrador() {
         when(medicoRepository.guardar(any())).thenReturn(Medico.reconstituir(11L, "Ana", 2L, true));
-        when(pacienteRepository.guardar(any())).thenReturn(Paciente.reconstituir(12L, 4L, "Juan", "300"));
+        when(pacienteRepository.guardar(any())).thenReturn(
+                Paciente.reconstituir(12L, 4L, "1001001001", "Juan", "300")
+        );
+        when(pacienteRepository.buscarPorCedula("1001001001")).thenReturn(Optional.empty());
 
         assertEquals(11L, fachada.crearPersonaParaUsuario(
-                RolUsuario.MEDICO, new DatosPersonaDTO(4L, "Ana", null, 2L)));
+                RolUsuario.MEDICO, new DatosPersonaDTO(4L, "Ana", null, 2L, null)));
         assertEquals(12L, fachada.crearPersonaParaUsuario(
-                RolUsuario.PACIENTE, new DatosPersonaDTO(4L, "Juan", "300", null)));
+                RolUsuario.PACIENTE, new DatosPersonaDTO(4L, "Juan", "300", null, "1001001001")));
         assertNull(fachada.crearPersonaParaUsuario(RolUsuario.ADMINISTRADOR, null));
     }
 }

@@ -6,6 +6,7 @@ import {
   ReagendarCitaCommand,
 } from '../models/cita.model';
 import { Consulta } from '../models/consulta.model';
+import { HistorialCitasPorCedula } from '../models/historial-citas-cedula.model';
 import { OrdenCitas } from '../models/orden-citas.enum';
 
 /**
@@ -28,6 +29,12 @@ export abstract class CitaRepositoryPort {
   ): Observable<Cita[]>;
 
   abstract listarPorPaciente(pacienteId: number): Observable<Cita[]>;
+
+  /** Exportación CSV de la agenda del día. */
+  abstract exportarCsv(medicoId: number, fecha: string): Observable<Blob>;
+
+  /** Par 2/2 sin JWT: historial de citas por cédula. */
+  abstract listarPorCedula(cedula: string): Observable<HistorialCitasPorCedula>;
 
   abstract agendar(comando: AgendarCitaCommand): Observable<Cita>;
 

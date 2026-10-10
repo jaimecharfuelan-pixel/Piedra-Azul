@@ -34,7 +34,7 @@ class CitaDtoAssemblerTest {
     void reutilizaElNombreDelMedicoDentroDelMismoListado() {
         when(catalogoMedicosPort.obtenerResumen(1L)).thenReturn(new MedicoResumenDTO(1L, "Ana"));
         when(catalogoPacientesPort.buscarResumenPaciente(2L))
-                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "Juan", "300")));
+                .thenReturn(Optional.of(new PacienteResumenDTO(2L, "1001001001", "Juan", "300")));
         CitaDtoAssembler assembler = new CitaDtoAssembler(catalogoMedicosPort, catalogoPacientesPort);
 
         var filas = assembler.toDtos(List.of(cita(1L), cita(2L)));

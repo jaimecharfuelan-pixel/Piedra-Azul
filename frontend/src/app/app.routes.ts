@@ -130,6 +130,16 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'citas-por-cedula',
+    title: 'Citas por cédula — PiedraAzul',
+    canActivate: [authGuard, accionGuard],
+    data: { accion: 'citas-cedula' },
+    loadComponent: () =>
+      import('./presentation/pages/citas-por-cedula/citas-por-cedula.page').then(
+        (m) => m.CitasPorCedulaPageComponent
+      ),
+  },
+  {
     path: 'personas',
     title: 'Personas — PiedraAzul',
     canActivate: [authGuard, accionGuard],

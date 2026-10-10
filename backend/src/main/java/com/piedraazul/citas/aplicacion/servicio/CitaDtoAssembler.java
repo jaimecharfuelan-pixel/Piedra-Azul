@@ -106,7 +106,7 @@ public class CitaDtoAssembler {
             return pacientes.computeIfAbsent(
                     pacienteId,
                     id -> catalogoPacientesPort.buscarResumenPaciente(id)
-                            .orElseGet(() -> new PacienteResumenDTO(id, "Paciente #" + id, ""))
+                            .orElseGet(() -> new PacienteResumenDTO(id, "", "Paciente #" + id, ""))
             );
         }
     }

@@ -113,14 +113,26 @@ public class GestionarUsuarioService implements GestionarUsuarioUseCase {
                         "Para crear un paciente debes indicar el nombre completo"
                 );
             }
+            if (datos.cedula() == null || datos.cedula().isBlank()) {
+                throw ReglaDeNegocioException.de(
+                        "DATOS_PERSONA_OBLIGATORIOS",
+                        "Para crear un paciente debes indicar la cédula"
+                );
+            }
         }
     }
 
     private DatosPersonaDTO datosConUsuarioId(Long usuarioId, DatosPersonaDTO datos) {
         if (datos == null) {
-            return new DatosPersonaDTO(usuarioId, null, null, null);
+            return new DatosPersonaDTO(usuarioId, null, null, null, null);
         }
-        return new DatosPersonaDTO(usuarioId, datos.nombreCompleto(), datos.telefono(), datos.especialidadId());
+        return new DatosPersonaDTO(
+                usuarioId,
+                datos.nombreCompleto(),
+                datos.telefono(),
+                datos.especialidadId(),
+                datos.cedula()
+        );
     }
 
     private Usuario requerir(Long id) {

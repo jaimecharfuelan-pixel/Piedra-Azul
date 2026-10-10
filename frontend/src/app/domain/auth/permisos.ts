@@ -7,6 +7,7 @@ export type AccionUi =
   | 'calendario'
   | 'configuracion'
   | 'historial'
+  | 'citas-cedula'
   | 'personas';
 
 /**
@@ -19,6 +20,7 @@ const PERMISOS: Readonly<Record<RolUsuario, readonly AccionUi[]>> = {
     'calendario',
     'configuracion',
     'historial',
+    'citas-cedula',
     'personas',
   ],
   [RolUsuario.AGENDADOR]: [
@@ -28,6 +30,7 @@ const PERMISOS: Readonly<Record<RolUsuario, readonly AccionUi[]>> = {
     'calendario',
     'configuracion',
     'historial',
+    'citas-cedula',
     'personas',
   ],
   [RolUsuario.MEDICO]: [
@@ -37,6 +40,7 @@ const PERMISOS: Readonly<Record<RolUsuario, readonly AccionUi[]>> = {
     'calendario',
     'configuracion',
     'historial',
+    'citas-cedula',
     'personas',
   ],
   [RolUsuario.PACIENTE]: ['panel', 'agendar', 'historial'],

@@ -9,6 +9,7 @@ import {
   MarcarCitaAtendidaUseCase,
   ReagendarCitaUseCase,
 } from '../../../application/use-cases/gestionar-cita.use-case';
+import { ExportarCitasCsvUseCase } from '../../../application/use-cases/exportar-citas-csv.use-case';
 import { ListarCitasPorMedicoUseCase } from '../../../application/use-cases/listar-citas-por-medico.use-case';
 import { ListarMedicosUseCase } from '../../../application/use-cases/gestionar-medico.use-case';
 import { fechaLegible, hoyIso } from '../../../application/shared/fecha.util';
@@ -66,6 +67,7 @@ export class AgendaPageComponent implements OnInit {
   private readonly sesion = inject(AuthSessionStore);
   private readonly listarMedicos = inject(ListarMedicosUseCase);
   private readonly listarCitas = inject(ListarCitasPorMedicoUseCase);
+  private readonly exportarCitasCsv = inject(ExportarCitasCsvUseCase);
   private readonly cancelarCita = inject(CancelarCitaUseCase);
   private readonly atenderCita = inject(MarcarCitaAtendidaUseCase);
   private readonly reagendarCita = inject(ReagendarCitaUseCase);
@@ -74,6 +76,7 @@ export class AgendaPageComponent implements OnInit {
   readonly medicos = signal<readonly Medico[]>([]);
   readonly listado = signal<ListadoCitas | null>(null);
   readonly cargando = signal(false);
+  readonly exportando = signal(false);
   readonly error = signal<ErrorDominio | null>(null);
   readonly aviso = signal<string | null>(null);
   readonly orden = signal<OrdenCitas>(OrdenCitas.HORA_ASC);
@@ -177,6 +180,35 @@ export class AgendaPageComponent implements OnInit {
   cambiarOrden(campo: CampoOrdenable): void {
     this.orden.set(alternarOrden(this.orden(), campo));
     this.buscar();
+  }
+
+  exportarCsv(): void {
+    if (this.filtros.invalid) {
+      this.filtros.markAllAsTouched();
+      return;
+    }
+    const { medicoId, fecha } = this.filtros.getRawValue();
+    if (medicoId === null) {
+      return;
+    }
+    this.exportando.set(true);
+    this.error.set(null);
+    this.exportarCitasCsv.execute(medicoId, fecha).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `agenda-${medicoId}-${fecha}.csv`;
+        enlace.click();
+        URL.revokeObjectURL(url);
+        this.aviso.set('Se descargó el listado CSV de la jornada.');
+        this.exportando.set(false);
+      },
+      error: (err) => {
+        this.error.set(aErrorDominio(err));
+        this.exportando.set(false);
+      },
+    });
   }
 
   limpiarRefinamiento(): void {

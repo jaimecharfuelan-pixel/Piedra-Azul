@@ -44,7 +44,7 @@ public class AuthController {
                 request.username(),
                 request.password(),
                 RolUsuario.PACIENTE,
-                new DatosPersonaDTO(null, request.nombreCompleto(), request.telefono(), null)
+                new DatosPersonaDTO(null, request.nombreCompleto(), request.telefono(), null, request.cedula())
         ));
     }
 }

@@ -108,33 +108,33 @@ public class SeedDatosDemo implements ApplicationRunner {
         UsuarioResponseDTO ana = crearUsuario(
                 "ana.medico",
                 RolUsuario.MEDICO,
-                new DatosPersonaDTO(null, "Dra. Ana Pérez", null, medicinaGeneral)
+                new DatosPersonaDTO(null, "Dra. Ana Pérez", null, medicinaGeneral, null)
         );
         UsuarioResponseDTO carlos = crearUsuario(
                 "carlos.medico",
                 RolUsuario.MEDICO,
-                new DatosPersonaDTO(null, "Ft. Carlos Muñoz", null, fisioterapia)
+                new DatosPersonaDTO(null, "Ft. Carlos Muñoz", null, fisioterapia, null)
         );
         UsuarioResponseDTO juan = crearUsuario(
                 "juan.paciente",
                 RolUsuario.PACIENTE,
-                new DatosPersonaDTO(null, "Juan Ramírez", "3001234567", null)
+                new DatosPersonaDTO(null, "Juan Ramírez", "3001234567", null, "1001001001")
         );
         UsuarioResponseDTO maria = crearUsuario(
                 "maria.paciente",
                 RolUsuario.PACIENTE,
-                new DatosPersonaDTO(null, "María Gómez", "3009876543", null)
+                new DatosPersonaDTO(null, "María Gómez", "3009876543", null, "1002002002")
         );
 
         List<Long> pacientes = new ArrayList<>();
         pacientes.add(juan.personaId());
         pacientes.add(maria.personaId());
-        pacientes.add(registrarWalkIn("Pedro Vargas", "3101112233"));
-        pacientes.add(registrarWalkIn("Laura Méndez", "3102223344"));
-        pacientes.add(registrarWalkIn("Andrés Soto", "3103334455"));
-        pacientes.add(registrarWalkIn("Camila Ríos", "3104445566"));
-        pacientes.add(registrarWalkIn("Diego Herrera", "3105556677"));
-        pacientes.add(registrarWalkIn("Valentina Cruz", "3106667788"));
+        pacientes.add(registrarWalkIn("1003003003", "Pedro Vargas", "3101112233"));
+        pacientes.add(registrarWalkIn("1004004004", "Laura Méndez", "3102223344"));
+        pacientes.add(registrarWalkIn("1005005005", "Andrés Soto", "3103334455"));
+        pacientes.add(registrarWalkIn("1006006006", "Camila Ríos", "3104445566"));
+        pacientes.add(registrarWalkIn("1007007007", "Diego Herrera", "3105556677"));
+        pacientes.add(registrarWalkIn("1008008008", "Valentina Cruz", "3106667788"));
 
         ventana.ejecutar(VENTANA_SEMANAS_DEMO);
 
@@ -272,8 +272,8 @@ public class SeedDatosDemo implements ApplicationRunner {
         }
     }
 
-    private Long registrarWalkIn(String nombre, String telefono) {
-        return registrarPaciente.ejecutar(new RegistrarPacienteCommand(nombre, telefono)).id();
+    private Long registrarWalkIn(String cedula, String nombre, String telefono) {
+        return registrarPaciente.ejecutar(new RegistrarPacienteCommand(cedula, nombre, telefono)).id();
     }
 
     private UsuarioResponseDTO crearUsuario(String username, RolUsuario rol, DatosPersonaDTO datos) {

@@ -6,4 +6,6 @@ import java.util.Optional;
 
 interface SpringDataPacienteJpaRepository extends JpaRepository<PacienteJpaEntity, Long> {
     Optional<PacienteJpaEntity> findByUsuarioId(Long usuarioId);
+
+    Optional<PacienteJpaEntity> findByCedula(String cedula);
 }

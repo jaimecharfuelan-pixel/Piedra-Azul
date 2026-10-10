@@ -84,6 +84,15 @@
 
     <div class="agenda__acciones">
       <ui-button type="submit" [cargando]="cargando()">Buscar citas</ui-button>
+      <ui-button
+        type="button"
+        variante="secundario"
+        [cargando]="exportando()"
+        [disabled]="filtros.invalid"
+        (pulsado)="exportarCsv()"
+      >
+        Exportar CSV
+      </ui-button>
       @if (hayRefinamiento()) {
         <ui-button variante="fantasma" (pulsado)="limpiarRefinamiento()">Quitar filtros</ui-button>
       }

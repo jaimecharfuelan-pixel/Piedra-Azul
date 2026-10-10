@@ -116,6 +116,7 @@ export class AgendarPageComponent implements OnInit {
 
   /** Registro walk-in de paciente desde esta pantalla. */
   readonly formRegistro = this.fb.nonNullable.group({
+    cedula: ['', [Validators.required, Validators.pattern(/^\d{6,15}$/)]],
     nombreCompleto: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(180)]],
     telefono: ['', [Validators.required, Validators.pattern(/^\d{7,15}$/)]],
   });
@@ -236,7 +237,7 @@ export class AgendarPageComponent implements OnInit {
 
   abrirRegistro(): void {
     this.mostrandoRegistro.set(true);
-    this.formRegistro.reset({ nombreCompleto: '', telefono: '' });
+    this.formRegistro.reset({ cedula: '', nombreCompleto: '', telefono: '' });
   }
 
   cerrarRegistro(): void {
@@ -249,25 +250,31 @@ export class AgendarPageComponent implements OnInit {
       this.formRegistro.markAllAsTouched();
       return;
     }
-    const { nombreCompleto, telefono } = this.formRegistro.getRawValue();
+    const { cedula, nombreCompleto, telefono } = this.formRegistro.getRawValue();
     this.registrando.set(true);
     this.error.set(null);
-    this.registrarPaciente.execute({ nombreCompleto: nombreCompleto.trim(), telefono }).subscribe({
-      next: (paciente) => {
-        this.pacientes.set([...this.pacientes(), paciente]);
-        this.formulario.patchValue({ pacienteId: paciente.id });
-        this.aviso.set(`Registro listo, ${paciente.nombreCompleto}. Ya puedes elegir médico y franja.`);
-        this.cerrarRegistro();
-        this.cargarMisCitas();
-      },
-      error: (err) => {
-        this.error.set(aErrorDominio(err));
-        this.registrando.set(false);
-      },
-    });
+    this.registrarPaciente
+      .execute({
+        cedula: cedula.trim().replace(/[.\s-]/g, ''),
+        nombreCompleto: nombreCompleto.trim(),
+        telefono,
+      })
+      .subscribe({
+        next: (paciente) => {
+          this.pacientes.set([...this.pacientes(), paciente]);
+          this.formulario.patchValue({ pacienteId: paciente.id });
+          this.aviso.set(`Registro listo, ${paciente.nombreCompleto}. Ya puedes elegir médico y franja.`);
+          this.cerrarRegistro();
+          this.cargarMisCitas();
+        },
+        error: (err) => {
+          this.error.set(aErrorDominio(err));
+          this.registrando.set(false);
+        },
+      });
   }
 
-  errorRegistro(nombre: 'nombreCompleto' | 'telefono', mensaje: string): string | null {
+  errorRegistro(nombre: 'cedula' | 'nombreCompleto' | 'telefono', mensaje: string): string | null {
     const control = this.formRegistro.controls[nombre];
     return control.touched && control.invalid ? mensaje : null;
   }

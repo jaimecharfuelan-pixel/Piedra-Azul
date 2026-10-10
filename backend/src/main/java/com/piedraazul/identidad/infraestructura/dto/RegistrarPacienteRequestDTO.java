@@ -21,6 +21,10 @@ public record RegistrarPacienteRequestDTO(
         @Size(min = 3, max = 180, message = "El nombre debe tener entre 3 y 180 caracteres")
         String nombreCompleto,
 
+        @NotBlank(message = "La cédula es obligatoria")
+        @Pattern(regexp = "\\d{6,15}", message = "La cédula debe tener entre 6 y 15 dígitos")
+        String cedula,
+
         @NotBlank(message = "El teléfono es obligatorio")
         @Pattern(regexp = "\\d{7,15}", message = "El teléfono debe tener entre 7 y 15 dígitos")
         String telefono
@@ -29,6 +33,7 @@ public record RegistrarPacienteRequestDTO(
     public RegistrarPacienteRequestDTO {
         username = username == null ? null : username.trim();
         nombreCompleto = nombreCompleto == null ? null : nombreCompleto.trim();
+        cedula = cedula == null ? null : cedula.trim().replaceAll("[.\\s-]", "");
         telefono = telefono == null ? null : telefono.replaceAll("[\\s\\-()]", "");
     }
 }

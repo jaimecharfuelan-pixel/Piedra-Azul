@@ -27,12 +27,24 @@ class ConsultarPacienteServiceTest {
     @Test
     void buscarPorIdDevuelveElDto() {
         when(pacienteRepository.buscarPorId(2L))
-                .thenReturn(Optional.of(Paciente.reconstituir(2L, 8L, "María", "3009876543")));
+                .thenReturn(Optional.of(Paciente.reconstituir(2L, 8L, "1002002002", "María", "3009876543")));
 
         var dto = servicio.buscarPorId(2L);
 
         assertEquals("María", dto.nombreCompleto());
+        assertEquals("1002002002", dto.cedula());
         assertEquals("3009876543", dto.telefono());
+    }
+
+    @Test
+    void buscarPorCedulaDevuelveElDto() {
+        when(pacienteRepository.buscarPorCedula("1002002002"))
+                .thenReturn(Optional.of(Paciente.reconstituir(2L, 8L, "1002002002", "María", "3009876543")));
+
+        var dto = servicio.buscarPorCedula("1002002002");
+
+        assertEquals(2L, dto.id());
+        assertEquals("María", dto.nombreCompleto());
     }
 
     @Test
@@ -49,8 +61,8 @@ class ConsultarPacienteServiceTest {
     @Test
     void listarTodosMapeaCadaPaciente() {
         when(pacienteRepository.listarTodos()).thenReturn(List.of(
-                Paciente.reconstituir(1L, 1L, "Juan", "300"),
-                Paciente.reconstituir(2L, 2L, "María", "301")
+                Paciente.reconstituir(1L, 1L, "1001001001", "Juan", "300"),
+                Paciente.reconstituir(2L, 2L, "1002002002", "María", "301")
         ));
 
         assertEquals(2, servicio.listarTodos().size());

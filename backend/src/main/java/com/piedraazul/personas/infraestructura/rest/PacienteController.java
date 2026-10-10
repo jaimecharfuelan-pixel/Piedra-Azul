@@ -45,6 +45,15 @@ public class PacienteController {
         return registrarUseCase.ejecutar(comando);
     }
 
+    /**
+     * Endpoint del par (1/2) sin JWT: localiza paciente por cédula.
+     * Preparado para Keycloak; la seguridad se configura en SecurityConfig.
+     */
+    @GetMapping("/cedula/{cedula}")
+    public PacienteResponseDTO buscarPorCedula(@PathVariable String cedula) {
+        return consultarUseCase.buscarPorCedula(cedula);
+    }
+
     @GetMapping("/{id}")
     public PacienteResponseDTO buscarPorId(@PathVariable Long id) {
         sesion.siEsPacienteExigirPersona(id);

@@ -25,6 +25,7 @@ export type {
   AgendarCitaCommand,
   ReagendarCitaCommand,
 } from './cita.model';
+export type { HistorialCitasPorCedula } from './historial-citas-cedula.model';
 export type { Consulta } from './consulta.model';
 export { claveSlot } from './slot-disponible.model';
 export type { SlotDisponible } from './slot-disponible.model';

@@ -12,5 +12,7 @@ public interface PacienteRepository {
 
     Optional<Paciente> buscarPorUsuarioId(Long usuarioId);
 
+    Optional<Paciente> buscarPorCedula(String cedula);
+
     List<Paciente> listarTodos();
 }

@@ -47,6 +47,10 @@ public class SecurityConfig {
                                 "/h2-console/**"
                         ).permitAll()
 
+                        // Par por cédula SIN JWT (preparado para Keycloak)
+                        .requestMatchers(HttpMethod.GET, "/api/personas/pacientes/cedula/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/citas/paciente/cedula/**").permitAll()
+
                         // Identidad — gestión de usuarios
                         .requestMatchers("/api/usuarios/**").hasRole(ADMIN)
 
@@ -90,6 +94,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/citas/historial/paciente/**")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO, PACIENTE)
                         .requestMatchers(HttpMethod.GET, "/api/citas/historial/medico/**")
+                        .hasAnyRole(ADMIN, AGENDADOR, MEDICO)
+                        .requestMatchers(HttpMethod.GET, "/api/citas/exportacion")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO)
                         .requestMatchers(HttpMethod.GET, "/api/citas/paciente/**")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO, PACIENTE)

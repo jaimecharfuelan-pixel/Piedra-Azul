@@ -18,6 +18,10 @@ public class PacienteJpaEntity {
     @Column(name = "usuario_id", nullable = false, unique = true)
     private Long usuarioId;
 
+    /** Nullable en BD por migración ddl-auto; el dominio exige cédula en altas nuevas. */
+    @Column(name = "cedula", unique = true, length = 20)
+    private String cedula;
+
     @Column(name = "nombre_completo", nullable = false, length = 180)
     private String nombreCompleto;
 
@@ -27,9 +31,10 @@ public class PacienteJpaEntity {
     protected PacienteJpaEntity() {
     }
 
-    public PacienteJpaEntity(Long id, Long usuarioId, String nombreCompleto, String telefono) {
+    public PacienteJpaEntity(Long id, Long usuarioId, String cedula, String nombreCompleto, String telefono) {
         this.id = id;
         this.usuarioId = usuarioId;
+        this.cedula = cedula;
         this.nombreCompleto = nombreCompleto;
         this.telefono = telefono;
     }
@@ -40,6 +45,10 @@ public class PacienteJpaEntity {
 
     public Long getUsuarioId() {
         return usuarioId;
+    }
+
+    public String getCedula() {
+        return cedula;
     }
 
     public String getNombreCompleto() {
@@ -56,6 +65,10 @@ public class PacienteJpaEntity {
 
     public void setUsuarioId(Long usuarioId) {
         this.usuarioId = usuarioId;
+    }
+
+    public void setCedula(String cedula) {
+        this.cedula = cedula;
     }
 
     public void setNombreCompleto(String nombreCompleto) {

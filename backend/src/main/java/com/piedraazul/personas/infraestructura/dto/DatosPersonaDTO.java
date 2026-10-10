@@ -7,6 +7,7 @@ public record DatosPersonaDTO(
         Long usuarioId,
         String nombreCompleto,
         String telefono,
-        Long especialidadId
+        Long especialidadId,
+        String cedula
 ) {
 }

@@ -50,7 +50,7 @@ class GestionarUsuarioServiceTest {
         });
 
         var dto = servicio.crear(new CrearUsuarioCommand(
-                " Juan ", "demo1234", RolUsuario.PACIENTE, new DatosPersonaDTO(null, "Juan Ramírez", "300", null)
+                " Juan ", "demo1234", RolUsuario.PACIENTE, new DatosPersonaDTO(null, "Juan Ramírez", "300", null, "1001001001")
         ));
 
         assertEquals(3L, dto.id());
@@ -81,7 +81,7 @@ class GestionarUsuarioServiceTest {
         ReglaDeNegocioException ex = assertThrows(
                 ReglaDeNegocioException.class,
                 () -> servicio.crear(new CrearUsuarioCommand(
-                        "juan", "demo1234", RolUsuario.PACIENTE, new DatosPersonaDTO(null, "Juan", "300", null)
+                        "juan", "demo1234", RolUsuario.PACIENTE, new DatosPersonaDTO(null, "Juan", "300", null, "1001001001")
                 ))
         );
         assertEquals("USERNAME_YA_REGISTRADO", ex.getCodigo());
@@ -94,7 +94,7 @@ class GestionarUsuarioServiceTest {
         ReglaDeNegocioException ex = assertThrows(
                 ReglaDeNegocioException.class,
                 () -> servicio.crear(new CrearUsuarioCommand(
-                        "ana", "demo1234", RolUsuario.MEDICO, new DatosPersonaDTO(null, "Ana", null, null)
+                        "ana", "demo1234", RolUsuario.MEDICO, new DatosPersonaDTO(null, "Ana", null, null, null)
                 ))
         );
         assertEquals("DATOS_PERSONA_OBLIGATORIOS", ex.getCodigo());

@@ -208,6 +208,21 @@
   >
     <form class="agendar__registro-form" [formGroup]="formRegistro">
       <ui-field
+        etiqueta="Cédula"
+        controlId="registro-cedula"
+        [requerido]="true"
+        [error]="errorRegistro('cedula', 'Indica una cédula de 6 a 15 dígitos')"
+      >
+        <input
+          id="registro-cedula"
+          class="pz-control"
+          type="text"
+          inputmode="numeric"
+          formControlName="cedula"
+          placeholder="1001001001"
+        />
+      </ui-field>
+      <ui-field
         etiqueta="Nombre completo"
         controlId="registro-nombre"
         [requerido]="true"

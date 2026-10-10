@@ -31,11 +31,21 @@ public class ConsultarPacienteService implements ConsultarPacienteUseCase {
     }
 
     @Override
+    public PacienteResponseDTO buscarPorCedula(String cedula) {
+        Paciente paciente = pacienteRepository.buscarPorCedula(cedula)
+                .orElseThrow(() -> RecursoNoEncontradoException.de(
+                        "PACIENTE_NO_ENCONTRADO",
+                        "No existe paciente con cédula " + cedula
+                ));
+        return toDto(paciente);
+    }
+
+    @Override
     public List<PacienteResponseDTO> listarTodos() {
         return pacienteRepository.listarTodos().stream().map(this::toDto).toList();
     }
 
     private PacienteResponseDTO toDto(Paciente p) {
-        return new PacienteResponseDTO(p.getId(), p.getNombreCompleto(), p.getTelefono());
+        return new PacienteResponseDTO(p.getId(), p.getCedula(), p.getNombreCompleto(), p.getTelefono());
     }
 }
