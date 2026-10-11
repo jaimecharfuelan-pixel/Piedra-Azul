@@ -1,5 +1,5 @@
 @startuml 02_modulo_identidad
-title Modulo Identidad y Acceso (JWT + CRUD de Usuario)
+title Modulo Identidad y Acceso (Keycloak JWT + CRUD de Usuario)
 
 skinparam classAttributeIconSize 0
 skinparam class {
@@ -63,15 +63,24 @@ interface PasswordEncoderPort {
   +codificar(passwordPlano: String): String
   +coincide(passwordPlano: String, hash: String): boolean
 }
-interface JwtTokenPort {
-  +generarToken(usuario: Usuario): String
-  +extraerUsername(token: String): String
-  +esTokenValido(token: String, usuario: Usuario): boolean
+' RNF1: emision/validacion de JWT delegada a Keycloak (Docker).
+' En tests/dev sin contenedor existe un emisor local Nimbus compatible.
+interface ProveedorIdentidadPort {
+  +autenticar(username: String, passwordPlano: String): TokenProveedor
+  +asegurarUsuario(username: String, passwordPlano: String, rol: RolUsuario): void
+  +sincronizarEstado(username: String, activo: boolean): void
 }
+note right of ProveedorIdentidadPort
+  Implementaciones:
+  - KeycloakProveedorIdentidadAdapter
+    (app.security.provider=keycloak)
+  - LocalJwtProveedorIdentidadAdapter
+    (solo tests / perfil local)
+  El dominio de roles (matriz HTTP)
+  NO vive aqui: sigue en SecurityConfig.
+end note
 
 ' -- puerto EXTERNO: implementado por el Modulo Personas.
-'    Un solo puerto crea la Persona (Medico o Paciente) segun el rol,
-'    para no duplicar CrearMedicoPort / CrearPacientePort --
 interface RegistrarPersonaPort <<puerto externo>> {
   +crearPersonaParaUsuario(rol: RolUsuario, datos: DatosPersonaDTO): Long
 }
@@ -83,7 +92,7 @@ note right of RegistrarPersonaPort
 end note
 
 ' =====================================================================
-' PUERTOS DE ENTRADA - CRUD consolidado en UNA sola interfaz
+' PUERTOS DE ENTRADA
 ' =====================================================================
 interface GestionarUsuarioUseCase {
   +crear(comando: CrearUsuarioCommand): UsuarioResponseDTO
@@ -96,12 +105,13 @@ interface AutenticarUsuarioUseCase {
 }
 
 ' =====================================================================
-' SERVICIOS DE APLICACION (nucleo desacoplado)
+' SERVICIOS DE APLICACION
 ' =====================================================================
 class GestionarUsuarioService implements GestionarUsuarioUseCase {
   -usuarioRepository: UsuarioRepository
   -passwordEncoder: PasswordEncoderPort
   -registrarPersonaPort: RegistrarPersonaPort
+  -proveedorIdentidad: ProveedorIdentidadPort
   +crear(comando: CrearUsuarioCommand): UsuarioResponseDTO
   +cambiarEstado(id: Long, activo: boolean): UsuarioResponseDTO
   +buscarPorId(id: Long): UsuarioResponseDTO
@@ -111,29 +121,33 @@ class GestionarUsuarioService implements GestionarUsuarioUseCase {
 GestionarUsuarioService --> UsuarioRepository
 GestionarUsuarioService --> PasswordEncoderPort
 GestionarUsuarioService --> RegistrarPersonaPort
+GestionarUsuarioService --> ProveedorIdentidadPort
 GestionarUsuarioService ..> Usuario : crea
 GestionarUsuarioService ..> ReglaDeNegocioException : lanza (codigo=USERNAME_YA_REGISTRADO)
 note bottom of GestionarUsuarioService
-  El registro publico del paciente (RF2) y la
-  creacion de Medico/Agendador/Admin por el
-  administrador usan el MISMO metodo crear():
-  solo cambia el rol en el comando y quien
-  tiene permiso de invocar el endpoint.
+  Persiste el vinculo local (rol + personaId)
+  y sincroniza credenciales/rol en Keycloak.
+  Registro publico del paciente (RF2) y alta
+  admin usan el mismo crear().
 end note
 
 class AutenticarUsuarioService implements AutenticarUsuarioUseCase {
   -usuarioRepository: UsuarioRepository
-  -passwordEncoder: PasswordEncoderPort
-  -jwtTokenPort: JwtTokenPort
+  -proveedorIdentidad: ProveedorIdentidadPort
   +ejecutar(username: String, passwordPlano: String): TokenResponseDTO
 }
 AutenticarUsuarioService --> UsuarioRepository
-AutenticarUsuarioService --> PasswordEncoderPort
-AutenticarUsuarioService --> JwtTokenPort
+AutenticarUsuarioService --> ProveedorIdentidadPort
 AutenticarUsuarioService ..> ReglaDeNegocioException : lanza (codigo=CREDENCIALES_INVALIDAS)
+note bottom of AutenticarUsuarioService
+  1) Verifica usuario local activo
+  2) Pide JWT al proveedor (Keycloak)
+  3) Enriquece TokenResponseDTO con
+     rol + personaId locales
+end note
 
 ' =====================================================================
-' INFRAESTRUCTURA - referencia
+' INFRAESTRUCTURA
 ' =====================================================================
 class AuthController <<RestController>> {
   -autenticarUsuarioUseCase: AutenticarUsuarioUseCase
@@ -147,12 +161,31 @@ class UsuarioController <<RestController>> {
   +cambiarEstado(id: Long, activo: boolean): ResponseEntity
   +listar(): ResponseEntity
 }
-class JwtAuthenticationFilter <<Adapter>>
+class SecurityConfig <<Adapter>> {
+  +securityFilterChain(http): SecurityFilterChain
+}
+note right of SecurityConfig
+  Matriz HTTP por rol (hasRole / hasAnyRole).
+  oauth2ResourceServer + JwtAuthConverter.
+  RF4 CSV y RF5 por cedula: AGENDADOR, MEDICO.
+end note
+class JwtAuthConverter <<Adapter>> {
+  +convert(jwt: Jwt): AbstractAuthenticationToken
+}
+note right of JwtAuthConverter
+  preferred_username + realm_access.roles
+  -> UsuarioAutenticado (+ personaId local)
+end note
+class KeycloakProveedorIdentidadAdapter <<Adapter>> implements ProveedorIdentidadPort
+class LocalJwtProveedorIdentidadAdapter <<Adapter>> implements ProveedorIdentidadPort
 class BCryptPasswordEncoderAdapter <<Adapter>> implements PasswordEncoderPort
-class JwtServiceAdapter <<Adapter>> implements JwtTokenPort
 class UsuarioRepositoryAdapter <<Adapter>> implements UsuarioRepository
 class UsuarioJpaEntity <<JPA>>
+class UsuarioAutenticado
+class SesionActual
 UsuarioRepositoryAdapter ..> UsuarioJpaEntity : mapea
+JwtAuthConverter --> UsuarioRepository
+SesionActual ..> UsuarioAutenticado : lee del SecurityContext
 
 ' =====================================================================
 ' DTOs
@@ -167,6 +200,7 @@ class DatosPersonaDTO <<DTO>> {
   +nombreCompleto: String
   +telefono: String
   +especialidadId: Long
+  +cedula: String
 }
 class RegistrarPacienteRequestDTO <<DTO>>
 class LoginRequestDTO <<DTO>> {
@@ -178,6 +212,8 @@ class TokenResponseDTO <<DTO>> {
   +tokenType: String
   +expiresIn: long
   +rol: RolUsuario
+  +personaId: Long
+  +usuarioId: Long
 }
 class UsuarioResponseDTO <<DTO>> {
   +id: Long

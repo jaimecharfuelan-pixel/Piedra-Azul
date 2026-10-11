@@ -1,65 +1,68 @@
-# Frontend (Angular hexagonal)
+# Frontend
 
-SPA en Angular 19. Consume la API del monolito modular y cubre los tres
-requisitos funcionales con pantallas dedicadas.
+SPA Angular 19. Consume la API y pinta las pantallas de los RF.
 
 ## Stack
 
 | Tecnología | Uso |
 |---|---|
 | Angular 19 (standalone, signals) | UI |
-| Arquitectura hexagonal | Dominio → casos de uso → adaptadores HTTP |
-| Reactive Forms | Validación en cliente (RF1 filtros, RF2 registro/agendar, RF3 config) |
-| FullCalendar 7 (`@fullcalendar/angular`) | Semana de franjas (RF2) y agenda visual |
-| Atomic Design | Átomos (`ui-*`), moléculas, organismos (`pz-*`) |
+| Hexagonal | domain → use cases → HTTP |
+| Reactive Forms | validación cliente |
+| FullCalendar 7 | calendario |
+| Atomic Design | `ui-*` / `pz-*` |
 
 ## Capas
 
+```plantuml
+@startuml
+title Capas del frontend (Angular)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+package "src/app" {
+  package "presentation" as Pres {
+    card "páginas y\ncomponentes" as Pr
+  }
+  package "application" as App {
+    card "casos de uso" as Au
+  }
+  package "domain" as Dom {
+    card "modelos y\npuertos" as Dm
+  }
+  package "infrastructure" as Inf {
+    card "HTTP, auth,\nFullCalendar" as In
+  }
+}
+
+Pres --> App
+App --> Dom
+Inf --> Dom
+Pres ..> Inf : usa adapters
+@enduml
 ```
-src/app/
-├── domain/            # Modelos y puertos (sin HttpClient ni componentes)
-├── application/       # Casos de uso
-├── infrastructure/    # CitaHttpAdapter, DisponibilidadHttpAdapter, FullCalendar
-└── presentation/      # Páginas y sistema de diseño
-```
 
-Los puertos se atan en `app.config.ts`. Cambiar REST por otra fuente es cambiar
-esas líneas.
+Los puertos se cablean en `app.config.ts`.
 
-## Pantallas y requisitos
+## Rutas
 
-| Ruta | Qué hace |
+| Ruta | Uso |
 |---|---|
-| `/` | Landing pública |
-| `/login` / `/registro` | JWT y alta de paciente |
-| `/panel/*` | Panel por rol |
-| `/agenda` | Citas del día (agendador / médico) |
-| `/agendar` | Reservar franja libre |
-| `/configuracion` | Ventana (admin) y horarios |
-| `/calendario` | FullCalendar por médico |
-| `/historial` | Consultas atendidas |
-| `/personas` | Catálogo; alta de médicos solo admin |
+| `/` | landing |
+| `/login` / `/registro` | auth |
+| `/panel/*` | panel por rol |
+| `/agenda` | citas del día + CSV |
+| `/agendar` | reservar |
+| `/configuracion` | ventana / horarios |
+| `/calendario` | FullCalendar |
+| `/historial` | consultas atendidas |
+| `/citas-por-cedula` | RF5 |
+| `/personas` | catálogo |
 
-## Autenticación y permisos en UI
+## Auth en UI
 
-- Token Bearer en `AuthSessionStore` + interceptor HTTP.
-- Navegación y botones filtrados por `domain/auth/permisos.ts` (alineado a
-  `SecurityConfig`, sin ofrecer acciones que el backend deniega).
-- El médico opera solo su `personaId` (agenda, calendario, horario).
+Token en `AuthSessionStore` + interceptor. Menús según `permisos.ts`
+(alineado a `SecurityConfig`). El médico queda amarrado a su `personaId`.
 
-## Cómo se conecta con los módulos
-
-- **Identidad**: `POST /api/auth/login`, `POST /api/auth/registro-paciente`
-- **Disponibilidad**: `GET/PUT /api/disponibilidad/*`
-- **Citas**: `POST/PUT/GET /api/citas/*`
-- **Personas**: `GET/POST /api/personas/*`
-
-El algoritmo de slots vive en el backend (`CalculadorSlotsPorIntervaloFijo`).
-El frontend solo pinta las franjas que ya vienen libres.
-
-## Usabilidad
-
-- Acciones destructivas pasan por diálogo de confirmación.
-- Errores de negocio se muestran con mensaje y sugerencia.
-- Estados vacíos indican el siguiente paso.
-- La tabla de agenda ordena al pulsar el encabezado.
+Login: `POST /api/auth/login` (el backend habla con Keycloak).

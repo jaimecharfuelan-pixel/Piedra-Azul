@@ -1,25 +1,26 @@
-# PiedraAzul — Backend
+# Backend
 
-API REST en Spring Boot 3.4 (Java 17): monolito modular, Spring Security + JWT,
-JPA y PostgreSQL (H2 en perfil local).
+Spring Boot 3.4 / Java 17. Monolito modular.
+
+En Docker el JWT sale de Keycloak. En local y en tests se usa
+`app.security.provider=local` (Nimbus), para no depender del contenedor.
 
 ## Perfiles
 
-| Perfil | Uso | BD |
+| Perfil | BD | Auth |
 |---|---|---|
-| `local` (default) | `mvn spring-boot:run` | H2 en memoria |
-| `docker` | Compose | PostgreSQL |
+| `local` | H2 | Nimbus |
+| `docker` | Postgres | Keycloak `:8180` |
 
-## Datos de demo
+Login: `POST /api/auth/login`. Matriz de roles: `SecurityConfig`.
+Más detalle en `docs/seguridad.md`.
 
-Con `APP_SEED_ENABLED=true`, al arrancar se ejecuta
-`com.piedraazul.bootstrap.SeedDatosDemo` (`ApplicationRunner`) si no existe el
-usuario `admin`. Crea usuarios, horarios y citas vía casos de uso.
+## Seed
 
-Password de demo: `demo1234`.
+Con `APP_SEED_ENABLED=true` corre `SeedDatosDemo` si no existe `admin`.
+Pass demo: `demo1234`.
 
 ```bash
-# regenerar datos
 docker compose down -v
 docker compose up -d --build
 ```
@@ -31,5 +32,4 @@ mvn spring-boot:run
 mvn test
 ```
 
-Documentación MkDocs: desde la raíz del repo, `docker compose up docs`
-(http://localhost:8000).
+Docs: `docker compose up docs` → http://localhost:8000

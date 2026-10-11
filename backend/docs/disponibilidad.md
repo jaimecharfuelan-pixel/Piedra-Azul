@@ -29,31 +29,14 @@ un rango de fechas:
 Así nunca coexisten dos horarios del mismo profesional, y consultar "¿qué horario
 rige el 15 de abril?" es una sola consulta por rango de fechas.
 
-## Arquitectura hexagonal
+## Capas
 
-```
-com.piedraazul.disponibilidad
-├── dominio/
-│   ├── ConfiguracionSistema          # ventana global, una sola fila
-│   ├── PeriodoDisponibilidad         # horario vigente en un rango de fechas
-│   ├── SlotDisponible                # Value Object (record) fecha + rango
-│   ├── CalculadorSlotsStrategy       # Strategy: punto de extensión
-│   └── CalculadorSlotsPorIntervaloFijo
-├── aplicacion/
-│   ├── puertos/entrada/              # ConfigurarVentana…, ConfigurarPeriodo…,
-│   │                                 # ConsultarDisponibilidad…, ConsultarPeriodos…
-│   ├── puertos/salida/               # DisponibilidadRepository
-│   │                                 # ConsultarConfiguracionPort (público)
-│   │                                 # PeriodoDisponibilidadRef (vista pública)
-│   └── servicio/                     # Services + DisponibilidadModuleFacade
-└── infraestructura/
-    ├── config/                       # bean de la Strategy
-    ├── dto/
-    ├── persistencia/                 # JPA + Adapter
-    └── rest/                         # DisponibilidadController
-```
+Dominio: `ConfiguracionSistema`, `PeriodoDisponibilidad`, `SlotDisponible`,
+strategy de slots. Aplicación: use cases + fachada. Infra: REST / JPA.
 
-### Dependencias entre módulos
+Diagrama: [Disponibilidad](diagramas/04-disponibilidad.md).
+
+### Dependencias
 
 | Necesita | De quién | Cómo |
 |---|---|---|

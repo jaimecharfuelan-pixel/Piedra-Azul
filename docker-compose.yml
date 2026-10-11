@@ -17,6 +17,32 @@ services:
       timeout: 5s
       retries: 10
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: piedraazul-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8080
+      # Issuer público (debe coincidir con app.security.keycloak.issuer-uri)
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./keycloak/realm-piedraazul.json:/opt/keycloak/data/import/realm-piedraazul.json:ro
+    # Listo cuando el realm ya responde (import terminado).
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
   backend:
     build:
       context: ./backend
@@ -25,11 +51,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/piedraazul
       SPRING_DATASOURCE_USERNAME: piedraazul
       SPRING_DATASOURCE_PASSWORD: piedraazul
+      APP_SECURITY_PROVIDER: keycloak
+      APP_KEYCLOAK_SERVER_URL: http://keycloak:8080
+      APP_KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/piedraazul
+      APP_KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/piedraazul/protocol/openid-connect/certs
+      APP_KEYCLOAK_REALM: piedraazul
+      APP_KEYCLOAK_CLIENT_ID: piedraazul-backend
+      APP_KEYCLOAK_ADMIN_USERNAME: admin
+      APP_KEYCLOAK_ADMIN_PASSWORD: admin
       # Siembra especialidades, médicos con horario, pacientes y citas de ejemplo
       # la primera vez que arranca contra una base vacía.
       APP_SEED_ENABLED: "true"

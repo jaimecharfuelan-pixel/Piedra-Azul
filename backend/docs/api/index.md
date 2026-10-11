@@ -1,6 +1,7 @@
-git pull# API
+# API
 
-Base: `http://localhost:8080`. Todas las respuestas son JSON.
+Base `http://localhost:8080`, respuestas JSON.
+Rutas privadas: header `Authorization: Bearer …` (token de Keycloak / login).
 
 ## Convenciones
 
@@ -54,8 +55,9 @@ Ver [Personas](../personas.md).
 | POST / GET | `/medicos` |
 | PUT | `/medicos/{id}`, `/medicos/{id}/estado` |
 | GET | `/medicos/{id}` |
-| POST | `/pacientes` | RF2 registro |
-| GET | `/pacientes`, `/pacientes/{id}` |
+| POST | `/pacientes` | walk-in (admin/agendador/médico) |
+| GET | `/pacientes`, `/pacientes/{id}` | |
+| GET | `/pacientes/cedula/{cedula}` | RF5 (agendador/médico) |
 
 ## Disponibilidad — `/api/disponibilidad`
 
@@ -84,6 +86,8 @@ Ver [Citas](../citas.md).
 | GET | `/?medicoId=&fecha=&orden=` | **RF1** |
 | GET | `/rango?medicoId=&desde=&hasta=` | RF1 |
 | GET | `/paciente/{pacienteId}` | RF2 |
+| GET | `/paciente/cedula/{cedula}` | RF5 (agendador/médico) |
+| GET | `/exportacion?medicoId=&fecha=` | RF4 CSV (agendador/médico) |
 | GET | `/historial/paciente/{pacienteId}` | — |
 | GET | `/historial/medico/{medicoId}` | — |
 
@@ -91,7 +95,7 @@ Ver [Citas](../citas.md).
 
 | Método | Ruta | Público |
 |---|---|---|
-| POST | `/login` | Sí |
+| POST | `/login` | Sí (proxy a Keycloak) |
 | POST | `/registro-paciente` | Sí |
 
 Gestión de usuarios (solo ADMIN): `/api/usuarios`. Ver [Seguridad](../seguridad.md).

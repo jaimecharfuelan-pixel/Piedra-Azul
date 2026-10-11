@@ -1,10 +1,8 @@
 package com.piedraazul.identidad.aplicacion.servicio;
 
-import com.piedraazul.identidad.aplicacion.puertos.salida.JwtTokenPort;
-import com.piedraazul.identidad.aplicacion.puertos.salida.PasswordEncoderPort;
+import com.piedraazul.identidad.aplicacion.puertos.salida.ProveedorIdentidadPort;
 import com.piedraazul.identidad.aplicacion.puertos.salida.UsuarioRepository;
 import com.piedraazul.identidad.dominio.Usuario;
-import com.piedraazul.identidad.infraestructura.security.JwtProperties;
 import com.piedraazul.nucleo.dominio.RolUsuario;
 import com.piedraazul.nucleo.dominio.excepciones.ReglaDeNegocioException;
 import org.junit.jupiter.api.Test;
@@ -25,25 +23,20 @@ class AutenticarUsuarioServiceTest {
     @Mock
     private UsuarioRepository usuarioRepository;
     @Mock
-    private PasswordEncoderPort passwordEncoder;
-    @Mock
-    private JwtTokenPort jwtTokenPort;
-    @Mock
-    private JwtProperties jwtProperties;
+    private ProveedorIdentidadPort proveedorIdentidad;
     @InjectMocks
     private AutenticarUsuarioService servicio;
 
     @Test
-    void entregaUnTokenSiLaClaveCoincide() {
+    void entregaUnTokenSiElProveedorAutentica() {
         Usuario usuario = Usuario.reconstituir(3L, "ana", "hash", RolUsuario.MEDICO, 8L, true);
         when(usuarioRepository.buscarPorUsername("ana")).thenReturn(Optional.of(usuario));
-        when(passwordEncoder.coincide("demo1234", "hash")).thenReturn(true);
-        when(jwtTokenPort.generarToken(usuario)).thenReturn("jwt");
-        when(jwtProperties.expirationMs()).thenReturn(86_400_000L);
+        when(proveedorIdentidad.autenticar("ana", "demo1234"))
+                .thenReturn(new ProveedorIdentidadPort.TokenProveedor("jwt-keycloak", "Bearer", 86_400L));
 
         var token = servicio.ejecutar("  ANA  ", "demo1234");
 
-        assertEquals("jwt", token.accessToken());
+        assertEquals("jwt-keycloak", token.accessToken());
         assertEquals("Bearer", token.tokenType());
         assertEquals(86_400L, token.expiresIn());
         assertEquals(RolUsuario.MEDICO, token.rol());
@@ -63,7 +56,7 @@ class AutenticarUsuarioServiceTest {
     }
 
     @Test
-    void rechazaClaveIncorrectaOCuentaInactiva() {
+    void rechazaCuentaInactiva() {
         Usuario inactivo = Usuario.reconstituir(3L, "ana", "hash", RolUsuario.MEDICO, 8L, false);
         when(usuarioRepository.buscarPorUsername("ana")).thenReturn(Optional.of(inactivo));
 

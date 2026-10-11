@@ -114,10 +114,7 @@ public class CitaController {
                 .body(cuerpo);
     }
 
-    /**
-     * Endpoint del par (2/2) sin JWT: historial de citas por cédula.
-     * Preparado para Keycloak; la seguridad se configura en SecurityConfig.
-     */
+    /** RF5: historial de citas por cédula (agendador y médico; ver SecurityConfig). */
     @GetMapping("/paciente/cedula/{cedula}")
     public HistorialCitasPorCedulaResponseDTO listarPorCedula(@PathVariable String cedula) {
         return consultarCitasPorCedulaUseCase.ejecutar(cedula);

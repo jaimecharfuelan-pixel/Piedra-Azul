@@ -1,9 +1,8 @@
 site_name: PiedraAzul
-site_description: Documentación del monolito modular PiedraAzul (Spring Boot + Angular)
+site_description: Docs del monolito PiedraAzul (Spring Boot + Angular + Keycloak)
 site_url: http://localhost:8000/
 
 repo_name: piedra-azul
-# repo_url: https://github.com/...
 
 theme:
   name: material
@@ -18,12 +17,12 @@ theme:
     - toc.follow
   palette:
     - scheme: default
-      primary: indigo
+      primary: blue grey
       toggle:
         icon: material/brightness-7
         name: Modo oscuro
     - scheme: slate
-      primary: indigo
+      primary: blue grey
       toggle:
         icon: material/brightness-4
         name: Modo claro
@@ -33,16 +32,16 @@ nav:
   - Arquitectura: arquitectura.md
   - Módulos:
       - Vista general: modulos.md
-      - Núcleo común: nucleo.md
-      - Identidad y acceso: identidad.md
+      - Núcleo: nucleo.md
+      - Identidad: identidad.md
       - Personas: personas.md
       - Disponibilidad: disponibilidad.md
       - Citas: citas.md
-  - Seguridad (JWT): seguridad.md
-  - Frontend (Angular): frontend.md
+  - Seguridad (Keycloak): seguridad.md
+  - Frontend: frontend.md
   - API: api/index.md
   - Pruebas: pruebas.md
-  - Diagramas de clases:
+  - Diagramas:
       - Índice: diagramas/index.md
       - Núcleo: diagramas/01-nucleo.md
       - Identidad: diagramas/02-identidad.md

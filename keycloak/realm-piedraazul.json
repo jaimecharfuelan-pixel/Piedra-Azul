@@ -1,0 +1,135 @@
+{
+  "realm": "piedraazul",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": true,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "verifyEmail": false,
+  "requiredActions": [
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 90,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 30,
+      "config": {}
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10,
+      "config": {}
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "ADMINISTRADOR", "description": "Administrador del sistema" },
+      { "name": "AGENDADOR", "description": "Agendador de citas" },
+      { "name": "MEDICO", "description": "Médico o terapista" },
+      { "name": "PACIENTE", "description": "Paciente" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "piedraazul-backend",
+      "name": "PiedraAzul API",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "attributes": {
+        "access.token.lifespan": "86400"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@piedraazul.local",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "PiedraAzul",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "demo1234", "temporary": false }],
+      "realmRoles": ["ADMINISTRADOR"]
+    },
+    {
+      "username": "agendador",
+      "enabled": true,
+      "email": "agendador@piedraazul.local",
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "Agendadora",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "demo1234", "temporary": false }],
+      "realmRoles": ["AGENDADOR"]
+    },
+    {
+      "username": "ana.medico",
+      "enabled": true,
+      "email": "ana.medico@piedraazul.local",
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "Perez",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "demo1234", "temporary": false }],
+      "realmRoles": ["MEDICO"]
+    },
+    {
+      "username": "carlos.medico",
+      "enabled": true,
+      "email": "carlos.medico@piedraazul.local",
+      "emailVerified": true,
+      "firstName": "Carlos",
+      "lastName": "Munoz",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "demo1234", "temporary": false }],
+      "realmRoles": ["MEDICO"]
+    },
+    {
+      "username": "juan.paciente",
+      "enabled": true,
+      "email": "juan.paciente@piedraazul.local",
+      "emailVerified": true,
+      "firstName": "Juan",
+      "lastName": "Ramirez",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "demo1234", "temporary": false }],
+      "realmRoles": ["PACIENTE"]
+    },
+    {
+      "username": "maria.paciente",
+      "enabled": true,
+      "email": "maria.paciente@piedraazul.local",
+      "emailVerified": true,
+      "firstName": "Maria",
+      "lastName": "Gomez",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "demo1234", "temporary": false }],
+      "realmRoles": ["PACIENTE"]
+    }
+  ]
+}

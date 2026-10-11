@@ -1,20 +1,27 @@
-# Diagramas de clases
+# Diagramas
 
-Diagramas **PlantUML** alineados al código implementado. Se renderizan aquí
-en MkDocs (contenedor `docs`, puerto 8000).
+PlantUML. MkDocs los pinta con el plugin (`plantuml-markdown` → SVG).
 
-## Módulos implementados
+## Clases (por módulo)
 
 | Diagrama | Paquete |
 |---|---|
-| [Núcleo común](01-nucleo.md) | `com.piedraazul.nucleo` |
-| [Identidad](02-identidad.md) | `com.piedraazul.identidad` |
-| [Personas](03-personas.md) | `com.piedraazul.personas` |
-| [Disponibilidad](04-disponibilidad.md) | `com.piedraazul.disponibilidad` |
-| [Citas](05-citas.md) | `com.piedraazul.citas` |
+| [Núcleo](01-nucleo.md) | `nucleo` |
+| [Identidad](02-identidad.md) | `identidad` |
+| [Personas](03-personas.md) | `personas` |
+| [Disponibilidad](04-disponibilidad.md) | `disponibilidad` |
+| [Citas](05-citas.md) | `citas` |
 
-Fuentes `.puml`: [`puml/`](puml/index.md).
+Fuentes `.puml`: [`puml/`](puml/index.md) y `diagramas-por-modulo/` en la raíz.
 
-!!! note "Qué no aparece"
-    No hay módulo de notificaciones ni infraestructura transversal aparte:
-    la seguridad JWT vive dentro de **Identidad**.
+## Otros (también PlantUML)
+
+Están embebidos en las páginas (arquitectura, módulos, seguridad, citas, frontend):
+
+- paquetes del monolito
+- dependencias entre módulos
+- ciclo de vida de Cita
+- capas del frontend
+- secuencia de login con Keycloak
+
+La seguridad no es un módulo aparte: va dentro de Identidad.

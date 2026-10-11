@@ -5,10 +5,13 @@ skinparam shadowing false
 
 node "Host Docker" {
   node "piedraazul-frontend" as FE {
-    artifact "nginx 1.27\nSPA Angular" as NGX
+    artifact "nginx\nSPA Angular :4200→80" as NGX
   }
   node "piedraazul-backend" as BE {
     artifact "Spring Boot\nJRE 17 :8080" as APP
+  }
+  node "piedraazul-keycloak" as KC {
+    artifact "Keycloak 26\nrealm piedraazul :8180" as KEY
   }
   node "piedraazul-db" as DBN {
     database "PostgreSQL 16\n:5432" as DB
@@ -18,12 +21,22 @@ node "Host Docker" {
   }
 }
 
-actor "Navegador" as U
-U --> FE : :4200 → 80
+actor "Navegador / Postman" as U
+U --> FE : :4200
+U --> KC : Admin / token :8180
 FE --> BE : /api proxy
 BE --> DB : JDBC
+BE --> KC : password grant + JWKS
 note right of APP
-  APP_SEED_ENABLED=true\nSeedDatosDemo\n(sin SQL db/init)
+  APP_SEED_ENABLED=true
+  SeedDatosDemo (usuarios locales)
+  Roles/credenciales en Keycloak
+end note
+note right of KEY
+  Realm import:
+  keycloak/realm-piedraazul.json
+  Roles: ADMINISTRADOR, AGENDADOR,
+  MEDICO, PACIENTE
 end note
 
 @enduml

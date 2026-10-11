@@ -176,14 +176,13 @@ class PacienteController <<RestController>> {
   +buscarPorCedula(cedula: String): ResponseEntity
 }
 note right of PacienteController
-  NUEVO - Endpoint del PAR (1/2) SIN JWT:
+  RF5 - Consulta paciente por cedula:
   GET /api/personas/pacientes/cedula/{cedula}
   -> PacienteResponseDTO
-
-  Preparado para Keycloak / JWT externo
-  (roles MEDICO, AGENDADOR). El UseCase
-  no recibe tokens ni claims.
-  El (2/2) esta en 05_modulo_citas.puml.
+  Roles HTTP: AGENDADOR, MEDICO
+  (JWT Keycloak / SecurityConfig).
+  Complementa citas por cedula en
+  05_modulo_citas.puml.
 end note
 class EspecialidadRepositoryAdapter <<Adapter>> implements EspecialidadRepository
 class MedicoRepositoryAdapter <<Adapter>> implements MedicoRepository

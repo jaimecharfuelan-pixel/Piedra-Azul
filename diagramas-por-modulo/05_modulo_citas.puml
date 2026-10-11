@@ -170,18 +170,18 @@ note right of ExportarCitasCsvUseCase
   horaFin, pacienteNombre, pacienteTelefono,
   pacienteCedula, estado.
 end note
-' NUEVO: historial de CITAS por cedula (endpoint 2/2 del PAR SIN JWT)
+' RF5: historial de CITAS por cedula (agendador / medico)
 interface ConsultarCitasPorCedulaUseCase {
   +ejecutar(cedula: String): HistorialCitasPorCedulaResponseDTO
 }
 note right of ConsultarCitasPorCedulaUseCase
-  NUEVO. Endpoint (2/2) del par SIN JWT.
-  El (1/2) esta en 03_modulo_personas
-  (GET .../pacientes/cedula/{cedula}).
+  RF5. Complementa Personas:
+  GET .../pacientes/cedula/{cedula}.
   Resuelve cedula -> pacienteId via
   CatalogoPacientesPort y lista TODAS las
   citas. Si no existe: PACIENTE_NO_ENCONTRADO.
-  Preparado para Keycloak / JWT externo.
+  Autorizacion en SecurityConfig:
+  AGENDADOR, MEDICO (JWT Keycloak).
 end note
 
 class GestionarCitaService implements GestionarCitaUseCase {
@@ -239,9 +239,9 @@ class ExportarCitasCsvService implements ExportarCitasCsvUseCase {
 ExportarCitasCsvService --> CitaRepository
 ExportarCitasCsvService --> CatalogoPacientesPort
 note bottom of ExportarCitasCsvService
-  NUEVO (SRP): separado de ListarCitasPorMedico
+  RF4 (SRP): separado de ListarCitasPorMedico
   (JSON de UI). Reutiliza buscarPorMedicoYFecha.
-  Destinatarios: medico/terapista/agendador.
+  Roles HTTP: AGENDADOR, MEDICO.
 end note
 
 class ConsultarCitasPorCedulaService implements ConsultarCitasPorCedulaUseCase {
@@ -253,10 +253,9 @@ ConsultarCitasPorCedulaService --> CitaRepository
 ConsultarCitasPorCedulaService --> CatalogoPacientesPort
 ConsultarCitasPorCedulaService ..> RecursoNoEncontradoException : lanza (codigo=PACIENTE_NO_ENCONTRADO)
 note bottom of ConsultarCitasPorCedulaService
-  NUEVO. Sin JWT (par con Personas):
-  autorizado luego con Keycloak en la
-  capa de borde. El caso de uso no
-  recibe tokens ni roles.
+  El caso de uso no recibe tokens ni roles;
+  la autorizacion queda en SecurityConfig
+  (JWT Keycloak + hasAnyRole).
 end note
 
 class CitasModuleFacade implements ConsultarCitasPort {
@@ -283,18 +282,16 @@ class CitaController <<RestController>> {
   +listarPorCedula(cedula: String): ResponseEntity
 }
 note right of CitaController
-  NUEVO - Exportacion CSV (jornada):
+  RF4 - Exportacion CSV (jornada):
   GET /api/citas/exportacion?medicoId=&fecha=
-  -> text/csv
+  -> text/csv (AGENDADOR, MEDICO)
 
-  NUEVO - Endpoint del PAR (2/2) SIN JWT:
+  RF5 - Citas por cedula:
   GET /api/citas/paciente/cedula/{cedula}
   -> HistorialCitasPorCedulaResponseDTO
-  Complementa (1/2) en 03_modulo_personas:
+  Complementa Personas:
   GET /api/personas/pacientes/cedula/{cedula}
-
-  Ese par NO usa JWT; queda preparado
-  para Keycloak + tokens JWT externos.
+  Ambos con JWT Keycloak (AGENDADOR, MEDICO).
 end note
 class CitaRepositoryAdapter <<Adapter>> implements CitaRepository
 class ConsultaRepositoryAdapter <<Adapter>> implements ConsultaRepository

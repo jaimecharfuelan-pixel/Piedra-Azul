@@ -1,15 +1,21 @@
 # PiedraAzul
 
-Agendamiento de citas médicas y de terapia (Ingeniería de Software III).
+Agendamiento de citas (médicas / terapia). Ing. Soft. III — Unicauca.
+
+## Carpetas
 
 | Carpeta | Contenido |
 |---|---|
-| [`backend/`](backend/) | API Spring Boot (monolito modular + JWT) |
-| [`frontend/`](frontend/) | SPA Angular 19 |
-| [`prototipos/`](prototipos/) | Prototipo HTML/CSS/JS de RF1–RF3 (usabilidad) |
-| [`diagramas-por-modulo/`](diagramas-por-modulo/) | PlantUML de implementación |
+| `backend/` | API Spring Boot (monolito modular) |
+| `frontend/` | Angular 19 |
+| `keycloak/` | realm del RNF1 |
+| `prototipos/` | HTML/CSS/JS del primer corte |
+| `diagramas-por-modulo/` | PlantUML de implementación |
+| `diagramas-sad/` | contexto, secuencias, despliegue |
 
 ## Arranque
+
+Se levanta todo con:
 
 ```bash
 docker compose up --build -d
@@ -17,34 +23,29 @@ docker compose up --build -d
 
 | Servicio | URL |
 |---|---|
-| Frontend | http://localhost:4200 |
+| frontend | http://localhost:4200 |
 | API | http://localhost:8080 |
-| Health | http://localhost:8080/actuator/health |
-| Documentación | `docker compose up docs` → http://localhost:8000 |
-| PostgreSQL | `localhost:5432` (`piedraazul` / `piedraazul`) |
+| Keycloak | http://localhost:8180 (`admin` / `admin`) |
+| docs | `docker compose up docs` → http://localhost:8000 |
+| Postgres | `localhost:5432` — `piedraazul` / `piedraazul` |
 
-Con `APP_SEED_ENABLED=true` el backend carga usuarios y citas de demo la primera
-vez (password `demo1234`). Para reiniciar la base:
+Base limpia:
 
 ```bash
 docker compose down -v && docker compose up --build -d
 ```
 
-## Módulos
+## Auth (RNF1)
 
-| Módulo | Estado |
-|---|---|
-| Núcleo | Implementado |
-| Identidad (JWT / roles) | Implementado |
-| Personas | Implementado |
-| Disponibilidad | Implementado |
-| Citas | Implementado |
+El JWT lo emite Keycloak. El frontend sigue pegándole a `POST /api/auth/login`;
+el backend pide el token y arma la respuesta con `rol` y `personaId`.
+Quién puede llamar cada API sigue en `SecurityConfig`.
 
-## Pruebas
+Usuarios demo (pass `demo1234`):
+`admin`, `agendador`, `ana.medico`, `carlos.medico`, `juan.paciente`, `maria.paciente`.
+
+## Tests
 
 ```bash
 cd backend && mvn test
 ```
-
-
-Documentación detallada (MkDocs): ver sección *Pruebas* en el sitio de docs.

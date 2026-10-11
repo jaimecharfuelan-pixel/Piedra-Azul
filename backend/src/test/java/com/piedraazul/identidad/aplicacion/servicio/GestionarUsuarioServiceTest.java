@@ -1,6 +1,7 @@
 package com.piedraazul.identidad.aplicacion.servicio;
 
 import com.piedraazul.identidad.aplicacion.puertos.salida.PasswordEncoderPort;
+import com.piedraazul.identidad.aplicacion.puertos.salida.ProveedorIdentidadPort;
 import com.piedraazul.identidad.aplicacion.puertos.salida.UsuarioRepository;
 import com.piedraazul.identidad.dominio.Usuario;
 import com.piedraazul.identidad.infraestructura.dto.CrearUsuarioCommand;
@@ -32,6 +33,8 @@ class GestionarUsuarioServiceTest {
     private PasswordEncoderPort passwordEncoder;
     @Mock
     private RegistrarPersonaPort registrarPersonaPort;
+    @Mock
+    private ProveedorIdentidadPort proveedorIdentidad;
     @InjectMocks
     private GestionarUsuarioService servicio;
 

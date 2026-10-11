@@ -26,3 +26,8 @@ prototipos/.kilo/
 # Basura temporal
 Untitled
 *.tmp
+*:Zone.Identifier
+login.json
+login-body.json
+kc.json
+/login*.json

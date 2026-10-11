@@ -1,32 +1,36 @@
-# PiedraAzul — Frontend
+# Frontend
 
-Angular 19 (standalone), arquitectura hexagonal y FullCalendar.
+Angular 19 standalone. Capas domain / application / infrastructure / presentation.
 
 ```
 src/app/
-├── domain/            # modelos y puertos
-├── application/       # casos de uso
-├── infrastructure/    # HTTP, auth, calendario
-└── presentation/      # páginas y componentes
+├── domain/
+├── application/
+├── infrastructure/
+└── presentation/
 ```
 
-Los puertos se enlazan en `app.config.ts`.
+Los puertos se cablean en `app.config.ts`.
 
-## Ejecutar
+## Arranque
 
 ```bash
 npm install
 npm start
 ```
 
-http://localhost:4200 — el API debe estar en http://localhost:8080.
+Se abre en http://localhost:4200. La API tiene que estar en `:8080`.
+
+El login va a `/api/auth/login`. En Docker el token es de Keycloak; el interceptor
+manda el Bearer en las demás llamadas.
 
 | Ruta | Uso |
 |---|---|
-| `/login`, `/registro` | Autenticación JWT |
-| `/agenda` | Citas del día |
-| `/agendar` | Reserva de franjas |
-| `/calendario` | Vista calendario |
-| `/configuracion` | Ventana y horarios |
-| `/historial` | Consultas atendidas |
-| `/personas` | Catálogo |
+| `/login`, `/registro` | auth |
+| `/agenda` | agenda del día + CSV |
+| `/agendar` | reserva |
+| `/calendario` | FullCalendar |
+| `/configuracion` | ventana / horarios |
+| `/historial` | consultas atendidas |
+| `/citas-por-cedula` | RF5 (agendador / médico) |
+| `/personas` | catálogo |

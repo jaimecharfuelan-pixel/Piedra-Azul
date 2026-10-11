@@ -1,0 +1,25 @@
+@startuml 00_paquetes_modulos
+title Paquetes del monolito (com.piedraazul)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+package "com.piedraazul" {
+  package "nucleo" as N {
+    card "enums, VOs,\nexcepciones" as Nn
+  }
+  package "identidad" as I {
+    card "usuarios, roles,\nKeycloak, SecurityConfig" as Ii
+  }
+  package "personas" as P {
+    card "pacientes, médicos,\nespecialidades" as Pp
+  }
+  package "disponibilidad" as D {
+    card "ventana, periodos,\nslots" as Dd
+  }
+  package "citas" as C {
+    card "agenda y\nciclo de vida" as Cc
+  }
+}
+
+@enduml

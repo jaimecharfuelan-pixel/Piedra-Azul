@@ -1,10 +1,8 @@
 # Personas
 
-Médicos, pacientes y especialidades (`com.piedraazul.personas`).
+Módulo `com.piedraazul.personas`.
 
-Diagrama PlantUML de **implementación** (fuente usada para el código).
-
-Archivo: [`puml/03_modulo_personas.puml`](puml/03_modulo_personas.puml)
+Fuente: [`puml/03_modulo_personas.puml`](puml/03_modulo_personas.puml)
 
 ```plantuml
 @startuml 03_modulo_personas
@@ -54,9 +52,14 @@ class Medico <<Entity>> {
 class Paciente <<Entity>> {
   -id: Long
   -usuarioId: Long
+  -cedula: String
   -nombreCompleto: String
   -telefono: String
 }
+note bottom of Paciente
+  NUEVO: cedula (documento unico) para
+  localizar al paciente sin id interno.
+end note
 
 Medico --> Especialidad : tiene
 
@@ -77,6 +80,7 @@ interface PacienteRepository {
   +guardar(paciente: Paciente): Paciente
   +buscarPorId(id: Long): Optional<Paciente>
   +buscarPorUsuarioId(usuarioId: Long): Optional<Paciente>
+  +buscarPorCedula(cedula: String): Optional<Paciente>
   +listarTodos(): List<Paciente>
 }
 
@@ -89,6 +93,18 @@ interface CatalogoMedicosPort {
 }
 note right of CatalogoMedicosPort
   Consumido por: Disponibilidad y Citas.
+end note
+
+interface CatalogoPacientesPort {
+  +existePaciente(pacienteId: Long): boolean
+  +obtenerResumenPaciente(pacienteId: Long): PacienteResumenDTO
+  +buscarResumenPaciente(pacienteId: Long): Optional<PacienteResumenDTO>
+  +buscarIdPorCedula(cedula: String): Optional<Long>
+}
+note right of CatalogoPacientesPort
+  NUEVO (publico). Consumido por: Citas.
+  Permite resolver paciente por cedula
+  sin acoplar Citas a la entidad Paciente.
 end note
 
 interface RegistrarPersonaPort {
@@ -117,6 +133,7 @@ interface GestionarMedicoUseCase {
 }
 interface ConsultarPacienteUseCase {
   +buscarPorId(id: Long): PacienteResponseDTO
+  +buscarPorCedula(cedula: String): PacienteResponseDTO
   +listarTodos(): List<PacienteResponseDTO>
 }
 
@@ -138,11 +155,15 @@ class ConsultarPacienteService implements ConsultarPacienteUseCase {
 ConsultarPacienteService --> PacienteRepository
 
 ' -- Facade: implementa los puertos publicos que otros modulos consumen --
-class PersonasModuleFacade implements CatalogoMedicosPort, RegistrarPersonaPort {
+class PersonasModuleFacade implements CatalogoMedicosPort, CatalogoPacientesPort, RegistrarPersonaPort {
   -medicoRepository: MedicoRepository
   -pacienteRepository: PacienteRepository
   +existeMedicoActivo(medicoId: Long): boolean
   +obtenerResumen(medicoId: Long): MedicoResumenDTO
+  +existePaciente(pacienteId: Long): boolean
+  +obtenerResumenPaciente(pacienteId: Long): PacienteResumenDTO
+  +buscarResumenPaciente(pacienteId: Long): Optional<PacienteResumenDTO>
+  +buscarIdPorCedula(cedula: String): Optional<Long>
   +crearPersonaParaUsuario(rol: RolUsuario, datos: DatosPersonaDTO): Long
 }
 PersonasModuleFacade --> MedicoRepository
@@ -155,7 +176,21 @@ PersonasModuleFacade ..> Paciente : crea si rol=PACIENTE
 ' =====================================================================
 class EspecialidadController <<RestController>>
 class MedicoController <<RestController>>
-class PacienteController <<RestController>>
+class PacienteController <<RestController>> {
+  -consultarPacienteUseCase: ConsultarPacienteUseCase
+  +buscarPorId(id: Long): ResponseEntity
+  +listarTodos(): ResponseEntity
+  +buscarPorCedula(cedula: String): ResponseEntity
+}
+note right of PacienteController
+  RF5 - Consulta paciente por cedula:
+  GET /api/personas/pacientes/cedula/{cedula}
+  -> PacienteResponseDTO
+  Roles HTTP: AGENDADOR, MEDICO
+  (JWT Keycloak / SecurityConfig).
+  Complementa citas por cedula en
+  05_modulo_citas.puml.
+end note
 class EspecialidadRepositoryAdapter <<Adapter>> implements EspecialidadRepository
 class MedicoRepositoryAdapter <<Adapter>> implements MedicoRepository
 class PacienteRepositoryAdapter <<Adapter>> implements PacienteRepository
@@ -189,6 +224,13 @@ class MedicoResumenDTO <<DTO>> {
 }
 class PacienteResponseDTO <<DTO>> {
   +id: Long
+  +cedula: String
+  +nombreCompleto: String
+  +telefono: String
+}
+class PacienteResumenDTO <<DTO>> {
+  +id: Long
+  +cedula: String
   +nombreCompleto: String
   +telefono: String
 }

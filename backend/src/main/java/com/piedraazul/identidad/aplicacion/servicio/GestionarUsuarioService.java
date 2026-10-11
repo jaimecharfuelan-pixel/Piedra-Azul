@@ -2,6 +2,7 @@ package com.piedraazul.identidad.aplicacion.servicio;
 
 import com.piedraazul.identidad.aplicacion.puertos.entrada.GestionarUsuarioUseCase;
 import com.piedraazul.identidad.aplicacion.puertos.salida.PasswordEncoderPort;
+import com.piedraazul.identidad.aplicacion.puertos.salida.ProveedorIdentidadPort;
 import com.piedraazul.identidad.aplicacion.puertos.salida.UsuarioRepository;
 import com.piedraazul.identidad.dominio.Usuario;
 import com.piedraazul.identidad.infraestructura.dto.CrearUsuarioCommand;
@@ -11,6 +12,8 @@ import com.piedraazul.nucleo.dominio.excepciones.RecursoNoEncontradoException;
 import com.piedraazul.nucleo.dominio.excepciones.ReglaDeNegocioException;
 import com.piedraazul.personas.aplicacion.puertos.salida.RegistrarPersonaPort;
 import com.piedraazul.personas.infraestructura.dto.DatosPersonaDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,23 +21,29 @@ import java.util.List;
 
 /**
  * Alta de usuarios (admin) y registro público de paciente (mismo {@code crear}).
+ * Persiste el vínculo local (rol + personaId) y sincroniza credenciales en Keycloak.
  */
 @Service
 @Transactional
 public class GestionarUsuarioService implements GestionarUsuarioUseCase {
 
+    private static final Logger log = LoggerFactory.getLogger(GestionarUsuarioService.class);
+
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoderPort passwordEncoder;
     private final RegistrarPersonaPort registrarPersonaPort;
+    private final ProveedorIdentidadPort proveedorIdentidad;
 
     public GestionarUsuarioService(
             UsuarioRepository usuarioRepository,
             PasswordEncoderPort passwordEncoder,
-            RegistrarPersonaPort registrarPersonaPort
+            RegistrarPersonaPort registrarPersonaPort,
+            ProveedorIdentidadPort proveedorIdentidad
     ) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.registrarPersonaPort = registrarPersonaPort;
+        this.proveedorIdentidad = proveedorIdentidad;
     }
 
     @Override
@@ -56,6 +65,7 @@ public class GestionarUsuarioService implements GestionarUsuarioUseCase {
             usuario = usuarioRepository.guardar(usuario);
         }
 
+        sincronizarConProveedor(usuario.getUsername(), comando.password(), usuario.getRol());
         return toDto(usuario);
     }
 
@@ -67,7 +77,25 @@ public class GestionarUsuarioService implements GestionarUsuarioUseCase {
         } else {
             usuario.desactivar();
         }
-        return toDto(usuarioRepository.guardar(usuario));
+        Usuario guardado = usuarioRepository.guardar(usuario);
+        try {
+            proveedorIdentidad.sincronizarEstado(guardado.getUsername(), activo);
+        } catch (RuntimeException ex) {
+            log.warn("No se sincronizó el estado de {} en el IdP: {}", guardado.getUsername(), ex.getMessage());
+        }
+        return toDto(guardado);
+    }
+
+    /**
+     * La ficha local no debe perderse si Keycloak aún no responde (p. ej. seed al arrancar).
+     * Los usuarios demo ya vienen en el realm import; el alta por API reintenta vía Admin.
+     */
+    private void sincronizarConProveedor(String username, String password, RolUsuario rol) {
+        try {
+            proveedorIdentidad.asegurarUsuario(username, password, rol);
+        } catch (RuntimeException ex) {
+            log.warn("Usuario {} quedó local; Keycloak no sincronizó aún: {}", username, ex.getMessage());
+        }
     }
 
     @Override

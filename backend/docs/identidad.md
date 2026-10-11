@@ -1,29 +1,28 @@
-# Identidad y Acceso
+# Identidad
 
-Módulo `com.piedraazul.identidad` (RF2). Concentra usuarios, roles, JWT y
-Spring Security. No hay un paquete `infraestructura` transversal aparte:
-el filtro JWT, `SecurityConfig` y `SesionActual` viven aquí.
+Módulo identidad: se encarga de la identidad con Keycloak. Antes lo hacíamos
+con JJWT y acá mismo definíamos el dominio de qué API puede usar cada rol;
+eso se mantiene (matriz en `SecurityConfig` + `personaId` local), pero gran
+parte de la infraestructura de tokens la abstraemos con Keycloak.
 
-## Qué incluye
+Paquete: `com.piedraazul.identidad` (RF2 + RNF1).
 
-| Pieza | Rol |
+| Pieza | Qué hace |
 |---|---|
-| `Usuario` | Cuenta con un solo `RolUsuario` y `personaId` opcional |
-| `AutenticarUsuarioService` | Login → `TokenResponseDTO` |
-| `GestionarUsuarioService` | Alta de usuarios (admin) y alta de paciente en registro público |
-| `JwtServiceAdapter` | Emite / valida tokens JJWT |
-| `JwtAuthenticationFilter` | `Authorization: Bearer …` → `SecurityContext` |
-| `SecurityConfig` | Matriz HTTP por rol |
-| `SesionActual` | Propiedad de recurso (✔*) en controllers |
-| *(seed demo)* | Ya no vive aquí → `com.piedraazul.bootstrap.SeedDatosDemo` |
+| `Usuario` | cuenta local (rol + `personaId`) |
+| `AutenticarUsuarioService` | login → token del IdP → `TokenResponseDTO` |
+| `GestionarUsuarioService` | alta local y sync a Keycloak |
+| `ProveedorIdentidadPort` | Keycloak en Docker; Nimbus en tests |
+| `JwtAuthConverter` | JWT → `UsuarioAutenticado` |
+| `SecurityConfig` | quién puede pegarle a cada ruta |
+| `SesionActual` | chequeos de “es mío” en controllers |
 
-## Flujos públicos
+El seed de demo no vive acá: está en `com.piedraazul.bootstrap.SeedDatosDemo`.
+
+## Públicos
 
 - `POST /api/auth/login`
-- `POST /api/auth/registro-paciente` (crea `Usuario` PACIENTE + ficha Paciente)
+- `POST /api/auth/registro-paciente`
 
-Detalle de endpoints, seed y matriz: [Seguridad (JWT)](seguridad.md).
-
-## Diagrama
-
-Ver [Identidad (PlantUML)](diagramas/02-identidad.md).
+Matriz y Keycloak: [Seguridad](seguridad.md).  
+Diagrama: [Identidad (PlantUML)](diagramas/02-identidad.md).

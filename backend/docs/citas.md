@@ -1,7 +1,9 @@
-# Módulo Citas
+# Citas
 
-Agendar, cancelar, reagendar y atender citas, más el historial de consultas.
-Corresponde a `diagramas-por-modulo/05_modulo_citas.puml`.
+Módulo citas: agendar, cancelar, reagendar, atender, historial, CSV (RF4) y
+consulta por cédula (RF5). Diagrama: `diagramas-por-modulo/05_modulo_citas.puml`.
+
+CSV y por cédula quedan para agendador/médico (no admin ni paciente).
 
 ## Requisitos funcionales
 
@@ -11,44 +13,37 @@ Corresponde a `diagramas-por-modulo/05_modulo_citas.puml`.
 | **RF2** | Paciente | Registrarse en la web y agendar sobre franjas reales, de forma segura y usable |
 | RF3 | Administrador | Respeta la ventana y el horario que configuró Disponibilidad |
 
-## Ciclo de vida de la cita
+## Ciclo de vida
 
-```mermaid
-stateDiagram-v2
-    [*] --> PROGRAMADA: crear
-    PROGRAMADA --> PROGRAMADA: reagendar
-    PROGRAMADA --> CANCELADA: cancelar
-    PROGRAMADA --> ATENDIDA: marcarComoAtendida
-    CANCELADA --> [*]
-    ATENDIDA --> [*]
+```plantuml
+@startuml
+title Ciclo de vida de Cita
+skinparam backgroundColor white
+skinparam shadowing false
+
+[*] --> PROGRAMADA : crear
+PROGRAMADA --> PROGRAMADA : reagendar
+PROGRAMADA --> CANCELADA : cancelar
+PROGRAMADA --> ATENDIDA : marcar atención\n(crea Consulta)
+CANCELADA --> [*]
+ATENDIDA --> [*]
+
+note right of PROGRAMADA
+  Solo PROGRAMADA ocupa agenda.
+end note
+@enduml
 ```
 
-`CANCELADA` y `ATENDIDA` son estados finales: cualquier intento de modificarlos
-lanza `CITA_NO_MODIFICABLE`. La cita **no se borra** al atenderse; queda con
-estado `ATENDIDA` para trazabilidad y además se crea una `Consulta`, que es lo
-que se muestra en el historial.
+`CANCELADA` / `ATENDIDA` son finales (`CITA_NO_MODIFICABLE` si se tocan).
+Al atender no se borra la cita: queda `ATENDIDA` y se crea la `Consulta` del historial.
 
-Sólo las citas `PROGRAMADA` ocupan agenda: al cancelar una, su franja vuelve a
-ofrecerse automáticamente.
+## Capas
 
-## Arquitectura hexagonal
+Dominio: `Cita`, `Consulta`, `OrdenCitas`.  
+Aplicación: use cases + `CitasModuleFacade`.  
+Infra: `CitaController`, JPA, DTOs.
 
-```
-com.piedraazul.citas
-├── dominio/
-│   ├── Cita                      # ciclo de vida completo
-│   ├── Consulta                  # se crea sólo desde una cita ATENDIDA
-│   └── OrdenCitas                # criterios de ordenamiento del RF1
-├── aplicacion/
-│   ├── puertos/entrada/          # GestionarCita…, ListarCitasPorMedico…, ConsultarHistorial…
-│   ├── puertos/salida/           # CitaRepository, ConsultaRepository
-│   │                             # ConsultarCitasPort (público)
-│   └── servicio/                 # Services + CitasModuleFacade + CitaDtoAssembler
-└── infraestructura/
-    ├── dto/
-    ├── persistencia/             # JPA + Adapters
-    └── rest/                     # CitaController
-```
+Diagrama de clases: [Citas](diagramas/05-citas.md).
 
 ### Dependencias entre módulos
 
@@ -133,6 +128,8 @@ Prefijo `/api/citas`.
 | GET | `/?medicoId=&fecha=&orden=` | **RF1**: listado con cantidad y desglose por estado |
 | GET | `/rango?medicoId=&desde=&hasta=` | Citas de un rango, para el calendario |
 | GET | `/paciente/{pacienteId}` | "Mis citas" del paciente |
+| GET | `/paciente/cedula/{cedula}` | **RF5**: citas del paciente por cédula (agendador/médico) |
+| GET | `/exportacion?medicoId=&fecha=` | **RF4**: agenda del día en CSV (agendador/médico) |
 | GET | `/historial/paciente/{pacienteId}` | Historial de consultas del paciente |
 | GET | `/historial/medico/{medicoId}` | Historial de consultas del médico |
 

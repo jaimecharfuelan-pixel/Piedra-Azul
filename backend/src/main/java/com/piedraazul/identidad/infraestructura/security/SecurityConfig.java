@@ -1,6 +1,5 @@
 package com.piedraazul.identidad.infraestructura.security;
 
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,14 +10,13 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Matriz de roles acordada: roles en Identidad; propiedad (✔*) en controllers vía {@link SesionActual}.
+ * JWT emitido por Keycloak (Docker) o emisor local de pruebas; validación vía OAuth2 Resource Server.
  */
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
     private static final String ADMIN = "ADMINISTRADOR";
@@ -26,10 +24,10 @@ public class SecurityConfig {
     private static final String MEDICO = "MEDICO";
     private static final String PACIENTE = "PACIENTE";
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthConverter jwtAuthConverter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    public SecurityConfig(JwtAuthConverter jwtAuthConverter) {
+        this.jwtAuthConverter = jwtAuthConverter;
     }
 
     @Bean
@@ -47,10 +45,6 @@ public class SecurityConfig {
                                 "/h2-console/**"
                         ).permitAll()
 
-                        // Par por cédula SIN JWT (preparado para Keycloak)
-                        .requestMatchers(HttpMethod.GET, "/api/personas/pacientes/cedula/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/citas/paciente/cedula/**").permitAll()
-
                         // Identidad — gestión de usuarios
                         .requestMatchers("/api/usuarios/**").hasRole(ADMIN)
 
@@ -66,7 +60,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/personas/medicos/**")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO, PACIENTE)
 
-                        // Pacientes (médico también registra walk-ins)
+                        // Pacientes — consulta por cédula: agendador y médico (RF5)
+                        .requestMatchers(HttpMethod.GET, "/api/personas/pacientes/cedula/**")
+                        .hasAnyRole(AGENDADOR, MEDICO)
                         .requestMatchers(HttpMethod.POST, "/api/personas/pacientes")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO)
                         .requestMatchers(HttpMethod.GET, "/api/personas/pacientes")
@@ -83,7 +79,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/disponibilidad/**")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO, PACIENTE)
 
-                        // Citas — atender solo médico
+                        // Citas — RF4 CSV y RF5 por cédula: solo agendador y médico
                         .requestMatchers(HttpMethod.PUT, "/api/citas/*/atencion").hasRole(MEDICO)
                         .requestMatchers(HttpMethod.POST, "/api/citas")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO, PACIENTE)
@@ -96,7 +92,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/citas/historial/medico/**")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO)
                         .requestMatchers(HttpMethod.GET, "/api/citas/exportacion")
-                        .hasAnyRole(ADMIN, AGENDADOR, MEDICO)
+                        .hasAnyRole(AGENDADOR, MEDICO)
+                        .requestMatchers(HttpMethod.GET, "/api/citas/paciente/cedula/**")
+                        .hasAnyRole(AGENDADOR, MEDICO)
                         .requestMatchers(HttpMethod.GET, "/api/citas/paciente/**")
                         .hasAnyRole(ADMIN, AGENDADOR, MEDICO, PACIENTE)
                         .requestMatchers(HttpMethod.GET, "/api/citas")
@@ -108,7 +106,8 @@ public class SecurityConfig {
 
                         .anyRequest().authenticated())
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter)));
         return http.build();
     }
 

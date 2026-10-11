@@ -1,64 +1,52 @@
 # PiedraAzul
 
-Documentación del monolito modular **PiedraAzul** (Spring Boot + Angular)
-servida con **MkDocs Material**.
+Docs del monolito (MkDocs). Código: Spring Boot + Angular + Keycloak.
 
 ## Stack
 
-| Tecnología | Uso |
+| Cosa | Uso |
 |---|---|
-| Spring Boot 3.4 | API REST / monolito modular |
-| Spring Security + JJWT | Autenticación Bearer sin estado |
-| Spring Data JPA + PostgreSQL | Persistencia |
-| Angular 19 | SPA hexagonal (Atomic Design) |
-| MkDocs + Material | Este sitio de documentación |
-| PlantUML | Diagramas de clases (implementación) |
+| Spring Boot 3.4 | API |
+| Keycloak | JWT (RNF1) |
+| JPA + Postgres | persistencia (H2 en local) |
+| Angular 19 | SPA |
+| PlantUML | diagramas (se renderizan acá) |
 
-## Cómo ver la documentación
+## Ver las docs
 
-### Con Docker (recomendado)
-
-Desde la raíz del repo:
+Se levantan con:
 
 ```bash
 docker compose up docs
 ```
 
-Abre **http://localhost:8000**
+http://localhost:8000
 
-Los diagramas de clases se ven en
-[Diagramas](diagramas/index.md) sin abrir otra herramienta.
+## Módulos
 
-### En local (sin Docker)
+| Módulo | Paquete |
+|---|---|
+| Núcleo | `nucleo` |
+| Identidad | `identidad` |
+| Personas | `personas` |
+| Disponibilidad | `disponibilidad` |
+| Citas | `citas` |
 
-```bash
-cd backend
-pip install -r requirements-docs.txt
-mkdocs serve -a 127.0.0.1:8000
-```
+[Arquitectura](arquitectura.md) · [Seguridad / Keycloak](seguridad.md) · [Diagramas](diagramas/index.md)
 
-## Módulos del monolito
-
-| Módulo | Paquete | Estado |
-|---|---|---|
-| Núcleo | `nucleo` | Implementado |
-| Identidad | `identidad` | Implementado |
-| Personas | `personas` | Implementado |
-| Disponibilidad | `disponibilidad` | Implementado |
-| Citas | `citas` | Implementado |
-
-Ver [Arquitectura](arquitectura.md), [Módulos](modulos.md) y los
-[diagramas de clases](diagramas/index.md).
-
-## Aplicación en marcha
+## Compose
 
 | Servicio | URL |
 |---|---|
-| Frontend | http://localhost:4200 |
-| Backend API | http://localhost:8080 |
-| Docs (este sitio) | http://localhost:8000 |
-| PostgreSQL | localhost:5432 |
+| front | http://localhost:4200 |
+| API | http://localhost:8080 |
+| Keycloak | http://localhost:8180 |
+| docs | http://localhost:8000 |
+| Postgres | localhost:5432 |
 
 ```bash
 docker compose up -d --build
 ```
+
+Keycloak admin: `admin` / `admin` (consola). Usuarios de la app: pass `demo1234`.
+Detalle: [Seguridad](seguridad.md).

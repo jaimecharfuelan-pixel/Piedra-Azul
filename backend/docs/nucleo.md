@@ -40,20 +40,13 @@ RecursoNoEncontradoException.de("MEDICO_NO_ENCONTRADO", "...");
 
 `NucleoExceptionHandler` (`@ControllerAdvice`) mapea a HTTP 400/409/404.
 
-## Paquete Java
+## Paquete
 
-```
-com.piedraazul.nucleo
-├── dominio
-│   ├── DiaSemana, RolUsuario, EstadoCita
-│   ├── TimeRange
-│   └── excepciones/
-└── infraestructura.rest
-    └── NucleoExceptionHandler
-```
+`com.piedraazul.nucleo.dominio` — enums, `TimeRange`, excepciones.  
+`com.piedraazul.nucleo.infraestructura.rest` — `NucleoExceptionHandler`.
 
-No pertenece a un módulo de negocio: **otros módulos dependen de él**, nunca al revés
-(desacoplamiento / Dependency Inversion).
+No es módulo de negocio: los demás dependen de él, nunca al revés.
+Diagrama de clases: [Núcleo](diagramas/01-nucleo.md).
 
 ## Base de datos
 

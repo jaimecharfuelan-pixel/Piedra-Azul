@@ -1,0 +1,27 @@
+@startuml 00_capas_frontend
+title Capas del frontend (Angular)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+package "src/app" {
+  package "presentation" as Pres {
+    card "páginas y\ncomponentes" as Pr
+  }
+  package "application" as App {
+    card "casos de uso" as Au
+  }
+  package "domain" as Dom {
+    card "modelos y\npuertos" as Dm
+  }
+  package "infrastructure" as Inf {
+    card "HTTP, auth,\nFullCalendar" as In
+  }
+}
+
+Pres --> App
+App --> Dom
+Inf --> Dom
+Pres ..> Inf : usa adapters
+
+@enduml

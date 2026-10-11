@@ -1,45 +1,77 @@
 # Arquitectura
 
-Monolito modular con **Dependency Inversion** entre módulos: la comunicación
-pasa por puertos (interfaces) declarados por el consumidor e implementados
-por fachadas del módulo proveedor.
+Monolito modular. Entre módulos se habla por puertos: el que necesita algo
+declara la interfaz y el otro la implementa con una fachada.
 
+Cada módulo trae su `infraestructura` (REST, JPA, DTO). La seguridad no es un
+paquete suelto: vive en Identidad.
+
+## Paquetes
+
+```plantuml
+@startuml
+title Paquetes del monolito (com.piedraazul)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+package "com.piedraazul" {
+  package "nucleo" as N {
+    card "enums, VOs,\nexcepciones" as Nn
+  }
+  package "identidad" as I {
+    card "usuarios, roles,\nKeycloak, SecurityConfig" as Ii
+  }
+  package "personas" as P {
+    card "pacientes, médicos,\nespecialidades" as Pp
+  }
+  package "disponibilidad" as D {
+    card "ventana, periodos,\nslots" as Dd
+  }
+  package "citas" as C {
+    card "agenda y\nciclo de vida" as Cc
+  }
+}
+@enduml
 ```
-com.piedraazul
-├── nucleo            # Value objects, enums, excepciones compartidas
-├── identidad         # RF2 — usuarios, roles, JWT, SecurityConfig
-├── personas          # RF1/RF2 — pacientes, médicos, especialidades
-├── disponibilidad    # RF3 — ventanas, periodos, franjas
-└── citas             # RF1/RF2 — agenda y ciclo de vida de citas
-```
 
-Cada módulo de negocio lleva su propia capa `infraestructura` (REST, JPA, DTO).
-La seguridad transversal vive en **Identidad**, no en un paquete aparte.
+## Dependencias
 
-## Dependencias entre módulos
+Citas y Disponibilidad se miran entre sí solo por puertos (fachadas), no por
+repositorios ajenos. Así no se arma un ciclo raro de beans.
 
-```mermaid
-graph BT
-    nucleo[Núcleo común]
-    personas[Personas]
-    identidad[Identidad]
-    disponibilidad[Disponibilidad]
-    citas[Citas]
+```plantuml
+@startuml
+title Dependencias entre módulos (por puertos)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam componentStyle rectangle
 
-    personas --> nucleo
-    identidad --> nucleo
-    disponibilidad --> nucleo
-    citas --> nucleo
-    identidad -->|RegistrarPersonaPort| personas
-    disponibilidad -->|CatalogoMedicosPort| personas
-    citas -->|CatalogoMedicosPort / CatalogoPacientesPort| personas
-    citas -->|ConsultarConfiguracionPort| disponibilidad
-    disponibilidad -->|ConsultarCitasPort| citas
+component "nucleo" as N
+component "identidad" as I
+component "personas" as P
+component "disponibilidad" as D
+component "citas" as C
+
+I --> N
+P --> N
+D --> N
+C --> N
+
+I --> P : RegistrarPersonaPort
+D --> P : CatalogoMedicosPort
+C --> P : CatalogoMedicosPort\nCatalogoPacientesPort
+C --> D : ConsultarConfiguracionPort
+D --> C : ConsultarCitasPort
+
+note right of I
+  JWT + SecurityConfig
+  viven en Identidad
+end note
+@enduml
 ```
 
 ## Diagramas de clases
-
-Solo los PlantUML de **implementación** (los mismos `.puml` del skeleton):
 
 - [Núcleo](diagramas/01-nucleo.md)
 - [Identidad](diagramas/02-identidad.md)

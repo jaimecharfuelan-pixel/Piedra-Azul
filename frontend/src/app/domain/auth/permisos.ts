@@ -20,7 +20,6 @@ const PERMISOS: Readonly<Record<RolUsuario, readonly AccionUi[]>> = {
     'calendario',
     'configuracion',
     'historial',
-    'citas-cedula',
     'personas',
   ],
   [RolUsuario.AGENDADOR]: [

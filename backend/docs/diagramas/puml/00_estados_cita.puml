@@ -1,0 +1,17 @@
+@startuml 00_estados_cita
+title Ciclo de vida de Cita
+skinparam backgroundColor white
+skinparam shadowing false
+
+[*] --> PROGRAMADA : crear
+PROGRAMADA --> PROGRAMADA : reagendar
+PROGRAMADA --> CANCELADA : cancelar
+PROGRAMADA --> ATENDIDA : marcar atención\n(crea Consulta)
+CANCELADA --> [*]
+ATENDIDA --> [*]
+
+note right of PROGRAMADA
+  Solo PROGRAMADA ocupa agenda.
+end note
+
+@enduml

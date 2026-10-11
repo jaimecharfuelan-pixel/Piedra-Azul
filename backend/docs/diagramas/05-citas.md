@@ -1,10 +1,8 @@
 # Citas
 
-Agendar, cancelar, reagendar, atender e historial (`com.piedraazul.citas`).
+Módulo `com.piedraazul.citas`.
 
-Diagrama PlantUML de **implementación** (fuente usada para el código).
-
-Archivo: [`puml/05_modulo_citas.puml`](puml/05_modulo_citas.puml)
+Fuente: [`puml/05_modulo_citas.puml`](puml/05_modulo_citas.puml)
 
 ```plantuml
 @startuml 05_modulo_citas
@@ -40,13 +38,22 @@ abstract class DomainException {
 class ReglaDeNegocioException extends DomainException {
   +{static} de(codigo: String, mensaje: String): ReglaDeNegocioException
 }
+class RecursoNoEncontradoException extends DomainException {
+  +{static} de(codigo: String, mensaje: String): RecursoNoEncontradoException
+}
 
 ' -- puertos EXTERNOS: implementados en otros modulos --
 interface CatalogoMedicosPort <<puerto externo>> {
   +existeMedicoActivo(medicoId: Long): boolean
 }
+interface CatalogoPacientesPort <<puerto externo>> {
+  +existePaciente(pacienteId: Long): boolean
+  +obtenerResumenPaciente(pacienteId: Long): PacienteResumenDTO
+  +buscarResumenPaciente(pacienteId: Long): Optional<PacienteResumenDTO>
+  +buscarIdPorCedula(cedula: String): Optional<Long>
+}
 interface ConsultarConfiguracionPort <<puerto externo>> {
-  +obtenerPeriodoVigente(medicoId: Long, fecha: LocalDate): PeriodoDisponibilidadRef
+  +encontrarPeriodoVigente(medicoId: Long, fecha: LocalDate): PeriodoDisponibilidadRef
 }
 class PeriodoDisponibilidadRef <<puerto externo>> {
   +incluyeFecha(fecha: LocalDate): boolean
@@ -55,6 +62,11 @@ class PeriodoDisponibilidadRef <<puerto externo>> {
 }
 note right of CatalogoMedicosPort
   Implementado en 03_modulo_personas.puml
+end note
+note right of CatalogoPacientesPort
+  NUEVO. Implementado en 03_modulo_personas.puml
+  (resolver paciente por cedula / enriquecer
+  nombres para CSV y listados)
 end note
 note right of ConsultarConfiguracionPort
   Implementado en 04_modulo_disponibilidad.puml
@@ -113,6 +125,7 @@ interface CitaRepository {
   +guardar(cita: Cita): Cita
   +buscarPorId(id: Long): Optional<Cita>
   +buscarPorMedicoYFecha(medicoId: Long, fecha: LocalDate): List<Cita>
+  +buscarPorPaciente(pacienteId: Long): List<Cita>
   +existeSolapamiento(medicoId: Long, fecha: LocalDate, rango: TimeRange): boolean
 }
 interface ConsultaRepository {
@@ -153,6 +166,30 @@ interface ConsultarHistorialUseCase {
   +porPaciente(pacienteId: Long): List<ConsultaResponseDTO>
   +porMedico(medicoId: Long): List<ConsultaResponseDTO>
 }
+' NUEVO: exportacion CSV de la agenda del dia (medico/terapista + fecha)
+interface ExportarCitasCsvUseCase {
+  +ejecutar(medicoId: Long, fecha: LocalDate): String
+}
+note right of ExportarCitasCsvUseCase
+  NUEVO. Formato texto compatible con
+  hojas de calculo (CSV). Content-Type:
+  text/csv. Columnas tipicas: horaInicio,
+  horaFin, pacienteNombre, pacienteTelefono,
+  pacienteCedula, estado.
+end note
+' RF5: historial de CITAS por cedula (agendador / medico)
+interface ConsultarCitasPorCedulaUseCase {
+  +ejecutar(cedula: String): HistorialCitasPorCedulaResponseDTO
+}
+note right of ConsultarCitasPorCedulaUseCase
+  RF5. Complementa Personas:
+  GET .../pacientes/cedula/{cedula}.
+  Resuelve cedula -> pacienteId via
+  CatalogoPacientesPort y lista TODAS las
+  citas. Si no existe: PACIENTE_NO_ENCONTRADO.
+  Autorizacion en SecurityConfig:
+  AGENDADOR, MEDICO (JWT Keycloak).
+end note
 
 class GestionarCitaService implements GestionarCitaUseCase {
   -citaRepository: CitaRepository
@@ -200,6 +237,34 @@ class ConsultarHistorialService implements ConsultarHistorialUseCase {
 }
 ConsultarHistorialService --> ConsultaRepository
 
+class ExportarCitasCsvService implements ExportarCitasCsvUseCase {
+  -citaRepository: CitaRepository
+  -catalogoPacientesPort: CatalogoPacientesPort
+  +ejecutar(medicoId: Long, fecha: LocalDate): String
+  -formatearFila(cita: Cita, resumenPaciente): String
+}
+ExportarCitasCsvService --> CitaRepository
+ExportarCitasCsvService --> CatalogoPacientesPort
+note bottom of ExportarCitasCsvService
+  RF4 (SRP): separado de ListarCitasPorMedico
+  (JSON de UI). Reutiliza buscarPorMedicoYFecha.
+  Roles HTTP: AGENDADOR, MEDICO.
+end note
+
+class ConsultarCitasPorCedulaService implements ConsultarCitasPorCedulaUseCase {
+  -citaRepository: CitaRepository
+  -catalogoPacientesPort: CatalogoPacientesPort
+  +ejecutar(cedula: String): HistorialCitasPorCedulaResponseDTO
+}
+ConsultarCitasPorCedulaService --> CitaRepository
+ConsultarCitasPorCedulaService --> CatalogoPacientesPort
+ConsultarCitasPorCedulaService ..> RecursoNoEncontradoException : lanza (codigo=PACIENTE_NO_ENCONTRADO)
+note bottom of ConsultarCitasPorCedulaService
+  El caso de uso no recibe tokens ni roles;
+  la autorizacion queda en SecurityConfig
+  (JWT Keycloak + hasAnyRole).
+end note
+
 class CitasModuleFacade implements ConsultarCitasPort {
   -citaRepository: CitaRepository
 }
@@ -212,13 +277,29 @@ class CitaController <<RestController>> {
   -gestionarCitaUseCase: GestionarCitaUseCase
   -listarCitasPorMedicoUseCase: ListarCitasPorMedicoUseCase
   -consultarHistorialUseCase: ConsultarHistorialUseCase
+  -exportarCitasCsvUseCase: ExportarCitasCsvUseCase
+  -consultarCitasPorCedulaUseCase: ConsultarCitasPorCedulaUseCase
   +agendar(request): ResponseEntity
   +cancelar(citaId: Long): ResponseEntity
   +reagendar(citaId: Long, request): ResponseEntity
   +marcarAtendida(citaId: Long, request): ResponseEntity
   +listarPorMedicoYFecha(medicoId: Long, fecha: LocalDate): ResponseEntity
   +historialPorPaciente(pacienteId: Long): ResponseEntity
+  +exportarCsv(medicoId: Long, fecha: LocalDate): ResponseEntity
+  +listarPorCedula(cedula: String): ResponseEntity
 }
+note right of CitaController
+  RF4 - Exportacion CSV (jornada):
+  GET /api/citas/exportacion?medicoId=&fecha=
+  -> text/csv (AGENDADOR, MEDICO)
+
+  RF5 - Citas por cedula:
+  GET /api/citas/paciente/cedula/{cedula}
+  -> HistorialCitasPorCedulaResponseDTO
+  Complementa Personas:
+  GET /api/personas/pacientes/cedula/{cedula}
+  Ambos con JWT Keycloak (AGENDADOR, MEDICO).
+end note
 class CitaRepositoryAdapter <<Adapter>> implements CitaRepository
 class ConsultaRepositoryAdapter <<Adapter>> implements ConsultaRepository
 class CitaJpaEntity <<JPA>>
@@ -259,7 +340,15 @@ class ConsultaResponseDTO <<DTO>> {
   +fecha: LocalDate
   +observaciones: String
 }
+class HistorialCitasPorCedulaResponseDTO <<DTO>> {
+  +cedula: String
+  +pacienteId: Long
+  +pacienteNombre: String
+  +cantidad: int
+  +citas: List<CitaResponseDTO>
+}
 ListadoCitasResponseDTO *-- CitaResponseDTO
+HistorialCitasPorCedulaResponseDTO *-- CitaResponseDTO
 
 @enduml
 ```

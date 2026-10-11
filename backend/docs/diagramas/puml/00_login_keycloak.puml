@@ -1,0 +1,26 @@
+@startuml 00_login_keycloak
+title Login: SPA → API → Keycloak
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor Usuario
+participant "SPA\n:4200" as FE
+participant "Backend\n:8080" as BE
+participant "Keycloak\n:8180" as KC
+
+Usuario -> FE : user / pass
+FE -> BE : POST /api/auth/login
+BE -> BE : usuario local activo?
+BE -> KC : password grant
+KC --> BE : access_token
+BE --> FE : TokenResponseDTO\n(token, rol, personaId)
+FE -> FE : guarda Bearer
+
+note over KC
+  Consola admin Keycloak:
+  http://localhost:8180
+  admin / admin (realm master)
+end note
+
+@enduml

@@ -1,12 +1,11 @@
-# Módulo Personas
+# Personas
 
-CRUD de **Especialidad**, **Médico** y registro/consulta de **Paciente**.
-Corresponde a `diagramas-por-modulo/03_modulo_personas.puml`.
+Módulo personas: especialidades, médicos y pacientes.
+Diagrama: `diagramas-por-modulo/03_modulo_personas.puml`.
 
-El diagrama sólo pedía consultar pacientes (el alta venía de Identidad). El RF2
-exige que el paciente se registre en la web para poder agendar, así que se añadió
-`RegistrarPacienteUseCase` + `POST /api/personas/pacientes`. Hasta que exista
-login, se asigna un `usuarioId` temporal único.
+El alta de paciente con cuenta va por Identidad (`registro-paciente`). Acá
+también hay walk-in (`POST /api/personas/pacientes`) para agendador/médico.
+Por cédula (RF5, lectura): `GET .../pacientes/cedula/{cedula}` — agendador y médico.
 
 ## Requisitos funcionales
 
@@ -16,27 +15,16 @@ login, se asigna un `usuarioId` temporal único.
 | RF2 | Paciente / Médico | Paciente ligado a `usuarioId`; médico en catálogo de slots |
 | RF3 | Administrador | Especialidades y médicos activos (base de disponibilidad) |
 
-## Arquitectura hexagonal
+## Capas
 
-```
-com.piedraazul.personas
-├── dominio/                 # Especialidad, Medico, Paciente
-├── aplicacion/
-│   ├── puertos/entrada/     # Use cases
-│   ├── puertos/salida/      # Repositories + CatalogoMedicosPort + RegistrarPersonaPort
-│   └── servicio/            # Services + PersonasModuleFacade
-└── infraestructura/
-    ├── dto/
-    ├── persistencia/        # JPA + Adapters
-    └── rest/                # Controllers
-```
+Dominio: `Especialidad`, `Medico`, `Paciente`.  
+Aplicación: use cases + `PersonasModuleFacade`.  
+Infra: REST, JPA, DTOs.
 
-Depende solo de **`nucleo`** (`RolUsuario`, excepciones). No importa Identidad ni Citas.
+Depende solo de `nucleo`. Diagrama: [Personas](diagramas/03-personas.md).
 
-### Puertos públicos (otros módulos)
-
-- `CatalogoMedicosPort` → Disponibilidad / Citas
-- `RegistrarPersonaPort` → Identidad (al crear usuario MEDICO/PACIENTE)
+Puertos que publicamos: `CatalogoMedicosPort`, `CatalogoPacientesPort`,
+`RegistrarPersonaPort`.
 
 ## API REST
 
@@ -50,9 +38,10 @@ Depende solo de **`nucleo`** (`RolUsuario`, excepciones). No importa Identidad n
 | PUT | `/api/personas/medicos/{id}/estado` | Activar/desactivar |
 | GET | `/api/personas/medicos` | Listar activos |
 | GET | `/api/personas/medicos/{id}` | Buscar por id |
-| POST | `/api/personas/pacientes` | **RF2**: registrar paciente (nombre + teléfono) |
-| GET | `/api/personas/pacientes` | Listar |
-| GET | `/api/personas/pacientes/{id}` | Buscar por id |
+| POST | `/api/personas/pacientes` | walk-in |
+| GET | `/api/personas/pacientes` | listar |
+| GET | `/api/personas/pacientes/{id}` | por id |
+| GET | `/api/personas/pacientes/cedula/{cedula}` | RF5 (agendador/médico) |
 
 ## Base de datos (PostgreSQL / JPA)
 
