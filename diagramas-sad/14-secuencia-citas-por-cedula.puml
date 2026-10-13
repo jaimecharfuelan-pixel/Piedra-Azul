@@ -1,0 +1,29 @@
+@startuml 14-secuencia-citas-por-cedula
+title Piedra Azul — Figura 14 — Secuencia consultar citas por cédula (RF5 / CU14)
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor "Agendador / Médico" as A
+participant "SPA\n/citas-por-cedula" as FE
+participant "PacienteController" as PC
+participant "CitaController" as CC
+participant "ConsultarCitasPorCedulaService" as S
+participant "Personas\nCatalogoPacientesPort" as P
+database "BD" as DB
+
+A -> FE : ingresa cédula
+FE -> PC : GET /api/personas/pacientes/cedula/{cedula}
+PC --> FE : datos del paciente
+FE -> CC : GET /api/citas/paciente/cedula/{cedula}
+CC -> S : ejecutar
+S -> P : buscarIdPorCedula
+alt paciente no existe
+  S --> FE : 404 PACIENTE_NO_ENCONTRADO
+else ok
+  S -> P : resumen paciente
+  S -> DB : citas del paciente
+  S --> FE : historial\n(cedula, nombre, cantidad, citas)
+end
+
+@enduml

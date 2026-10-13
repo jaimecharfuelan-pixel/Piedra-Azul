@@ -1,5 +1,5 @@
 @startuml 00_dependencias_modulos
-title Dependencias entre módulos (por puertos)
+title Piedra Azul — Figura 5 — Dependencias entre módulos (por puertos)
 skinparam backgroundColor white
 skinparam shadowing false
 skinparam componentStyle rectangle
@@ -22,8 +22,15 @@ C --> D : ConsultarConfiguracionPort
 D --> C : ConsultarCitasPort
 
 note right of I
-  JWT + SecurityConfig
+  JWT (Keycloak en Docker)
+  + SecurityConfig
   viven en Identidad
+end note
+
+note right of C
+  Usa CatalogoPacientesPort
+  también para CSV (RF4)
+  y citas por cédula (RF5)
 end note
 
 @enduml

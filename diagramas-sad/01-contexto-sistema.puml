@@ -13,21 +13,28 @@ actor "Administrador" as Adm
 rectangle "Piedra Azul" {
   component "SPA Angular\n(frontend :4200)" as FE
   component "API REST Spring Boot\n(backend :8080)" as BE
+  component "Keycloak\n(:8180)" as KC
   database "PostgreSQL\n(:5432)" as DB
 }
 
 Pac --> FE : agenda / consulta citas
-Age --> FE : lista agenda del día\ny gestiona citas
-Med --> FE : agenda propia /\natención
+Age --> FE : lista agenda, CSV\ny citas por cédula
+Med --> FE : agenda propia /\natención / CSV / cédula
 Adm --> FE : ventana y\nconfiguración
 
 FE --> BE : HTTPS JSON\n/api/* + JWT
+BE --> KC : emite / valida JWT
 BE --> DB : JDBC
 
 note right of BE
   Monolito modular:
   identidad, personas,
   disponibilidad, citas
+end note
+
+note right of KC
+  Identidad externa (RNF1).
+  Realm piedraazul.
 end note
 
 @enduml

@@ -7,7 +7,7 @@ autonumber
 actor "Agendador / Médico" as A
 participant "SPA /agenda" as FE
 participant "CitaController" as CC
-participant "ListarCitasService" as L
+participant "ListarCitasPorMedicoService" as L
 participant "Personas\nCatalogoPacientesPort" as P
 database "BD" as DB
 

@@ -1,0 +1,30 @@
+@startuml 13-secuencia-exportar-csv
+title Piedra Azul — Figura 13 — Secuencia exportar agenda CSV (RF4 / CU13)
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor "Agendador / Médico" as A
+participant "SPA /agenda" as FE
+participant "CitaController" as CC
+participant "ExportarCitasCsvService" as E
+participant "Personas\nCatalogoPacientesPort" as P
+database "BD" as DB
+
+A -> FE : médico + fecha\n(Exportar CSV)
+FE -> CC : GET /api/citas/exportacion\n?medicoId&fecha
+CC -> E : exportar
+E -> DB : citas del médico y fecha
+loop cada cita
+  E -> P : resumen paciente\n(nombre, teléfono, cédula)
+end
+E --> FE : text/csv\n(cabecera + filas)
+
+note right of E
+  Cabecera:
+  horaInicio, horaFin,
+  pacienteNombre, pacienteTelefono,
+  pacienteCedula, estado
+end note
+
+@enduml

@@ -11,6 +11,7 @@ node "Cliente" {
 
 node "Servidor de aplicación" {
   component "API Spring Boot\n:8080" as BE
+  component "Keycloak\n:8180" as KC
 }
 
 node "Datos" {
@@ -19,10 +20,17 @@ node "Datos" {
 
 U --> FE : HTTPS
 FE --> BE : /api/*\nBearer JWT
+BE --> KC : login / JWKS
 BE --> DB : JDBC
 
 note bottom of FE
-  Perfil local: proxy a :8080\nProducción: nginx proxy_pass /api
+  Perfil local: proxy a :8080
+  Producción: nginx proxy_pass /api
+end note
+
+note bottom of KC
+  Emite el JWT (RNF1).
+  Realm piedraazul.
 end note
 
 @enduml

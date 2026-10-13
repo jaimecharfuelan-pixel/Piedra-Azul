@@ -1,5 +1,5 @@
 @startuml 00_login_keycloak
-title Login: SPA → API → Keycloak
+title Piedra Azul — Figura 6 — Secuencia de autenticación (login)
 skinparam backgroundColor white
 skinparam shadowing false
 autonumber

@@ -14,10 +14,11 @@ package "Backend" {
   [Identidad\nAuth + JWT + Security] as ID
   [Personas\nFachada + REST] as PE
   [Disponibilidad\nStrategy slots] as DI
-  [Citas\nAgenda + ciclo vida] as CI
+  [Citas\nAgenda + CSV + cédula] as CI
   [Núcleo] as NU
 }
 
+cloud "Keycloak\n:8180" as KC
 database "PostgreSQL" as DB
 
 UI --> APPF
@@ -33,9 +34,10 @@ DI --> NU
 CI --> NU
 ID --> PE : RegistrarPersonaPort
 DI --> PE : CatalogoMedicosPort
-CI --> PE : catálogos
+CI --> PE : catálogos / cédula
 CI --> DI : ConsultarConfiguracionPort
 DI --> CI : ConsultarCitasPort
+ID --> KC : emitir / validar JWT
 
 ID --> DB
 PE --> DB
