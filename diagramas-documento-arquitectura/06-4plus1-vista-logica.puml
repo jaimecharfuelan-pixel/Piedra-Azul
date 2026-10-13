@@ -1,0 +1,51 @@
+@startuml 06-4plus1-vista-logica
+title 4+1 — Vista lógica
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+package "Frontend (Angular — hexagonal)" {
+  [Presentación\npáginas + Atomic Design] as Pres
+  [Aplicación\ncasos de uso] as App
+  [Dominio\nmodelos y puertos] as Dom
+  [Infraestructura\nHTTP + guards + JWT] as Inf
+}
+
+package "Backend (monolito modular)" as API {
+  [Identidad] as Id
+  [Personas] as Per
+  [Disponibilidad] as Disp
+  [Citas\nCSV + cédula] as Cit
+  [Núcleo] as Nuc
+}
+
+cloud "Keycloak\n:8180" as KC
+database "PostgreSQL" as DB
+
+Pres --> App
+App --> Dom
+Inf ..> Dom : implementa puertos
+Pres --> Inf : usa adapters / guards
+Inf --> API : REST JSON + Bearer JWT
+
+Id --> KC : emitir / validar JWT
+Id --> Per : RegistrarPersonaPort
+Disp --> Per : CatalogoMedicosPort
+Cit --> Per : CatalogoMedicosPort\nCatalogoPacientesPort
+Cit <--> Disp : ConsultarConfiguracionPort /\nConsultarCitasPort
+
+API --> DB : JPA / JDBC
+
+note right of Nuc
+  Núcleo lo usan Identidad,
+  Personas, Disponibilidad y Citas
+  (tipos compartidos y errores).
+end note
+
+note bottom of Cit
+  CSV (RF4) y consulta por cédula (RF5)
+  se implementan en Citas.
+end note
+
+@enduml

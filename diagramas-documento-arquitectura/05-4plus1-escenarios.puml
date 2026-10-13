@@ -1,0 +1,69 @@
+@startuml 05-4plus1-escenarios
+left to right direction
+title 4+1 — Escenarios (casos de uso)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #E3EEFB
+  BorderColor #14487F
+}
+
+actor "Paciente" as Pac
+actor "Agendador" as Age
+actor "Médico" as Med
+actor "Administrador" as Adm
+
+rectangle "PiedraAzul" {
+
+  package "Autenticación" as PAuth {
+    usecase "Iniciar sesión\n(JWT Keycloak)" as UC1
+  }
+
+  package "Autoservicio /\nagendamiento" as PAge {
+    usecase "Registrarse (paciente)" as UC2
+    usecase "Agendar cita" as UC3
+    usecase "Reagendar o cancelar" as UC4
+  }
+
+  package "Operación del día\nRF1 · RF4 · RF5" as POp {
+    usecase "Consultar agenda" as UC8
+    usecase "Exportar CSV" as UC9
+    usecase "Citas por cédula" as UC10
+  }
+
+  package "Atención" as PClin {
+    usecase "Atender cita" as UC5
+  }
+
+  package "Configuración RF3" as PCfg {
+    usecase "Configurar horario" as UC6
+    usecase "Configurar ventana" as UC7
+  }
+}
+
+Pac --> PAge
+Age --> PAge
+Age --> POp
+Med --> POp
+Med --> PClin
+Med --> UC6
+Adm --> PCfg
+
+note top of PAuth
+  Todos los roles inician sesión:
+  Paciente, Agendador, Médico
+  y Administrador.
+end note
+
+note bottom of POp
+  Agendador: cualquier médico.
+  Médico: solo su agenda al exportar CSV.
+end note
+
+note bottom of PAge
+  Paciente: se registra y agenda para sí.
+  Agendador: agenda / cancela para pacientes.
+end note
+
+@enduml

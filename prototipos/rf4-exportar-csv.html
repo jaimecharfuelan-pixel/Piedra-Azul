@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RF4 · Exportar CSV · PiedraAzul</title>
+  <link rel="stylesheet" href="css/estilo.css" />
+</head>
+<body>
+  <header class="barra">
+    <a class="marca" href="index.html">
+      <span class="marca-logo">PA</span>
+      PiedraAzul
+    </a>
+    <nav class="nav-links">
+      <a class="activo" href="rf4-exportar-csv.html">RF4 CSV</a>
+      <a href="rf5-citas-por-cedula.html">RF5 Cédula</a>
+    </nav>
+    <span class="badge-proto">Prototipo</span>
+  </header>
+
+  <main class="contenido">
+    <section class="hero-mini">
+      <h1>Agenda del día</h1>
+      <p>
+        Elige un médico y una fecha para ver sus citas. Desde aquí puedes
+        exportar el listado de la jornada en formato CSV.
+      </p>
+      <div class="rf">RF4 · Rol: agendador / médico-terapista</div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Filtros de búsqueda</h2>
+      <p class="nota">El médico y la fecha son obligatorios para buscar y para exportar.</p>
+      <div class="rejilla rejilla-2">
+        <div class="campo">
+          <label for="medico">Médico / terapista</label>
+          <select id="medico"></select>
+        </div>
+        <div class="campo">
+          <label for="fecha">Fecha</label>
+          <input type="date" id="fecha" value="2026-10-13" />
+        </div>
+      </div>
+      <div class="acciones">
+        <button type="button" class="btn btn-primario" id="btnBuscar">Buscar citas</button>
+        <button type="button" class="btn btn-secundario" id="btnCsv">Exportar CSV</button>
+      </div>
+      <div id="aviso" class="alerta alerta-ok oculto"></div>
+      <div id="error" class="alerta alerta-error oculto"></div>
+    </section>
+
+    <section class="tarjeta" id="bloqueResultados">
+      <h2 id="tituloMedico">Resultados</h2>
+      <p class="nota" id="textoFecha"></p>
+      <div class="resumen">
+        <div class="kpi"><strong id="kpiTotal">0</strong><span>Total de citas</span></div>
+        <div class="kpi"><strong id="kpiProg">0</strong><span>Programadas</span></div>
+        <div class="kpi"><strong id="kpiAten">0</strong><span>Atendidas</span></div>
+        <div class="kpi"><strong id="kpiCanc">0</strong><span>Canceladas</span></div>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Paciente</th>
+              <th>Teléfono</th>
+              <th>Cédula</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div id="vacio" class="alerta alerta-info oculto">No hay citas para ese médico en esa fecha.</div>
+    </section>
+  </main>
+
+  <footer class="pie">Prototipo RF4 · datos de demostración</footer>
+  <script src="js/datos.js"></script>
+  <script>
+    const sel = document.getElementById("medico");
+    const fecha = document.getElementById("fecha");
+    const tbody = document.getElementById("tbody");
+    const aviso = document.getElementById("aviso");
+    const error = document.getElementById("error");
+    const vacio = document.getElementById("vacio");
+
+    PZ.medicos.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.nombre + " — " + m.especialidad;
+      sel.appendChild(opt);
+    });
+
+    function estadoClass(e) {
+      return "estado estado-" + e.toLowerCase();
+    }
+
+    function render() {
+      aviso.classList.add("oculto");
+      error.classList.add("oculto");
+      const medicoId = sel.value;
+      const f = fecha.value;
+      if (!medicoId || !f) {
+        error.textContent = "Indica médico y fecha.";
+        error.classList.remove("oculto");
+        return [];
+      }
+      const med = PZ.medicoPorId(medicoId);
+      const citas = PZ.citasPorMedicoYFecha(medicoId, f);
+      document.getElementById("tituloMedico").textContent = med.nombre;
+      document.getElementById("textoFecha").textContent = f;
+      document.getElementById("kpiTotal").textContent = citas.length;
+      document.getElementById("kpiProg").textContent = citas.filter((c) => c.estado === "PROGRAMADA").length;
+      document.getElementById("kpiAten").textContent = citas.filter((c) => c.estado === "ATENDIDA").length;
+      document.getElementById("kpiCanc").textContent = citas.filter((c) => c.estado === "CANCELADA").length;
+
+      tbody.innerHTML = "";
+      if (citas.length === 0) {
+        vacio.classList.remove("oculto");
+      } else {
+        vacio.classList.add("oculto");
+        citas.forEach((c) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" + c.horaInicio + " – " + c.horaFin + "</td>" +
+            "<td>" + c.pacienteNombre + "</td>" +
+            "<td>" + c.pacienteTelefono + "</td>" +
+            "<td>" + c.pacienteCedula + "</td>" +
+            "<td><span class=\"" + estadoClass(c.estado) + "\">" + c.estado + "</span></td>";
+          tbody.appendChild(tr);
+        });
+      }
+      return citas;
+    }
+
+    function exportarCsv() {
+      error.classList.add("oculto");
+      const medicoId = sel.value;
+      const f = fecha.value;
+      if (!medicoId || !f) {
+        error.textContent = "Indica médico y fecha antes de exportar.";
+        error.classList.remove("oculto");
+        return;
+      }
+      const citas = PZ.citasPorMedicoYFecha(medicoId, f);
+      const csv = PZ.aCsv(citas);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "agenda-" + medicoId + "-" + f + ".csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      aviso.textContent = "Se descargó el listado CSV de la jornada.";
+      aviso.classList.remove("oculto");
+    }
+
+    document.getElementById("btnBuscar").addEventListener("click", render);
+    document.getElementById("btnCsv").addEventListener("click", exportarCsv);
+    render();
+  </script>
+</body>
+</html>

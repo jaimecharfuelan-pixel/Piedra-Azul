@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Prototipo PiedraAzul</title>
+  <title>Prototipo PiedraAzul · Segundo corte</title>
   <link rel="stylesheet" href="css/estilo.css" />
 </head>
 <body>
@@ -12,51 +12,41 @@
       <span class="marca-logo">PA</span>
       PiedraAzul
     </a>
-    <span class="badge-proto">Prototipo HTML · datos de demostración</span>
+    <span class="badge-proto">Prototipo HTML · segundo corte</span>
   </header>
 
   <main class="contenido">
     <section class="hero-mini">
-      <h1>Prototipo de interfaces</h1>
+      <h1>Prototipos del segundo corte</h1>
       <p>
-        Pantallas conceptuales e interactivas (HTML/CSS/JS) para mostrar en el
-        documento y hacer pruebas de usabilidad de los requisitos funcionales
-        de alto valor.
+        Pantallas conceptuales (HTML/CSS/JS) alineadas a la SPA Angular para los
+        dos requisitos funcionales nuevos: exportación CSV y consulta por cédula.
       </p>
-      <div class="rf">Ingeniería de Software · Laboratorio · PiedraAzul</div>
+      <div class="rf">Ingeniería de Software III · Segundo corte · PiedraAzul</div>
     </section>
 
     <div class="alerta alerta-aviso">
-      No es el sistema real: no hay backend. Los datos están hardcodeados y el
-      flujo es solo para validar la experiencia de usuario.
+      Prototipo estático: no hay backend ni Keycloak. Los datos son de
+      demostración (RF4 exportación CSV y RF5 consulta por cédula).
     </div>
 
     <section class="cards-index">
-      <a class="card-link" href="rf1-listar-citas.html">
-        <h3>RF1 · Listar citas</h3>
+      <a class="card-link" href="rf4-exportar-csv.html">
+        <h3>RF4 · Exportar agenda a CSV</h3>
         <p>
-          Como agendador, filtro por médico/terapista y fecha para ver el
-          listado y la cantidad de citas en una tabla.
+          Como médico/terapista o agendador, elijo profesional y fecha en la
+          agenda del día y descargo el listado en CSV para la jornada.
         </p>
-        <span class="tag">Búsqueda + tabla</span>
+        <span class="tag">Agenda + CSV</span>
       </a>
 
-      <a class="card-link" href="rf2-agendar-cita.html">
-        <h3>RF2 · Agendar cita (paciente)</h3>
+      <a class="card-link" href="rf5-citas-por-cedula.html">
+        <h3>RF5 · Citas por cédula</h3>
         <p>
-          Registro sencillo y agendamiento web eligiendo profesional, fecha y
-          franja disponible, sin WhatsApp.
+          Como médico/terapista o agendador, busco un paciente por cédula y
+          reviso su historial completo de citas.
         </p>
-        <span class="tag">Registro + franjas</span>
-      </a>
-
-      <a class="card-link" href="rf3-configurar.html">
-        <h3>RF3 · Configurar disponibilidad</h3>
-        <p>
-          Como administrador, defino ventana de semanas, días, horario e
-          intervalo entre citas por profesional.
-        </p>
-        <span class="tag">Parámetros del sistema</span>
+        <span class="tag">Búsqueda + historial</span>
       </a>
     </section>
   </main>

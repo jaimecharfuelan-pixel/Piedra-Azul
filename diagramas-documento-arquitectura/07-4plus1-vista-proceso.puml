@@ -1,0 +1,36 @@
+@startuml 07-4plus1-vista-proceso
+title 4+1 — Vista de proceso: agendar una cita
+skinparam backgroundColor white
+skinparam shadowing false
+autonumber
+
+actor Paciente
+participant "SPA Angular" as SPA
+participant "Identidad\n(+ JWT Keycloak)" as ID
+participant "Citas" as CIT
+participant "Disponibilidad" as DIS
+participant "Personas" as PER
+database "PostgreSQL" as DB
+
+Paciente -> SPA : Elige médico, fecha y franja
+SPA -> ID : Authorization Bearer
+ID --> SPA : Rol y personaId válidos
+SPA -> DIS : Franjas libres
+DIS -> PER : CatalogoMedicosPort
+DIS -> CIT : ConsultarCitasPort
+DIS -> DB : Periodo vigente
+DIS --> SPA : Slots libres
+Paciente -> SPA : Confirma
+SPA -> CIT : Crear cita
+CIT -> DIS : ConsultarConfiguracionPort
+CIT -> PER : CatalogoPacientesPort
+CIT -> DB : Inserta PROGRAMADA
+CIT --> SPA : Cita creada
+SPA --> Paciente : Franja ocupada; cita en próximas
+
+note right of ID
+  El JWT lo emitió Keycloak en el login;
+  aquí solo se valida (OAuth2 Resource Server).
+end note
+
+@enduml

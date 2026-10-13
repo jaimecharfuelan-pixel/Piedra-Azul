@@ -1,0 +1,19 @@
+@startuml 04-c4-codigo-disponibilidad
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title PiedraAzul — C4 nivel 4: cálculo de franjas (Disponibilidad)
+LAYOUT_LEFT_RIGHT()
+
+Component(caso, "ConsultarDisponibilidadService", "Caso de uso", "Pide el periodo vigente y las citas ocupadas")
+Component(estrategia, "CalculadorSlotsStrategy", "Puerto", "Contrato del cálculo de franjas")
+Component(fijo, "CalculadorSlotsPorIntervaloFijo", "Estrategia", "Avanza duración + descanso y descarta lo ocupado")
+Component(periodo, "PeriodoDisponibilidad", "Agregado", "Días, franja, vigencia y rejilla")
+Component(citasPort, "ConsultarCitasPort", "Puerto", "Rangos ocupados del módulo Citas")
+
+Rel(caso, periodo, "Selecciona el periodo que cubre la fecha")
+Rel(caso, citasPort, "Obtiene rangos ocupados")
+Rel(caso, estrategia, "Delega el cálculo")
+Rel(fijo, estrategia, "Implementa")
+Rel(fijo, periodo, "Recorre la franja")
+
+@enduml

@@ -9,9 +9,11 @@ Agendamiento de citas (médicas / terapia). Ing. Soft. III — Unicauca.
 | `backend/` | API Spring Boot (monolito modular) |
 | `frontend/` | Angular 19 |
 | `keycloak/` | realm del RNF1 |
-| `prototipos/` | HTML/CSS/JS del primer corte |
-| `diagramas-por-modulo/` | PlantUML de implementación |
+| `prototipos/` | HTML/CSS/JS (RF4 CSV y RF5 cédula) |
+| `diagramas-por-modulo/` | PlantUML de implementación por módulo |
 | `diagramas-sad/` | contexto, secuencias, despliegue |
+| `diagramas-documento-arquitectura/` | PlantUML C4 y 4+1 del documento de arquitectura |
+| `seguridad-owasp/` | Informe y reportes baseline OWASP ZAP |
 
 ## Arranque
 

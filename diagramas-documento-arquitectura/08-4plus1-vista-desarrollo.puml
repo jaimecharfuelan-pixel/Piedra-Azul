@@ -1,0 +1,53 @@
+@startuml 08-4plus1-vista-desarrollo
+title 4+1 — Vista de desarrollo (estructura del repositorio)
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+package "frontend/src/app" {
+  package domain
+  package application
+  package infrastructure
+  package presentation
+}
+
+package "backend/com.piedraazul" {
+  package nucleo
+  package identidad
+  package personas
+  package disponibilidad
+  package citas
+}
+
+package "despliegue y soporte" {
+  package "docker-compose.yml" as DC
+  package "keycloak/\nrealm-piedraazul.json" as KC
+  package "prototipos/\nRF4 + RF5" as PROTO
+  package "diagramas-documento-arquitectura/" as DIAG
+  package "seguridad-owasp/" as ZAP
+}
+
+application --> domain
+infrastructure --> domain
+presentation --> application
+
+identidad --> nucleo
+personas --> nucleo
+disponibilidad --> nucleo
+citas --> nucleo
+identidad --> personas
+disponibilidad --> personas
+citas --> personas
+citas --> disponibilidad
+disponibilidad --> citas
+
+DC ..> KC : importa realm
+DC ..> identidad : APP_SECURITY_PROVIDER=keycloak
+
+note right of citas
+  En Citas:
+  ExportarCitasCsvService (RF4)
+  ConsultarCitasPorCedulaService (RF5)
+end note
+
+@enduml

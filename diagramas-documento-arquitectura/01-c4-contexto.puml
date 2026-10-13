@@ -1,0 +1,21 @@
+@startuml 01-c4-contexto
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+title PiedraAzul — C4 nivel 1: contexto
+
+Person(paciente, "Paciente", "Se registra, consulta franjas y gestiona sus citas")
+Person(agendador, "Agendador", "Agenda del día, CSV y citas por cédula")
+Person(medico, "Médico / terapista", "Su agenda, atención, CSV y citas por cédula")
+Person(admin, "Administrador", "Usuarios, profesionales y ventana de agendamiento")
+
+System(piedra, "PiedraAzul", "Agendamiento de citas médicas y de terapia\n(SPA Angular + API Spring Boot + PostgreSQL)")
+System_Ext(keycloak, "Keycloak", "Emite y firma JWT (realm piedraazul)")
+
+Rel(paciente, piedra, "Reserva, reagenda y cancela", "HTTPS")
+Rel(agendador, piedra, "Agenda, exporta CSV, consulta por cédula", "HTTPS")
+Rel(medico, piedra, "Atiende, exporta CSV, consulta por cédula", "HTTPS")
+Rel(admin, piedra, "Configura el centro", "HTTPS")
+Rel(piedra, keycloak, "Password grant / JWKS", "HTTPS")
+
+@enduml

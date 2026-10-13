@@ -1,0 +1,38 @@
+@startuml 03-c4-componentes-api
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_TOP_DOWN()
+title PiedraAzul — C4 nivel 3: componentes de la API
+
+Container(spa, "Aplicación web", "Angular", "Pantallas por rol")
+Container_Ext(kc, "Keycloak", "JWT / realm piedraazul")
+ContainerDb(db, "PostgreSQL", "Base de datos")
+
+Container_Boundary(api, "API Spring Boot") {
+  Component(identidad, "Identidad", "Spring Security + OAuth2 RS", "Login, registro, sync Keycloak, matriz de roles")
+  Component(personas, "Personas", "Java", "Especialidades, médicos, pacientes y búsqueda por cédula")
+  Component(disponibilidad, "Disponibilidad", "Java", "Ventana, periodos y franjas libres")
+  Component(citas, "Citas", "Java", "Agenda, ciclo de vida, CSV (RF4) y citas por cédula (RF5)")
+  Component(nucleo, "Núcleo", "Java", "TimeRange, DiaSemana y errores de negocio")
+}
+
+Rel(spa, api, "Consume REST", "JSON + Bearer JWT")
+Rel(identidad, kc, "Password grant / JWKS")
+Rel(identidad, personas, "RegistrarPersonaPort")
+Rel(disponibilidad, personas, "CatalogoMedicosPort")
+Rel(citas, personas, "CatalogoMedicosPort\nCatalogoPacientesPort")
+BiRel(citas, disponibilidad, "ConsultarConfiguracionPort /\nConsultarCitasPort")
+Rel(api, db, "JPA / JDBC")
+
+note right of nucleo
+  Identidad, Personas,
+  Disponibilidad y Citas
+  dependen de Núcleo
+  (tipos y excepciones).
+end note
+
+Lay_D(spa, api)
+Lay_R(api, kc)
+Lay_D(api, db)
+
+@enduml

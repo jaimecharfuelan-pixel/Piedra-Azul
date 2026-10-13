@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RF5 · Citas por cédula · PiedraAzul</title>
+  <link rel="stylesheet" href="css/estilo.css" />
+</head>
+<body>
+  <header class="barra">
+    <a class="marca" href="index.html">
+      <span class="marca-logo">PA</span>
+      PiedraAzul
+    </a>
+    <nav class="nav-links">
+      <a href="rf4-exportar-csv.html">RF4 CSV</a>
+      <a class="activo" href="rf5-citas-por-cedula.html">RF5 Cédula</a>
+    </nav>
+    <span class="badge-proto">Prototipo</span>
+  </header>
+
+  <main class="contenido">
+    <section class="hero-mini">
+      <h1>Citas por cédula</h1>
+      <p>
+        Busca un paciente por su documento y revisa el historial completo de
+        citas. Útil para médicos, terapistas y agendadores durante la jornada.
+      </p>
+      <div class="rf">RF5 · Rol: agendador / médico-terapista</div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Consulta por documento</h2>
+      <p class="nota">Usa la cédula del paciente (solo dígitos, 6 a 15). Ejemplos demo: 1001001001, 1002002002, 1999000000.</p>
+      <div class="rejilla rejilla-2">
+        <div class="campo">
+          <label for="cedula">Cédula</label>
+          <input
+            id="cedula"
+            type="text"
+            inputmode="numeric"
+            placeholder="Ej. 1001001001"
+            autocomplete="off"
+          />
+        </div>
+        <div class="campo" style="display:flex;align-items:flex-end;">
+          <button type="button" class="btn btn-primario" id="btnBuscar">Buscar historial</button>
+        </div>
+      </div>
+      <div id="error" class="alerta alerta-error oculto"></div>
+    </section>
+
+    <div id="resumen" class="resumen oculto">
+      <div class="kpi"><strong id="kpiNombre">—</strong><span>Paciente</span></div>
+      <div class="kpi"><strong id="kpiCedula">—</strong><span>Cédula</span></div>
+      <div class="kpi"><strong id="kpiTel">—</strong><span>Teléfono</span></div>
+      <div class="kpi"><strong id="kpiCant">0</strong><span>Citas</span></div>
+    </div>
+
+    <section class="tarjeta oculto" id="resultados">
+      <h2>Historial de citas</h2>
+      <p class="nota" id="ayudaHistorial"></p>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Médico</th>
+              <th>Estado</th>
+              <th>Duración</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div id="vacio" class="alerta alerta-info oculto">
+        Este paciente aún no tiene citas. Puedes agendarle una desde Agendar cuando tenga franjas disponibles.
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">Prototipo RF5 · datos de demostración</footer>
+  <script src="js/datos.js"></script>
+  <script>
+    const input = document.getElementById("cedula");
+    const error = document.getElementById("error");
+    const resumen = document.getElementById("resumen");
+    const resultados = document.getElementById("resultados");
+    const tbody = document.getElementById("tbody");
+    const vacio = document.getElementById("vacio");
+
+    function estadoClass(e) {
+      return "estado estado-" + e.toLowerCase();
+    }
+
+    function buscar() {
+      error.classList.add("oculto");
+      resumen.classList.add("oculto");
+      resultados.classList.add("oculto");
+      tbody.innerHTML = "";
+      vacio.classList.add("oculto");
+
+      const raw = input.value;
+      const cedula = PZ.normalizarCedula(raw);
+      if (!/^\d{6,15}$/.test(cedula)) {
+        error.textContent = "Indica una cédula válida (6 a 15 dígitos).";
+        error.classList.remove("oculto");
+        return;
+      }
+
+      const p = PZ.buscarPorCedula(cedula);
+      if (!p) {
+        error.textContent = "No se encontró un paciente con esa cédula.";
+        error.classList.remove("oculto");
+        return;
+      }
+
+      document.getElementById("kpiNombre").textContent = p.nombreCompleto;
+      document.getElementById("kpiCedula").textContent = p.cedula;
+      document.getElementById("kpiTel").textContent = p.telefono || "—";
+      document.getElementById("kpiCant").textContent = p.citas.length;
+      document.getElementById("ayudaHistorial").textContent =
+        p.nombreCompleto + " · " + p.citas.length + (p.citas.length === 1 ? " cita" : " citas");
+      resumen.classList.remove("oculto");
+      resultados.classList.remove("oculto");
+
+      if (p.citas.length === 0) {
+        vacio.classList.remove("oculto");
+        return;
+      }
+
+      p.citas.forEach((c) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" + c.fecha + "</td>" +
+          "<td>" + c.horaInicio + " – " + c.horaFin + "</td>" +
+          "<td>" + c.medicoNombre + "</td>" +
+          "<td><span class=\"" + estadoClass(c.estado) + "\">" + c.estado + "</span></td>" +
+          "<td>" + c.duracionMinutos + " min</td>";
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("btnBuscar").addEventListener("click", buscar);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") buscar();
+    });
+  </script>
+</body>
+</html>

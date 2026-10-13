@@ -1,0 +1,22 @@
+@startuml 02-c4-contenedores
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+title PiedraAzul — C4 nivel 2: contenedores
+
+Person(usuario, "Usuario del centro", "Paciente, agendador, médico o administrador")
+
+System_Boundary(sys, "PiedraAzul") {
+  Container(spa, "Aplicación web", "Angular 19 + Nginx", "Pantallas por rol, agenda, CSV, citas por cédula, calendario")
+  Container(api, "API", "Spring Boot, Java 17", "Monolito modular: identidad, personas, disponibilidad y citas")
+  ContainerDb(db, "Base de datos", "PostgreSQL 16", "Usuarios locales, personas, horarios y citas")
+  Container(kc, "Keycloak", "Keycloak 26", "Realm piedraazul; emite JWT (RNF1)")
+}
+
+Rel(usuario, spa, "Usa", "HTTPS :4200")
+Rel(spa, api, "Consume", "JSON / HTTPS, Bearer JWT")
+Rel(api, db, "Lee y escribe", "JDBC")
+Rel(api, kc, "Login (password grant) y validación JWKS", "HTTPS :8180")
+Rel(usuario, kc, "Consola admin (opcional)", "HTTPS :8180")
+
+@enduml

@@ -1,0 +1,45 @@
+@startuml 09-4plus1-vista-fisica
+title 4+1 — Vista física / despliegue (Docker Compose)
+skinparam backgroundColor white
+skinparam shadowing false
+
+node "Equipo del usuario" {
+  artifact "Navegador" as BR
+}
+
+node "Host Docker" {
+  node "piedraazul-frontend" {
+    artifact "Nginx + SPA Angular\n:4200 → 80" as FE
+  }
+  node "piedraazul-backend" {
+    artifact "Spring Boot\nJRE 17 :8080" as BE
+  }
+  node "piedraazul-keycloak" {
+    artifact "Keycloak 26\nrealm piedraazul :8180" as KC
+  }
+  node "piedraazul-db" {
+    database "PostgreSQL 16\n:5432" as DB
+  }
+  node "piedraazul-docs\n(opcional)" {
+    artifact "MkDocs :8000" as DOC
+  }
+}
+
+BR --> FE : HTTP
+BR --> KC : consola / token (opcional)
+FE --> BE : /api JSON + Bearer
+BE --> DB : JDBC
+BE --> KC : password grant + JWKS
+
+note right of BE
+  APP_SECURITY_PROVIDER=keycloak
+  SeedDatosDemo al arrancar
+end note
+
+note right of KC
+  Import: keycloak/realm-piedraazul.json
+  Roles: ADMINISTRADOR, AGENDADOR,
+  MEDICO, PACIENTE
+end note
+
+@enduml
